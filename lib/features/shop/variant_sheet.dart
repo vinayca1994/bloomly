@@ -1,0 +1,116 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/format.dart';
+import '../../core/theme.dart';
+import '../../core/widgets.dart';
+import '../../data/cart_controller.dart';
+import '../../data/models.dart';
+
+void showVariantSheet(BuildContext context, Product product) {
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => _VariantSheet(product: product),
+  );
+}
+
+class _VariantSheet extends ConsumerWidget {
+  const _VariantSheet({required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cart = ref.watch(cartProvider.notifier);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              product.name,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Choose a size',
+              style: TextStyle(color: BloomlyColors.muted),
+            ),
+            const SizedBox(height: 12),
+            for (final variant in product.variants) ...[
+              _row(context, ref, cart, variant),
+              const Divider(height: 1, color: BloomlyColors.line),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _row(
+    BuildContext context,
+    WidgetRef ref,
+    CartController cart,
+    Variant variant,
+  ) {
+    final qty = cart.qtyOf(product.id, variant.id);
+    final off = percentOff(variant.price, variant.mrp);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  variant.label,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      money(variant.price),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    if (off > 0) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        money(variant.mrp),
+                        style: const TextStyle(
+                          color: BloomlyColors.muted,
+                          decoration: TextDecoration.lineThrough,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (qty == 0)
+            FilledButton(
+              style: FilledButton.styleFrom(minimumSize: const Size(72, 36)),
+              onPressed: () => cart.addOne(product.id, variant.id),
+              child: const Text('ADD'),
+            )
+          else
+            QtyStepper(
+              qty: qty,
+              onMinus: () => cart.setQty(product.id, variant.id, qty - 1),
+              onPlus: () => cart.addOne(product.id, variant.id),
+            ),
+        ],
+      ),
+    );
+  }
+}
