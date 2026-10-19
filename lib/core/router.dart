@@ -6,6 +6,7 @@ import '../data/providers.dart';
 import '../features/account/account_screen.dart';
 import '../features/account/addresses_screen.dart';
 import '../features/account/login_screen.dart';
+import '../features/account/privacy_screen.dart';
 import '../features/cart/cart_screen.dart';
 import '../features/cart/checkout_screen.dart';
 import '../features/orders/orders_screen.dart';
@@ -90,6 +91,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                     parentNavigatorKey: rootKey,
                     builder: (context, state) =>
                         const PhoneFrame(child: AddressesScreen()),
+                  ),
+                  GoRoute(
+                    path: 'privacy',
+                    parentNavigatorKey: rootKey,
+                    builder: (context, state) => const PhoneFrame(child: PrivacyScreen()),
                   ),
                 ],
               ),

@@ -44,9 +44,24 @@ String statusLabel(String status) {
       return 'Delivered';
     case OrderStatus.cancelled:
       return 'Cancelled';
+    case OrderStatus.paymentPending:
+      return 'Awaiting payment';
     default:
       return status;
   }
+}
+
+String paymentLabel(OrderRecord order) {
+  if (order.paymentMethod == PaymentMethod.cod) return 'Cash on delivery';
+  if (order.paymentStatus == PaymentStatus.paid) return 'Paid by UPI';
+  if (order.paymentStatus == PaymentStatus.submitted) return 'UPI sent, waiting for the store';
+  if (order.paymentStatus == PaymentStatus.failed) return 'UPI payment failed';
+  return 'Pay with UPI';
+}
+
+String customerStatusLabel(OrderRecord order) {
+  if (order.paymentStatus == PaymentStatus.submitted) return 'UPI sent';
+  return statusLabel(order.status);
 }
 
 String nextStatusAction(String status) {

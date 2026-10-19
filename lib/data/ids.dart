@@ -12,4 +12,7 @@ class Ids {
   static const bucket = 'product-images';
   static const storeRow = 'main';
   static const ownerUser = 'bloomly-owner';
+  static const phoneLogin = 'phone-login';
+  static const payments = 'payments';
+  static const deleteAccount = 'delete-account';
 }

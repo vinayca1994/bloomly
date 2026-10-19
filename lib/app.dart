@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/router.dart';
 import 'core/theme.dart';
 import 'data/providers.dart';
+import 'features/account/lock_gate.dart';
 
 class BloomlyApp extends ConsumerWidget {
   const BloomlyApp({super.key});
@@ -40,7 +41,7 @@ class BloomlyApp extends ConsumerWidget {
             ),
           );
         }
-        return child ?? const SizedBox.shrink();
+        return LockGate(child: child ?? const SizedBox.shrink());
       },
     );
   }

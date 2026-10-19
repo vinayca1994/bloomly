@@ -12,7 +12,13 @@ class OwnerOrdersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final backend = ref.watch(backendProvider);
-    final orders = [...backend.orders]..sort((a, b) => b.placedAt.compareTo(a.placedAt));
+    final orders = [
+      ...backend.orders.where(
+        (order) =>
+            OrderStatus.visibleToStore(order.status) ||
+            (order.paymentMethod == PaymentMethod.upi && order.awaitingPayment),
+      ),
+    ]..sort((a, b) => b.placedAt.compareTo(a.placedAt));
     if (orders.isEmpty) {
       return const Center(
         child: Text('No orders yet', style: TextStyle(color: BloomlyColors.muted)),
@@ -49,10 +55,22 @@ class OwnerOrdersScreen extends ConsumerWidget {
                 Text(order.addressSnapshot),
                 const SizedBox(height: 6),
                 Text(order.items.map((item) => '${item.name} × ${item.qty}').join(', ')),
+                const SizedBox(height: 4),
+                Text(paymentLabel(order), style: const TextStyle(color: BloomlyColors.muted)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   children: [
+                    if (order.paymentMethod == PaymentMethod.upi && order.awaitingPayment) ...[
+                      FilledButton(
+                        onPressed: () => backend.confirmUpiPayment(order.id),
+                        child: const Text('Payment received'),
+                      ),
+                      OutlinedButton(
+                        onPressed: () => backend.updateOrderStatus(order.id, OrderStatus.cancelled),
+                        child: const Text('Cancel'),
+                      ),
+                    ],
                     if (next != null)
                       FilledButton(
                         onPressed: () => backend.updateOrderStatus(order.id, next),

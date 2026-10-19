@@ -4,12 +4,16 @@ class StoreSettings {
     required this.etaLabel,
     required this.deliveryFee,
     required this.freeDeliveryAbove,
+    this.upiId = '',
+    this.upiName = 'Bloomly',
   });
 
   final String city;
   final String etaLabel;
   final int deliveryFee;
   final int freeDeliveryAbove;
+  final String upiId;
+  final String upiName;
 
   static const fallback = StoreSettings(
     city: 'Bengaluru',
@@ -23,12 +27,16 @@ class StoreSettings {
     String? etaLabel,
     int? deliveryFee,
     int? freeDeliveryAbove,
+    String? upiId,
+    String? upiName,
   }) {
     return StoreSettings(
       city: city ?? this.city,
       etaLabel: etaLabel ?? this.etaLabel,
       deliveryFee: deliveryFee ?? this.deliveryFee,
       freeDeliveryAbove: freeDeliveryAbove ?? this.freeDeliveryAbove,
+      upiId: upiId ?? this.upiId,
+      upiName: upiName ?? this.upiName,
     );
   }
 
@@ -37,6 +45,8 @@ class StoreSettings {
     'etaLabel': etaLabel,
     'deliveryFee': deliveryFee,
     'freeDeliveryAbove': freeDeliveryAbove,
+    'upiId': upiId,
+    'upiName': upiName,
   };
 }
 
@@ -169,20 +179,36 @@ class Product {
   };
 }
 
+class PaymentMethod {
+  static const cod = 'cod';
+  static const upi = 'upi';
+}
+
+class PaymentStatus {
+  static const pending = 'pending';
+  static const submitted = 'submitted';
+  static const paid = 'paid';
+  static const failed = 'failed';
+}
+
 class Profile {
   const Profile({
     required this.id,
     required this.name,
     required this.email,
     required this.role,
+    this.phone = '',
   });
 
   final String id;
   final String name;
   final String email;
+  final String phone;
   final String role;
 
   bool get isOwner => role == 'owner';
+
+  String get contact => email.isNotEmpty ? email : phone;
 }
 
 class Address {
@@ -195,6 +221,8 @@ class Address {
     required this.city,
     required this.pincode,
     required this.isDefault,
+    this.latitude,
+    this.longitude,
   });
 
   final String id;
@@ -205,6 +233,8 @@ class Address {
   final String city;
   final String pincode;
   final bool isDefault;
+  final double? latitude;
+  final double? longitude;
 
   String get snapshot => '$label · $line, $area, $city $pincode';
 
@@ -218,6 +248,8 @@ class Address {
       city: city,
       pincode: pincode,
       isDefault: isDefault ?? this.isDefault,
+      latitude: latitude,
+      longitude: longitude,
     );
   }
 
@@ -229,6 +261,8 @@ class Address {
     'city': city,
     'pincode': pincode,
     'isDefault': isDefault,
+    'latitude': latitude?.toString() ?? '',
+    'longitude': longitude?.toString() ?? '',
   };
 }
 
@@ -238,8 +272,11 @@ class OrderStatus {
   static const outForDelivery = 'out_for_delivery';
   static const delivered = 'delivered';
   static const cancelled = 'cancelled';
+  static const paymentPending = 'payment_pending';
 
   static const flow = [placed, packing, outForDelivery, delivered];
+
+  static bool visibleToStore(String status) => status != paymentPending;
 
   static String? next(String status) {
     switch (status) {
@@ -304,6 +341,9 @@ class OrderRecord {
     required this.paymentMethod,
     required this.placedAt,
     required this.items,
+    this.paymentStatus = PaymentStatus.pending,
+    this.gatewayOrderId = '',
+    this.gatewayPaymentId = '',
   });
 
   final String id;
@@ -314,10 +354,21 @@ class OrderRecord {
   final int deliveryFee;
   final int total;
   final String paymentMethod;
+  final String paymentStatus;
+  final String gatewayOrderId;
+  final String gatewayPaymentId;
   final DateTime placedAt;
   final List<OrderItem> items;
 
-  OrderRecord copyWith({String? status, List<OrderItem>? items}) {
+  bool get awaitingPayment => status == OrderStatus.paymentPending;
+
+  OrderRecord copyWith({
+    String? status,
+    List<OrderItem>? items,
+    String? paymentStatus,
+    String? gatewayOrderId,
+    String? gatewayPaymentId,
+  }) {
     return OrderRecord(
       id: id,
       userId: userId,
@@ -327,6 +378,9 @@ class OrderRecord {
       deliveryFee: deliveryFee,
       total: total,
       paymentMethod: paymentMethod,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      gatewayOrderId: gatewayOrderId ?? this.gatewayOrderId,
+      gatewayPaymentId: gatewayPaymentId ?? this.gatewayPaymentId,
       placedAt: placedAt,
       items: items ?? this.items,
     );
@@ -340,6 +394,9 @@ class OrderRecord {
     'deliveryFee': deliveryFee,
     'total': total,
     'paymentMethod': paymentMethod,
+    'paymentStatus': paymentStatus,
+    'gatewayOrderId': gatewayOrderId,
+    'gatewayPaymentId': gatewayPaymentId,
     'placedAt': placedAt.toIso8601String(),
   };
 }

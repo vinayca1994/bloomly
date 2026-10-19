@@ -1,15 +1,19 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
 
-import '../core/bill.dart';
 import '../core/config.dart';
+import '../core/phone.dart';
+import 'auth_result.dart';
 import 'backend.dart';
 import 'ids.dart';
 import 'models.dart';
+import 'online_payment.dart';
+import 'pricing.dart';
 
 class AppwriteBackend extends BloomlyBackend {
   AppwriteBackend(this.config) {
@@ -18,6 +22,7 @@ class AppwriteBackend extends BloomlyBackend {
     _account = Account(_client);
     _storage = Storage(_client);
     _realtime = Realtime(_client);
+    _functions = Functions(_client);
     unawaited(_load());
   }
 
@@ -27,6 +32,7 @@ class AppwriteBackend extends BloomlyBackend {
   late final Account _account;
   late final Storage _storage;
   late final Realtime _realtime;
+  late final Functions _functions;
   RealtimeSubscription? _subscription;
 
   @override
@@ -99,7 +105,16 @@ class AppwriteBackend extends BloomlyBackend {
 
   Future<void> _reloadCatalog() async {
     final storeDocs = await _all(Ids.store);
-    if (storeDocs.isNotEmpty) store = _storeFrom(storeDocs.first);
+    if (storeDocs.isNotEmpty) {
+      final loaded = _storeFrom(storeDocs.first);
+      final fromEnv = config.upiId.trim();
+      store = loaded.upiId.trim().isEmpty && fromEnv.isNotEmpty
+          ? loaded.copyWith(
+              upiId: fromEnv,
+              upiName: config.upiName.trim().isEmpty ? loaded.upiName : config.upiName.trim(),
+            )
+          : loaded;
+    }
     final categoryDocs = await _all(Ids.categories);
     categories = categoryDocs.map(_categoryFrom).toList()
       ..sort((a, b) => a.sort.compareTo(b.sort));
@@ -127,8 +142,9 @@ class AppwriteBackend extends BloomlyBackend {
       final user = await _account.get();
       currentUser = Profile(
         id: user.$id,
-        name: user.name.isEmpty ? user.email : user.name,
+        name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.labels.contains('owner') ? 'owner' : 'customer',
       );
     } on AppwriteException {
@@ -208,7 +224,12 @@ class AppwriteBackend extends BloomlyBackend {
         databaseId: Ids.database,
         tableId: Ids.profiles,
         rowId: user.$id,
-        data: {'userId': user.$id, 'name': name.trim(), 'role': 'customer'},
+        data: {
+          'userId': user.$id,
+          'name': name.trim(),
+          'role': 'customer',
+          'phone': '',
+        },
         permissions: [
           Permission.read(Role.user(user.$id)),
           Permission.read(Role.label('owner')),
@@ -223,6 +244,96 @@ class AppwriteBackend extends BloomlyBackend {
   }
 
   @override
+  Future<PhoneLoginStart> startPhoneLogin(String phone) async {
+    final normalized = PhoneNumber.normalizeIndia(phone);
+    if (normalized == null) {
+      return const PhoneLoginStart.failure('Enter a valid 10-digit mobile number.');
+    }
+    try {
+      final payload = await _execute(Ids.phoneLogin, {'phone': normalized});
+      final userId = payload['userId']?.toString() ?? '';
+      if (userId.isEmpty) {
+        return const PhoneLoginStart.failure('Could not start phone sign-in.');
+      }
+      await _account.createPhoneToken(userId: userId, phone: normalized);
+      return PhoneLoginStart(userId: userId, isNew: payload['isNew'] == true);
+    } on BloomlyException catch (error) {
+      return PhoneLoginStart.failure(error.message);
+    } on AppwriteException catch (error) {
+      return PhoneLoginStart.failure(error.message ?? 'Could not send the code.');
+    }
+  }
+
+  @override
+  Future<String?> verifyPhoneOtp({required String userId, required String code}) async {
+    try {
+      await _account.createSession(userId: userId, secret: code.trim());
+      await _loadSession();
+      await _refreshAddresses();
+      await _reloadOrders();
+      notifyListeners();
+      return null;
+    } on AppwriteException catch (error) {
+      return error.message ?? 'That code is wrong.';
+    }
+  }
+
+  @override
+  Future<String?> updateDisplayName(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return 'Add your name.';
+    final user = currentUser;
+    if (user == null) return 'Sign in first.';
+    try {
+      await _account.updateName(name: trimmed);
+      try {
+        await _tables.updateRow(
+          databaseId: Ids.database,
+          tableId: Ids.profiles,
+          rowId: user.id,
+          data: {'name': trimmed},
+        );
+      } on AppwriteException {
+        // Phone accounts have no profile row until one is created.
+      }
+      await _loadSession();
+      notifyListeners();
+      return null;
+    } on AppwriteException catch (error) {
+      return error.message ?? 'Could not save your name.';
+    }
+  }
+
+  @override
+  Future<RecoveryStart> sendPasswordReset(String email) async {
+    try {
+      final token = await _account.createRecoveryOTP(email: email.trim().toLowerCase());
+      return RecoveryStart(userId: token.userId);
+    } on AppwriteException catch (error) {
+      return RecoveryStart.failure(error.message ?? 'Could not send a reset code.');
+    }
+  }
+
+  @override
+  Future<String?> completePasswordReset({
+    required String userId,
+    required String code,
+    required String password,
+  }) async {
+    if (password.length < 8) return 'Use at least 8 characters.';
+    try {
+      await _account.updateRecoveryOTP(
+        userId: userId,
+        secret: code.trim(),
+        password: password,
+      );
+      return null;
+    } on AppwriteException catch (error) {
+      return error.message ?? 'Could not reset the password.';
+    }
+  }
+
+  @override
   Future<void> signOut() async {
     try {
       await _account.deleteSession(sessionId: 'current');
@@ -230,6 +341,22 @@ class AppwriteBackend extends BloomlyBackend {
     currentUser = null;
     _cachedAddresses = [];
     notifyListeners();
+  }
+
+  @override
+  Future<String?> deleteAccount() async {
+    final user = currentUser;
+    if (user == null) return 'Sign in first.';
+    if (user.isOwner) return 'The store owner account cannot be deleted here.';
+    try {
+      await _execute(Ids.deleteAccount, {});
+      await signOut();
+      return null;
+    } on BloomlyException catch (error) {
+      return error.message;
+    } on AppwriteException catch (error) {
+      return error.message ?? 'Could not delete the account.';
+    }
   }
 
   @override
@@ -285,57 +412,124 @@ class AppwriteBackend extends BloomlyBackend {
     required String userId,
     required Address address,
     required List<CartLine> lines,
+  }) {
+    return _createOrder(
+      userId: userId,
+      address: address,
+      lines: lines,
+      status: OrderStatus.placed,
+      paymentMethod: PaymentMethod.cod,
+      paymentStatus: PaymentStatus.pending,
+    );
+  }
+
+  @override
+  Future<OnlinePayment> startOnlinePayment({
+    required String userId,
+    required Address address,
+    required List<CartLine> lines,
   }) async {
-    if (lines.isEmpty) throw BloomlyException('Your cart is empty.');
-    if (address.city.trim().toLowerCase() != store.city.trim().toLowerCase()) {
-      throw BloomlyException('Bloomly delivers in ${store.city} only.');
+    final payload = await _execute(Ids.payments, {
+      'action': 'create',
+      'address': address.toMap(),
+      'lines': [
+        for (final line in lines) line.toJson(),
+      ],
+    });
+    await _reloadOrders();
+    final orderId = payload['orderId']?.toString() ?? '';
+    final order = orderById(orderId);
+    if (order == null) {
+      throw BloomlyException('The payment was started but the order is missing.');
     }
-    final drafts = <OrderItem>[];
-    var subtotal = 0;
-    for (final line in lines) {
-      final product = productById(line.productId);
-      final variant = variantOf(line.productId, line.variantId);
-      if (product == null || variant == null || !product.forSale) {
-        throw BloomlyException(
-          '${product?.name ?? 'An item'} is sold out. Remove it to continue.',
-        );
-      }
-      subtotal += variant.price * line.qty;
-      drafts.add(
-        OrderItem(
-          id: '',
-          orderId: '',
-          productId: product.id,
-          name: product.name,
-          variantLabel: variant.label,
-          unitPrice: variant.price,
-          qty: line.qty,
-        ),
-      );
+    final amount = payload['amountRupees'];
+    final amountRupees = amount is num ? amount.round() : int.tryParse('$amount') ?? order.total;
+    final upiId = payload['upiId']?.toString().trim() ?? '';
+    final upiName = payload['upiName']?.toString().trim() ?? '';
+    return OnlinePayment(
+      order: order,
+      upiId: upiId.isNotEmpty ? upiId : store.upiId,
+      upiName: upiName.isNotEmpty ? upiName : store.upiName,
+      amountRupees: amountRupees,
+    );
+  }
+
+  @override
+  Future<String?> noteUpiPayment({
+    required String orderId,
+    required String reference,
+  }) async {
+    try {
+      await _execute(Ids.payments, {
+        'action': 'note',
+        'orderId': orderId,
+        'reference': reference,
+      });
+      await _reloadOrders();
+      return null;
+    } on BloomlyException catch (error) {
+      return error.message;
     }
-    final fee = deliveryFeeFor(
-      subtotal,
-      fee: store.deliveryFee,
-      freeAbove: store.freeDeliveryAbove,
+  }
+
+  @override
+  Future<String?> confirmUpiPayment(String orderId) async {
+    try {
+      await _execute(Ids.payments, {
+        'action': 'confirm',
+        'orderId': orderId,
+      });
+      await _reloadOrders();
+      return null;
+    } on BloomlyException catch (error) {
+      return error.message;
+    }
+  }
+
+  @override
+  Future<String?> completeTestPayment(String orderId) async {
+    if (orderId.isEmpty) return 'Order not found.';
+    return 'Pay in BHIM, GPay, PhonePe, or Paytm, then tap I have paid.';
+  }
+
+  Future<OrderRecord> _createOrder({
+    required String userId,
+    required Address address,
+    required List<CartLine> lines,
+    required String status,
+    required String paymentMethod,
+    required String paymentStatus,
+    String gatewayOrderId = '',
+  }) async {
+    final orderId = ID.unique();
+    final price = priceLines(
+      backend: this,
+      orderId: orderId,
+      address: address,
+      lines: lines,
+      nextItemId: () => '',
     );
     final createdOrder = await _tables.createRow(
       databaseId: Ids.database,
       tableId: Ids.orders,
-      rowId: ID.unique(),
+      rowId: orderId,
       data: {
         'userId': userId,
         'addressSnapshot': address.snapshot,
-        'status': OrderStatus.placed,
-        'subtotal': subtotal,
-        'deliveryFee': fee,
-        'total': subtotal + fee,
-        'paymentMethod': 'cod',
+        'status': status,
+        'subtotal': price.subtotal,
+        'deliveryFee': price.deliveryFee,
+        'total': price.total,
+        'paymentMethod': paymentMethod,
+        'paymentStatus': paymentStatus,
+        'gatewayOrderId': gatewayOrderId,
+        'gatewayPaymentId': '',
         'placedAt': DateTime.now().toIso8601String(),
       },
       permissions: _own(userId),
     );
     final createdItems = <OrderItem>[];
-    for (final draft in drafts) {
+    for (final draft in price.items) {
       final createdItem = await _tables.createRow(
         databaseId: Ids.database,
         tableId: Ids.orderItems,
@@ -350,6 +544,33 @@ class AppwriteBackend extends BloomlyBackend {
     notifyListeners();
     _watchers[order.id]?.add(order);
     return order;
+  }
+
+  Future<Map<String, dynamic>> _execute(String functionId, Map<String, dynamic> body) async {
+    try {
+      final execution = await _functions.createExecution(
+        functionId: functionId,
+        body: jsonEncode(body),
+        xasync: false,
+      );
+      if (execution.responseBody.isEmpty) {
+        throw BloomlyException('Bloomly could not reach $functionId.');
+      }
+      final decoded = jsonDecode(execution.responseBody);
+      if (decoded is! Map) {
+        throw BloomlyException('Bloomly could not reach $functionId.');
+      }
+      final payload = Map<String, dynamic>.from(decoded);
+      final error = payload['error']?.toString() ?? '';
+      if (error.isNotEmpty || execution.responseStatusCode >= 400) {
+        throw BloomlyException(error.isEmpty ? 'Bloomly could not reach $functionId.' : error);
+      }
+      return payload;
+    } on BloomlyException {
+      rethrow;
+    } on AppwriteException catch (error) {
+      throw BloomlyException(error.message ?? 'Bloomly could not reach $functionId.');
+    }
   }
 
   @override
@@ -513,6 +734,8 @@ StoreSettings _storeFrom(models.Row doc) {
       'freeDeliveryAbove',
       StoreSettings.fallback.freeDeliveryAbove,
     ),
+    upiId: _text(data, 'upiId', ''),
+    upiName: _text(data, 'upiName', StoreSettings.fallback.upiName),
   );
 }
 
@@ -572,6 +795,8 @@ Address _addressFrom(models.Row doc) {
     city: _text(data, 'city', ''),
     pincode: _text(data, 'pincode', ''),
     isDefault: _bool(data, 'isDefault'),
+    latitude: _double(data, 'latitude'),
+    longitude: _double(data, 'longitude'),
   );
 }
 
@@ -585,7 +810,10 @@ OrderRecord _orderFrom(models.Row doc, List<models.Row> itemDocs) {
     subtotal: _int(data, 'subtotal', 0),
     deliveryFee: _int(data, 'deliveryFee', 0),
     total: _int(data, 'total', 0),
-    paymentMethod: _text(data, 'paymentMethod', 'cod'),
+    paymentMethod: _text(data, 'paymentMethod', PaymentMethod.cod),
+    paymentStatus: _text(data, 'paymentStatus', PaymentStatus.pending),
+    gatewayOrderId: _text(data, 'gatewayOrderId', ''),
+    gatewayPaymentId: _text(data, 'gatewayPaymentId', ''),
     placedAt: DateTime.tryParse(_text(data, 'placedAt', '')) ?? DateTime.now(),
     items: [
       for (final item in itemDocs)
@@ -611,6 +839,12 @@ String _text(Map<String, dynamic> data, String key, String fallback) {
   final value = data[key];
   if (value == null) return fallback;
   return value.toString();
+}
+
+double? _double(Map<String, dynamic> data, String key) {
+  final value = data[key];
+  if (value is num) return value.toDouble();
+  return double.tryParse('$value');
 }
 
 int _int(Map<String, dynamic> data, String key, int fallback) {

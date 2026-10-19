@@ -14,32 +14,30 @@ class CartBar extends ConsumerWidget {
     final summary = ref.watch(cartSummaryProvider);
     if (summary.count == 0) return const SizedBox.shrink();
     final label = summary.count == 1 ? '1 item' : '${summary.count} items';
-    return Material(
-      color: BloomlyColors.green,
-      child: InkWell(
-        onTap: () => context.push('/cart'),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              const Text(
-                'View cart',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Material(
+        color: BloomlyColors.ink,
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: () => context.push('/cart'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Row(
+              children: [
+                Text(
+                  'View cart · $label · ${money(summary.total)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
-              ),
-              const Spacer(),
-              Text(
-                '$label · ${money(summary.total)}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.white),
-            ],
+                const Spacer(),
+                const Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+              ],
+            ),
           ),
         ),
       ),

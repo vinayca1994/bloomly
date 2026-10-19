@@ -3,21 +3,25 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
-import '../core/bill.dart';
+import '../core/phone.dart';
+import '../core/upi.dart';
+import 'auth_result.dart';
 import 'backend.dart';
 import 'catalog_seed.dart';
 import 'models.dart';
+import 'online_payment.dart';
+import 'pricing.dart';
 
 class _Account {
   _Account({required this.password, required this.profile});
 
-  final String password;
+  String password;
   Profile profile;
 }
 
 class MemoryBackend extends BloomlyBackend {
-  MemoryBackend.seeded() {
-    store = seedStore;
+  MemoryBackend.seeded({String upiId = '', String upiName = 'Bloomly'}) {
+    store = seedStore.copyWith(upiId: upiId.trim(), upiName: upiName.trim().isEmpty ? 'Bloomly' : upiName.trim());
     categories = List<ShopCategory>.of(seedCategories);
     products = seedProducts
         .map(
@@ -63,9 +67,17 @@ class MemoryBackend extends BloomlyBackend {
   static const ownerEmail = _ownerEmail;
   static const customerEmail = _customerEmail;
   static const demoPassword = _demoPassword;
+  static const demoOtp = _demoOtp;
   static const _ownerEmail = 'owner@bloomly.app';
   static const _customerEmail = 'customer@bloomly.app';
   static const _demoPassword = 'bloomly123';
+  static const _demoOtp = '123456';
+
+  @override
+  bool get demoShortcuts => true;
+
+  @override
+  bool get usesTestCheckout => store.upiId.trim().isEmpty;
 
   @override
   bool ready = true;
@@ -90,6 +102,10 @@ class MemoryBackend extends BloomlyBackend {
 
   late Map<String, _Account> _accounts;
   List<Address> _addresses = [];
+  String? _pendingUserId;
+  String? _pendingPhone;
+  bool _pendingIsNew = false;
+  String? _resetUserId;
   final Map<String, Uint8List> _images = {};
   final Map<String, StreamController<OrderRecord?>> _watchers = {};
   int _seq = 0;
@@ -164,10 +180,126 @@ class MemoryBackend extends BloomlyBackend {
   }
 
   @override
+  Future<PhoneLoginStart> startPhoneLogin(String phone) async {
+    final normalized = PhoneNumber.normalizeIndia(phone);
+    if (normalized == null) {
+      return const PhoneLoginStart.failure('Enter a valid 10-digit mobile number.');
+    }
+    final existing = _accounts.values
+        .where((account) => account.profile.phone == normalized)
+        .firstOrNull;
+    if (existing != null) {
+      _pendingUserId = existing.profile.id;
+      _pendingIsNew = false;
+    } else {
+      _pendingUserId = _nextId('user');
+      _pendingIsNew = true;
+    }
+    _pendingPhone = normalized;
+    return PhoneLoginStart(userId: _pendingUserId, isNew: _pendingIsNew);
+  }
+
+  @override
+  Future<String?> verifyPhoneOtp({required String userId, required String code}) async {
+    if (code.trim() != _demoOtp) return 'That code is wrong.';
+    if (userId != _pendingUserId || _pendingPhone == null) {
+      return 'Request a new code.';
+    }
+    if (_pendingIsNew) {
+      final profile = Profile(
+        id: userId,
+        name: '',
+        email: '',
+        phone: _pendingPhone!,
+        role: 'customer',
+      );
+      _accounts['phone:$normalizedKey(_pendingPhone!)'] = _Account(
+        password: '',
+        profile: profile,
+      );
+      currentUser = profile;
+    } else {
+      currentUser = _accountById(userId)?.profile;
+    }
+    _pendingPhone = null;
+    notifyListeners();
+    return currentUser == null ? 'Request a new code.' : null;
+  }
+
+  @override
+  Future<String?> updateDisplayName(String name) async {
+    final user = currentUser;
+    final trimmed = name.trim();
+    if (user == null) return 'Sign in first.';
+    if (trimmed.isEmpty) return 'Add your name.';
+    final account = _accountById(user.id);
+    if (account == null) return 'Sign in first.';
+    account.profile = Profile(
+      id: user.id,
+      name: trimmed,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+    );
+    currentUser = account.profile;
+    notifyListeners();
+    return null;
+  }
+
+  @override
+  Future<RecoveryStart> sendPasswordReset(String email) async {
+    final account = _accounts[email.trim().toLowerCase()];
+    if (account == null || account.password.isEmpty) {
+      return const RecoveryStart.failure('No password account uses that email.');
+    }
+    _resetUserId = account.profile.id;
+    return RecoveryStart(userId: account.profile.id);
+  }
+
+  @override
+  Future<String?> completePasswordReset({
+    required String userId,
+    required String code,
+    required String password,
+  }) async {
+    if (code.trim() != _demoOtp) return 'That code is wrong.';
+    if (password.length < 8) return 'Use at least 8 characters.';
+    final account = _accountById(userId);
+    if (account == null || account.profile.id != _resetUserId) {
+      return 'Request a new code.';
+    }
+    account.password = password;
+    _resetUserId = null;
+    return null;
+  }
+
+  @override
   Future<void> signOut() async {
     currentUser = null;
     notifyListeners();
   }
+
+  @override
+  Future<String?> deleteAccount() async {
+    final user = currentUser;
+    if (user == null) return 'Sign in first.';
+    if (user.isOwner) return 'The store owner account stays signed in here.';
+    _accounts.removeWhere((_, account) => account.profile.id == user.id);
+    _addresses = _addresses.where((address) => address.userId != user.id).toList();
+    orders = orders.where((order) => order.userId != user.id).toList();
+    currentUser = null;
+    notifyListeners();
+    return null;
+  }
+
+  _Account? _accountById(String id) {
+    for (final account in _accounts.values) {
+      if (account.profile.id == id) return account;
+    }
+    return null;
+  }
+
+  String normalizedKey(String phone) => phone;
 
   @override
   Future<void> saveAddress(Address address) async {
@@ -204,57 +336,142 @@ class MemoryBackend extends BloomlyBackend {
     required Address address,
     required List<CartLine> lines,
   }) async {
-    if (lines.isEmpty) {
-      throw BloomlyException('Your cart is empty.');
-    }
-    if (address.city.trim().toLowerCase() != store.city.trim().toLowerCase()) {
-      throw BloomlyException('Bloomly delivers in ${store.city} only.');
-    }
-    final items = <OrderItem>[];
-    var subtotal = 0;
     final orderId = _nextId('ord');
-    for (final line in lines) {
-      final product = productById(line.productId);
-      final variant = variantOf(line.productId, line.variantId);
-      if (product == null || variant == null || !product.forSale) {
-        throw BloomlyException(
-          '${product?.name ?? 'An item'} is sold out. Remove it to continue.',
-        );
-      }
-      subtotal += variant.price * line.qty;
-      items.add(
-        OrderItem(
-          id: _nextId('item'),
-          orderId: orderId,
-          productId: product.id,
-          name: product.name,
-          variantLabel: variant.label,
-          unitPrice: variant.price,
-          qty: line.qty,
-        ),
-      );
-    }
-    final fee = deliveryFeeFor(
-      subtotal,
-      fee: store.deliveryFee,
-      freeAbove: store.freeDeliveryAbove,
+    final price = priceLines(
+      backend: this,
+      orderId: orderId,
+      address: address,
+      lines: lines,
+      nextItemId: () => _nextId('item'),
     );
     final order = OrderRecord(
       id: orderId,
       userId: userId,
       addressSnapshot: address.snapshot,
       status: OrderStatus.placed,
-      subtotal: subtotal,
-      deliveryFee: fee,
-      total: subtotal + fee,
-      paymentMethod: 'cod',
+      subtotal: price.subtotal,
+      deliveryFee: price.deliveryFee,
+      total: price.total,
+      paymentMethod: PaymentMethod.cod,
+      paymentStatus: PaymentStatus.pending,
       placedAt: DateTime.now(),
-      items: items,
+      items: price.items,
     );
     orders = [order, ...orders];
     notifyListeners();
     _emit(order);
     return order;
+  }
+
+  @override
+  Future<OnlinePayment> startOnlinePayment({
+    required String userId,
+    required Address address,
+    required List<CartLine> lines,
+  }) async {
+    final orderId = _nextId('ord');
+    final price = priceLines(
+      backend: this,
+      orderId: orderId,
+      address: address,
+      lines: lines,
+      nextItemId: () => _nextId('item'),
+    );
+    final order = OrderRecord(
+      id: orderId,
+      userId: userId,
+      addressSnapshot: address.snapshot,
+      status: OrderStatus.paymentPending,
+      subtotal: price.subtotal,
+      deliveryFee: price.deliveryFee,
+      total: price.total,
+      paymentMethod: PaymentMethod.upi,
+      paymentStatus: PaymentStatus.pending,
+      gatewayOrderId: store.upiId.trim(),
+      placedAt: DateTime.now(),
+      items: price.items,
+    );
+    orders = [order, ...orders];
+    notifyListeners();
+    _emit(order);
+    return OnlinePayment(
+      order: order,
+      upiId: store.upiId.trim(),
+      upiName: store.upiName.trim().isEmpty ? 'Bloomly' : store.upiName.trim(),
+      amountRupees: price.total,
+    );
+  }
+
+  @override
+  Future<String?> noteUpiPayment({
+    required String orderId,
+    required String reference,
+  }) async {
+    final order = orderById(orderId);
+    if (order == null) return 'Order not found.';
+    if (store.upiId.trim().isEmpty) return 'Add the store UPI ID first.';
+    final user = currentUser;
+    if (user == null || (user.id != order.userId && !user.isOwner)) {
+      return 'This order belongs to someone else.';
+    }
+    if (!order.awaitingPayment || order.paymentMethod != PaymentMethod.upi) {
+      return 'This order is not awaiting a UPI payment.';
+    }
+    final cleaned = normalizeUpiReference(reference);
+    if (cleaned == null) return 'Enter the UPI reference as letters and numbers only.';
+    _replaceOrder(
+      order.copyWith(
+        paymentStatus: PaymentStatus.submitted,
+        gatewayPaymentId: cleaned,
+      ),
+    );
+    return null;
+  }
+
+  @override
+  Future<String?> confirmUpiPayment(String orderId) async {
+    final order = orderById(orderId);
+    if (order == null) return 'Order not found.';
+    if (currentUser?.isOwner != true) return 'Only the store can confirm a UPI payment.';
+    if (order.paymentMethod != PaymentMethod.upi) return 'This order was not paid by UPI.';
+    if (order.paymentStatus == PaymentStatus.paid && order.status == OrderStatus.placed) {
+      return null;
+    }
+    if (!order.awaitingPayment) return 'This order is not awaiting a UPI payment.';
+    _replaceOrder(
+      order.copyWith(
+        status: OrderStatus.placed,
+        paymentStatus: PaymentStatus.paid,
+      ),
+    );
+    return null;
+  }
+
+  @override
+  Future<String?> completeTestPayment(String orderId) async {
+    if (store.upiId.trim().isNotEmpty) {
+      return 'This shop collects UPI in the customer’s app.';
+    }
+    final order = orderById(orderId);
+    if (order == null) return 'Order not found.';
+    if (!order.awaitingPayment) return 'This order is not awaiting payment.';
+    _replaceOrder(
+      order.copyWith(
+        status: OrderStatus.placed,
+        paymentStatus: PaymentStatus.paid,
+        gatewayPaymentId: 'demo',
+      ),
+    );
+    return null;
+  }
+
+  void _replaceOrder(OrderRecord updated) {
+    orders = [
+      for (final order in orders)
+        if (order.id == updated.id) updated else order,
+    ];
+    _emit(updated);
+    notifyListeners();
   }
 
   @override

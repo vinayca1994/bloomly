@@ -82,7 +82,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 crossAxisCount: 2,
                 mainAxisSpacing: 10,
                 crossAxisSpacing: 10,
-                mainAxisExtent: 236,
+                mainAxisExtent: 248,
               ),
               itemBuilder: (context, index) => ProductCard(product: results[index]),
             ),

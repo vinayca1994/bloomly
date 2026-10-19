@@ -11,7 +11,7 @@ void showVariantSheet(BuildContext context, Product product) {
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    backgroundColor: Colors.white,
+    backgroundColor: BloomlyColors.paper,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
@@ -34,10 +34,7 @@ class _VariantSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              product.name,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
+            Text(product.name, style: BloomlyType.display(24)),
             const SizedBox(height: 4),
             const Text(
               'Choose a size',

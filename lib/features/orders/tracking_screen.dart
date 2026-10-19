@@ -50,10 +50,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Text(
-                  money(order.total),
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-                ),
+                Text(money(order.total), style: BloomlyType.display(36)),
                 const SizedBox(height: 4),
                 Text(
                   formatWhen(order.placedAt),
@@ -64,13 +61,17 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                 const SizedBox(height: 20),
                 if (order.status == OrderStatus.cancelled)
                   const _Cancelled()
+                else if (order.awaitingPayment)
+                  Text(
+                    order.paymentStatus == PaymentStatus.submitted
+                        ? 'UPI sent. The store confirms it in their app before packing.'
+                        : 'Pay with UPI, then tap I have paid.',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  )
                 else
                   _Steps(status: order.status),
                 const SizedBox(height: 20),
-                const Text(
-                  'Items',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                ),
+                Text('Items', style: BloomlyType.display(22)),
                 const SizedBox(height: 8),
                 for (final item in order.items)
                   Padding(
@@ -92,7 +93,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                 const Divider(height: 28),
                 Row(
                   children: [
-                    const Text('Cash on delivery'),
+                    Text(paymentLabel(order)),
                     const Spacer(),
                     Text(
                       money(order.total),
@@ -153,13 +154,17 @@ class _Steps extends StatelessWidget {
               Column(
                 children: [
                   Container(
-                    width: 18,
-                    height: 18,
+                    width: 16,
+                    height: 16,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: i <= index ? BloomlyColors.green : Colors.white,
+                      color: i == index
+                          ? BloomlyColors.green
+                          : i < index
+                          ? BloomlyColors.ink
+                          : BloomlyColors.paper,
                       border: Border.all(
-                        color: i <= index ? BloomlyColors.green : BloomlyColors.line,
+                        color: i <= index ? BloomlyColors.ink : BloomlyColors.line,
                         width: 2,
                       ),
                     ),
@@ -168,7 +173,7 @@ class _Steps extends StatelessWidget {
                     Container(
                       width: 2,
                       height: 36,
-                      color: i < index ? BloomlyColors.green : BloomlyColors.line,
+                      color: BloomlyColors.ink.withValues(alpha: i < index ? 1 : 0.25),
                     ),
                 ],
               ),

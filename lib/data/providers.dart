@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
+import '../core/app_lock.dart';
 import '../core/bill.dart';
 import '../core/config.dart';
 import 'appwrite_backend.dart';
@@ -8,11 +9,22 @@ import 'backend.dart';
 import 'cart_controller.dart';
 import 'memory_backend.dart';
 import 'models.dart';
+import 'place_controller.dart';
 
 final backendProvider = ChangeNotifierProvider<BloomlyBackend>((ref) {
   final config = AppConfig.fromEnvironment();
   if (config.hasAppwrite) return AppwriteBackend(config);
-  return MemoryBackend.seeded();
+  return MemoryBackend.seeded(upiId: config.upiId, upiName: config.upiName);
+});
+
+final placeProvider = ChangeNotifierProvider<PlaceController>((ref) {
+  return PlaceController();
+});
+
+final appLockProvider = ChangeNotifierProvider<AppLockController>((ref) {
+  final lock = AppLockController();
+  lock.load();
+  return lock;
 });
 
 class ResolvedLine {

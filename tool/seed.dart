@@ -13,9 +13,11 @@ import 'package:dart_appwrite/dart_appwrite.dart';
 /// APPWRITE_OWNER_EMAIL (default owner@bloomly.app)
 /// APPWRITE_OWNER_PASSWORD (default bloomly123)
 Future<void> main() async {
-  final endpoint = Platform.environment['APPWRITE_ENDPOINT'] ?? '';
-  final projectId = Platform.environment['APPWRITE_PROJECT_ID'] ?? '';
-  final apiKey = Platform.environment['APPWRITE_API_KEY'] ?? '';
+  final fileEnv = _dotEnv();
+  String env(String key) => Platform.environment[key] ?? fileEnv[key] ?? '';
+  final endpoint = env('APPWRITE_ENDPOINT');
+  final projectId = env('APPWRITE_PROJECT_ID');
+  final apiKey = env('APPWRITE_API_KEY');
   if (endpoint.isEmpty || projectId.isEmpty || apiKey.isEmpty) {
     stderr.writeln(
       'Set APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, and APPWRITE_API_KEY.',
@@ -42,6 +44,8 @@ Future<void> main() async {
       _varchar('etaLabel', 40),
       _intCol('deliveryFee'),
       _intCol('freeDeliveryAbove'),
+      _varchar('upiId', 80, required: false),
+      _varchar('upiName', 80, required: false, fallback: 'Bloomly'),
     ],
     guestRead: true,
   );
@@ -99,6 +103,8 @@ Future<void> main() async {
       _varchar('city', 80),
       _varchar('pincode', 12),
       _boolCol('isDefault'),
+      _varchar('latitude', 32, required: false, fallback: ''),
+      _varchar('longitude', 32, required: false, fallback: ''),
     ],
     rowSecurity: true,
     permissions: [
@@ -120,6 +126,9 @@ Future<void> main() async {
       _intCol('deliveryFee'),
       _intCol('total'),
       _varchar('paymentMethod', 16),
+      _varchar('paymentStatus', 16, required: false, fallback: 'pending'),
+      _varchar('gatewayOrderId', 64, required: false, fallback: ''),
+      _varchar('gatewayPaymentId', 64, required: false, fallback: ''),
       _varchar('placedAt', 40),
     ],
     rowSecurity: true,
@@ -157,6 +166,7 @@ Future<void> main() async {
       _varchar('userId', 36),
       _varchar('name', 80),
       _varchar('role', 20),
+      _varchar('phone', 20, required: false, fallback: ''),
     ],
     rowSecurity: true,
     permissions: [
@@ -177,8 +187,8 @@ Future<void> main() async {
     ),
   );
 
-  final email = Platform.environment['APPWRITE_OWNER_EMAIL'] ?? 'owner@bloomly.app';
-  final password = Platform.environment['APPWRITE_OWNER_PASSWORD'] ?? 'bloomly123';
+  final email = env('APPWRITE_OWNER_EMAIL').isEmpty ? 'owner@bloomly.app' : env('APPWRITE_OWNER_EMAIL');
+  final password = env('APPWRITE_OWNER_PASSWORD').isEmpty ? 'bloomly123' : env('APPWRITE_OWNER_PASSWORD');
   var ownerId = Ids.ownerUser;
   try {
     final created = await users.create(
@@ -221,22 +231,56 @@ Future<void> main() async {
     tables,
     Ids.profiles,
     ownerId,
-    {'userId': ownerId, 'name': 'Asha Rao', 'role': 'owner'},
+    {'userId': ownerId, 'name': 'Asha Rao', 'role': 'owner', 'phone': ''},
     permissions: [
       Permission.read(Role.user(ownerId)),
       Permission.read(Role.label('owner')),
     ],
   );
 
+  await _varcharColumn(tables, Ids.addresses, 'latitude', 32);
+  await _varcharColumn(tables, Ids.addresses, 'longitude', 32);
+  await _varcharColumn(tables, Ids.orders, 'paymentStatus', 16, fallback: 'pending');
+  await _varcharColumn(tables, Ids.orders, 'gatewayOrderId', 64);
+  await _varcharColumn(tables, Ids.orders, 'gatewayPaymentId', 64);
+  await _varcharColumn(tables, Ids.profiles, 'phone', 20);
+  await _varcharColumn(tables, Ids.store, 'upiId', 80);
+  await _varcharColumn(tables, Ids.store, 'upiName', 80, fallback: 'Bloomly');
+
   stdout.writeln('Bloomly is seeded. Owner: $email');
 }
 
-Map<String, Object> _varchar(String key, int size, {bool required = true}) => {
+Map<String, Object> _varchar(
+  String key,
+  int size, {
+  bool required = true,
+  String? fallback,
+}) => {
   'key': key,
   'type': 'varchar',
   'size': size,
   'required': required,
+  'default': ?fallback,
 };
+
+Future<void> _varcharColumn(
+  TablesDB tables,
+  String tableId,
+  String key,
+  int size, {
+  String fallback = '',
+}) {
+  return _ignore(
+    () => tables.createVarcharColumn(
+      databaseId: Ids.database,
+      tableId: tableId,
+      key: key,
+      size: size,
+      xrequired: false,
+      xdefault: fallback,
+    ),
+  );
+}
 
 Map<String, Object> _intCol(String key) => {
   'key': key,
@@ -296,6 +340,20 @@ Future<void> _row(
       permissions: permissions,
     ),
   );
+}
+
+Map<String, String> _dotEnv() {
+  final file = File('.env');
+  if (!file.existsSync()) return const {};
+  final values = <String, String>{};
+  for (final raw in file.readAsLinesSync()) {
+    final line = raw.trim();
+    if (line.isEmpty || line.startsWith('#')) continue;
+    final index = line.indexOf('=');
+    if (index <= 0) continue;
+    values[line.substring(0, index).trim()] = line.substring(index + 1).trim();
+  }
+  return values;
 }
 
 Future<void> _ignore(Future<Object?> Function() action) async {

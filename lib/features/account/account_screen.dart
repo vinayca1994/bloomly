@@ -17,41 +17,52 @@ class AccountScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: BloomlyColors.green,
-                child: Text(
-                  (user == null || user.name.isEmpty)
-                      ? 'B'
-                      : user.name[0].toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 22,
+          DecoratedBox(
+            decoration: BloomlyDecor.card(),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: BloomlyColors.green,
+                    child: Text(
+                      (user == null || user.name.isEmpty)
+                          ? 'B'
+                          : user.name[0].toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      user?.name ?? 'Guest',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user == null
+                              ? 'Guest'
+                              : (user.name.trim().isEmpty ? 'Bloomly customer' : user.name),
+                          style: BloomlyType.display(24),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          user?.contact.isNotEmpty == true
+                              ? user!.contact
+                              : 'Sign in to place an order',
+                          style: const TextStyle(color: BloomlyColors.muted),
+                        ),
+                      ],
                     ),
-                    Text(
-                      user?.email ?? 'Sign in to place an order',
-                      style: const TextStyle(color: BloomlyColors.muted),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           if (user == null)
             FilledButton(
               onPressed: () => context.push('/login'),
@@ -68,6 +79,31 @@ class AccountScreen extends ConsumerWidget {
               title: 'Orders',
               onTap: () => context.go('/orders'),
             ),
+            if (ref.watch(appLockProvider).supported)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: DecoratedBox(
+                  decoration: BloomlyDecor.card(),
+                  child: SwitchListTile(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    title: Text(
+                      'Unlock with ${ref.watch(appLockProvider).label}',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: const Text(
+                      'Face ID or fingerprint opens the app. Your password stays with the account.',
+                    ),
+                    value: ref.watch(appLockProvider).enabled,
+                    activeThumbColor: BloomlyColors.green,
+                    onChanged: (value) async {
+                      final error = await ref.read(appLockProvider).setEnabled(value);
+                      if (error != null && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+                      }
+                    },
+                  ),
+                ),
+              ),
             if (user.isOwner)
               _tile(
                 icon: Icons.storefront_outlined,
@@ -79,8 +115,23 @@ class AccountScreen extends ConsumerWidget {
               onPressed: () => backend.signOut(),
               child: const Text('Log out'),
             ),
+            if (!user.isOwner) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => _delete(context, ref),
+                child: const Text(
+                  'Delete account',
+                  style: TextStyle(color: BloomlyColors.danger),
+                ),
+              ),
+            ],
           ],
           const SizedBox(height: 16),
+          _tile(
+            icon: Icons.privacy_tip_outlined,
+            title: 'Privacy',
+            onTap: () => context.push('/account/privacy'),
+          ),
           _tile(
             icon: Icons.store_outlined,
             title: 'Store team sign in',
@@ -103,23 +154,64 @@ class AccountScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete account'),
+        content: const Text(
+          'This deletes your Bloomly sign-in, saved addresses, and orders.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final error = await ref.read(backendProvider).deleteAccount();
+    if (error != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+    }
+  }
+
   Widget _tile({
     required IconData icon,
     required String title,
     required VoidCallback onTap,
   }) {
-    return Card(
-      color: Colors.white,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: BloomlyColors.line),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: BloomlyColors.greenDark),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            decoration: BloomlyDecor.card(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: BloomlyColors.leafWash,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: BloomlyColors.greenDark, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                  const Icon(Icons.chevron_right, color: BloomlyColors.muted),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

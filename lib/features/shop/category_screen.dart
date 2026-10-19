@@ -82,9 +82,15 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text('${group.emoji} ${group.name}'),
+                      label: Text(
+                        '${group.emoji} ${group.name}',
+                        style: TextStyle(
+                          color: group.slug == _group ? Colors.white : BloomlyColors.ink,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       selected: group.slug == _group,
-                      selectedColor: BloomlyColors.green.withValues(alpha: 0.16),
+                      selectedColor: BloomlyColors.ink,
                       onSelected: (_) {
                         context.go('/categories/${group.slug}');
                       },
@@ -96,17 +102,13 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
             child: Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(999),
                 onTap: () => context.push('/search'),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: BloomlyColors.line),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BloomlyDecor.card(radius: 999),
                   child: const Row(
                     children: [
                       Icon(Icons.search, color: BloomlyColors.muted, size: 20),
@@ -132,8 +134,16 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: FilterChip(
-                        label: Text(region),
+                        label: Text(
+                          region,
+                          style: const TextStyle(
+                            color: BloomlyColors.ink,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         selected: _region == region,
+                        selectedColor: BloomlyColors.marigold,
+                        checkmarkColor: BloomlyColors.ink,
                         onSelected: (_) => setState(() => _region = region),
                       ),
                     ),
@@ -147,7 +157,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                 SizedBox(
                   width: 92,
                   child: ColoredBox(
-                    color: const Color(0xFFEFF2EC),
+                    color: BloomlyColors.canvas,
                     child: ListView(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       children: [
@@ -182,7 +192,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                                 crossAxisCount: 2,
                                 mainAxisSpacing: 10,
                                 crossAxisSpacing: 10,
-                                mainAxisExtent: 236,
+                                mainAxisExtent: 248,
                               ),
                           itemBuilder: (context, index) =>
                               ProductCard(product: products[index]),
@@ -216,19 +226,15 @@ class _RailItem extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          border: selected
-              ? const Border(
-                  left: BorderSide(color: BloomlyColors.green, width: 3),
-                )
-              : null,
+          color: selected ? BloomlyColors.card : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: selected ? BloomlyDecor.shadow : null,
         ),
         child: Text(
           label,
           style: TextStyle(
             fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-            color: selected ? BloomlyColors.greenDark : BloomlyColors.ink,
+            color: BloomlyColors.ink,
             fontSize: 13,
           ),
         ),

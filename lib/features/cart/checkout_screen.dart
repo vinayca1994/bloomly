@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../data/cart_controller.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import 'upi_sheet.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -17,6 +18,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String? _selectedId;
+  String _payment = PaymentMethod.cod;
   bool _busy = false;
   String? _error;
 
@@ -38,10 +40,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
-            'Deliver to',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-          ),
+          Text('Deliver to', style: BloomlyType.display(24)),
           const SizedBox(height: 8),
           if (user == null)
             const Text(
@@ -61,14 +60,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 children: [
                   for (final address in addresses)
                     Card(
-                      color: Colors.white,
+                      color: BloomlyColors.card,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
                           color: address.id == _selectedId
-                              ? BloomlyColors.green
+                              ? BloomlyColors.ink
                               : BloomlyColors.line,
+                          width: address.id == _selectedId ? 1.6 : 1,
                         ),
                       ),
                       child: RadioListTile<String>(
@@ -106,19 +106,30 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 style: TextStyle(color: BloomlyColors.danger, fontWeight: FontWeight.w600),
               ),
             ),
-          const Text(
-            'Payment',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-          ),
+          Text('Payment', style: BloomlyType.display(24)),
           const SizedBox(height: 8),
-          const Card(
-            color: Colors.white,
-            elevation: 0,
-            child: ListTile(
-              leading: Icon(Icons.payments_outlined, color: BloomlyColors.green),
-              title: Text('Cash on delivery'),
-              subtitle: Text('Pay when the order arrives'),
-              trailing: Icon(Icons.check_circle, color: BloomlyColors.green),
+          RadioGroup<String>(
+            groupValue: _payment,
+            onChanged: (value) {
+              if (value != null) setState(() => _payment = value);
+            },
+            child: Column(
+              children: [
+                _payTile(
+                  value: PaymentMethod.cod,
+                  icon: Icons.payments_outlined,
+                  title: 'Cash on delivery',
+                  subtitle: 'Pay when the order arrives',
+                ),
+                _payTile(
+                  value: PaymentMethod.upi,
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'UPI',
+                  subtitle: backend.usesTestCheckout
+                      ? 'Demo only, until the store adds a UPI ID. No bank is charged.'
+                      : 'BHIM, GPay, PhonePe, or Paytm',
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -139,11 +150,127 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         child: FilledButton(
           onPressed: _busy || summary.count == 0 || outside
               ? null
-              : () => _place(user, selected),
-          child: Text(_busy ? 'Placing order…' : 'Place order'),
+              : () => _payment == PaymentMethod.cod
+                    ? _place(user, selected)
+                    : _payOnline(user, selected),
+          child: Text(
+            _busy
+                ? 'Please wait…'
+                : _payment == PaymentMethod.cod
+                ? 'Place order'
+                : backend.usesTestCheckout
+                ? 'Pay (demo)'
+                : 'Pay with UPI',
+          ),
         ),
       ),
     );
+  }
+
+  Widget _payTile({
+    required String value,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    final selected = _payment == value;
+    return Card(
+      color: BloomlyColors.card,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: selected ? BloomlyColors.ink : BloomlyColors.line,
+          width: selected ? 1.6 : 1,
+        ),
+      ),
+      child: RadioListTile<String>(
+        value: value,
+        secondary: Icon(icon, color: BloomlyColors.ink),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(subtitle),
+      ),
+    );
+  }
+
+  Future<void> _payOnline(Profile? user, Address? address) async {
+    if (user == null) {
+      context.push('/login?next=${Uri.encodeComponent('/checkout')}');
+      return;
+    }
+    if (address == null) {
+      setState(() => _error = 'Add a delivery address first.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final backend = ref.read(backendProvider);
+      final payment = await backend.startOnlinePayment(
+        userId: user.id,
+        address: address,
+        lines: ref.read(cartProvider),
+      );
+      if (!mounted) return;
+      if (backend.usesTestCheckout) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('UPI demo'),
+            content: Text('Mark ${money(payment.order.total)} as paid? No bank is charged until the store adds a UPI ID.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Pay')),
+            ],
+          ),
+        );
+        if (confirmed != true) {
+          if (mounted) setState(() => _error = 'Payment cancelled.');
+          return;
+        }
+        final error = await backend.completeTestPayment(payment.order.id);
+        if (error != null) {
+          if (mounted) setState(() => _error = error);
+          return;
+        }
+        _finish(payment.order.id);
+        return;
+      }
+      if (payment.payUri == null) {
+        setState(() => _error = 'Add a valid store UPI ID before taking UPI payments.');
+        return;
+      }
+      final reference = await showUpiPaymentSheet(context, payment: payment);
+      if (!mounted) return;
+      if (reference == null) {
+        setState(() => _error = 'Payment cancelled.');
+        return;
+      }
+      final error = await backend.noteUpiPayment(
+        orderId: payment.order.id,
+        reference: reference,
+      );
+      if (!mounted) return;
+      if (error != null) {
+        setState(() => _error = error);
+        return;
+      }
+      _finish(payment.order.id);
+    } on BloomlyException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Could not start the payment.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _finish(String orderId) {
+    ref.read(cartProvider.notifier).clear();
+    if (!mounted) return;
+    context.go('/orders/$orderId');
   }
 
   Future<void> _place(Profile? user, Address? address) async {
@@ -166,9 +293,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         address: address,
         lines: lines,
       );
-      ref.read(cartProvider.notifier).clear();
-      if (!mounted) return;
-      context.go('/orders/${order.id}');
+      _finish(order.id);
     } on BloomlyException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {

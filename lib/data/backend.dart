@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+import 'auth_result.dart';
 import 'models.dart';
+import 'online_payment.dart';
 
 abstract class BloomlyBackend extends ChangeNotifier {
   bool get ready;
@@ -34,9 +36,25 @@ abstract class BloomlyBackend extends ChangeNotifier {
   OrderRecord? orderById(String id);
   Stream<OrderRecord?> watchOrder(String id);
 
+  /// True for the in-memory shop, so debug builds can show the demo accounts.
+  bool get demoShortcuts => false;
+
+  /// True when no store UPI ID is set, so pay confirms in a demo dialog.
+  bool get usesTestCheckout => false;
+
   Future<String?> signIn(String email, String password);
   Future<String?> signUp(String name, String email, String password);
+  Future<PhoneLoginStart> startPhoneLogin(String phone);
+  Future<String?> verifyPhoneOtp({required String userId, required String code});
+  Future<String?> updateDisplayName(String name);
+  Future<RecoveryStart> sendPasswordReset(String email);
+  Future<String?> completePasswordReset({
+    required String userId,
+    required String code,
+    required String password,
+  });
   Future<void> signOut();
+  Future<String?> deleteAccount();
 
   Future<void> saveAddress(Address address);
   Future<void> deleteAddress(String id);
@@ -46,6 +64,21 @@ abstract class BloomlyBackend extends ChangeNotifier {
     required Address address,
     required List<CartLine> lines,
   });
+
+  Future<OnlinePayment> startOnlinePayment({
+    required String userId,
+    required Address address,
+    required List<CartLine> lines,
+  });
+
+  /// Customer says the UPI app accepted the payment. This does not mark it paid.
+  Future<String?> noteUpiPayment({required String orderId, required String reference});
+
+  /// Store confirms the money arrived in the UPI app.
+  Future<String?> confirmUpiPayment(String orderId);
+
+  /// Confirms the in-memory demo checkout. Live shops reject this.
+  Future<String?> completeTestPayment(String orderId);
 
   Future<void> updateOrderStatus(String orderId, String status);
   Future<void> updateStore(StoreSettings next);

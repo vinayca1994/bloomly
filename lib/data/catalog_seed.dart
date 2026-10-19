@@ -146,8 +146,6 @@ const seedCategories = <ShopCategory>[
   ),
 ];
 
-const _thumb = 'https://upload.wikimedia.org/wikipedia/commons/thumb';
-
 Product _p({
   required String id,
   required String name,
@@ -163,7 +161,7 @@ Product _p({
     name: name,
     categorySlug: categorySlug,
     description: description,
-    imageUrl: imageUrl,
+    imageUrl: imageUrl ?? 'assets/products/$id.jpg',
     isAvailable: true,
     region: region,
     sort: sort,
@@ -188,7 +186,6 @@ final seedProducts = <Product>[
     categorySlug: 'daily-veg',
     description: 'Firm hybrid tomatoes for salads, rasam, and everyday cooking.',
     sort: 1,
-    imageUrl: '$_thumb/8/89/Tomato_je.jpg/440px-Tomato_je.jpg',
     options: [
       ['250 g', 18, 24],
       ['500 g', 32, 42],
@@ -201,7 +198,6 @@ final seedProducts = <Product>[
     categorySlug: 'daily-veg',
     description: 'Pink onions, dry and sharp, sorted this morning.',
     sort: 2,
-    imageUrl: '$_thumb/2/25/Onion_on_White.JPG/440px-Onion_on_White.JPG',
     options: [
       ['500 g', 22, 30],
       ['1 kg', 40, 55],
@@ -213,7 +209,6 @@ final seedProducts = <Product>[
     categorySlug: 'daily-veg',
     description: 'Clean table potatoes for curries, fries, and parathas.',
     sort: 3,
-    imageUrl: '$_thumb/a/ab/Patates.jpg/440px-Patates.jpg',
     options: [
       ['500 g', 20, 28],
       ['1 kg', 36, 48],
@@ -335,8 +330,6 @@ final seedProducts = <Product>[
     categorySlug: 'roots',
     description: 'Sweet orange carrots, washed.',
     sort: 15,
-    imageUrl:
-        '$_thumb/a/a2/Vegetable-Carrot-Bundle-wStalks.jpg/440px-Vegetable-Carrot-Bundle-wStalks.jpg',
     options: [
       ['500 g', 28, 38],
     ],
@@ -357,7 +350,6 @@ final seedProducts = <Product>[
     categorySlug: 'everyday-fruit',
     description: 'Yellaki-style bananas, ripe but firm.',
     sort: 17,
-    imageUrl: '$_thumb/8/8a/Banana-Single.jpg/440px-Banana-Single.jpg',
     options: [
       ['6 pcs', 32, 42],
     ],
@@ -368,7 +360,6 @@ final seedProducts = <Product>[
     categorySlug: 'everyday-fruit',
     description: 'Crisp red apples, chilled.',
     sort: 18,
-    imageUrl: '$_thumb/1/15/Red_Apple.jpg/440px-Red_Apple.jpg',
     options: [
       ['4 pcs', 120, 160],
     ],
@@ -409,7 +400,6 @@ final seedProducts = <Product>[
     categorySlug: 'seasonal-fruit',
     description: 'Seasonal mangoes, ripe and scented.',
     sort: 22,
-    imageUrl: '$_thumb/9/90/Hapus_Mango.jpg/440px-Hapus_Mango.jpg',
     options: [
       ['1 kg', 90, 130],
     ],
@@ -450,7 +440,6 @@ final seedProducts = <Product>[
     categorySlug: 'citrus',
     description: 'Nagpur-style oranges, easy to peel.',
     sort: 26,
-    imageUrl: '$_thumb/c/c4/Orange-Fruit-Pieces.jpg/440px-Orange-Fruit-Pieces.jpg',
     options: [
       ['4 pcs', 50, 70],
     ],
@@ -506,7 +495,6 @@ final seedProducts = <Product>[
     description: 'Red roses grown for the western markets.',
     sort: 31,
     region: 'West',
-    imageUrl: '$_thumb/5/51/Small_Red_Rose.JPG/440px-Small_Red_Rose.JPG',
     options: [
       ['5 stems', 50, 70],
     ],

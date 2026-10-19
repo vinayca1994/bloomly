@@ -46,12 +46,9 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
               children: [
                 for (final address in addresses)
                   Card(
-                    color: Colors.white,
+                    color: BloomlyColors.card,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: const BorderSide(color: BloomlyColors.line),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     child: ListTile(
                       title: Text(
                         address.isDefault ? '${address.label} · Default' : address.label,
@@ -65,10 +62,24 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                     ),
                   ),
                 const SizedBox(height: 8),
-                const Text(
-                  'New address',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                Text('New address', style: BloomlyType.display(24)),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _useLocation,
+                  icon: const Icon(Icons.my_location),
+                  label: Text(
+                    ref.watch(placeProvider).requesting
+                        ? 'Finding you…'
+                        : 'Use current location',
+                  ),
                 ),
+                if (ref.watch(placeProvider).error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    ref.watch(placeProvider).error!,
+                    style: const TextStyle(color: BloomlyColors.danger),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 TextField(controller: _label, decoration: const InputDecoration(labelText: 'Label')),
                 const SizedBox(height: 8),
@@ -94,6 +105,17 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
     );
   }
 
+  Future<void> _useLocation() async {
+    final detected = await ref.read(placeProvider).detect(announceLookupFailure: true);
+    if (!mounted || detected == null || detected.city.isEmpty) return;
+    setState(() {
+      if (detected.area.isNotEmpty) _area.text = detected.area;
+      _city.text = detected.city;
+      if (detected.pincode.isNotEmpty) _pincode.text = detected.pincode;
+      _error = null;
+    });
+  }
+
   Future<void> _save(String userId) async {
     if (_line.text.trim().isEmpty || _area.text.trim().isEmpty || _city.text.trim().isEmpty) {
       setState(() => _error = 'Add the street, area, and city.');
@@ -101,6 +123,9 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
     }
     final backend = ref.read(backendProvider);
     final existing = backend.addressesFor(userId);
+    final detected = ref.read(placeProvider).place;
+    final sameCity = detected != null &&
+        detected.city.trim().toLowerCase() == _city.text.trim().toLowerCase();
     await backend.saveAddress(
       Address(
         id: 'addr${DateTime.now().millisecondsSinceEpoch}',
@@ -111,6 +136,8 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
         city: _city.text.trim(),
         pincode: _pincode.text.trim(),
         isDefault: existing.isEmpty,
+        latitude: sameCity ? detected.latitude : null,
+        longitude: sameCity ? detected.longitude : null,
       ),
     );
     _line.clear();

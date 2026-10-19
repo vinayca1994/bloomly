@@ -44,9 +44,8 @@ class CartScreen extends ConsumerWidget {
                 for (final line in summary.lines)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: Material(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                    child: DecoratedBox(
+                      decoration: BloomlyDecor.card(),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(
@@ -141,9 +140,8 @@ class _Bill extends StatelessWidget {
     final feeLabel = summary.subtotal > 0 && summary.deliveryFee == 0
         ? 'Free'
         : money(summary.deliveryFee);
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+    return DecoratedBox(
+      decoration: BloomlyDecor.card(),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

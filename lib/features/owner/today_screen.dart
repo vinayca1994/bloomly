@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../core/upi.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
 
@@ -18,7 +19,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   late final TextEditingController _eta;
   late final TextEditingController _fee;
   late final TextEditingController _free;
+  late final TextEditingController _upiId;
+  late final TextEditingController _upiName;
   String? _message;
+  bool _messageIsError = false;
 
   @override
   void initState() {
@@ -28,6 +32,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     _eta = TextEditingController(text: store.etaLabel);
     _fee = TextEditingController(text: '${store.deliveryFee}');
     _free = TextEditingController(text: '${store.freeDeliveryAbove}');
+    _upiId = TextEditingController(text: store.upiId);
+    _upiName = TextEditingController(text: store.upiName);
   }
 
   @override
@@ -36,6 +42,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     _eta.dispose();
     _fee.dispose();
     _free.dispose();
+    _upiId.dispose();
+    _upiName.dispose();
     super.dispose();
   }
 
@@ -50,11 +58,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       _eta.text = backend.store.etaLabel;
       _fee.text = '${backend.store.deliveryFee}';
       _free.text = '${backend.store.freeDeliveryAbove}';
+      _upiId.text = backend.store.upiId;
+      _upiName.text = backend.store.upiName;
     }
     final now = DateTime.now();
     final open = backend.orders
         .where(
           (order) =>
+              OrderStatus.visibleToStore(order.status) &&
               order.status != OrderStatus.delivered &&
               order.status != OrderStatus.cancelled,
         )
@@ -62,7 +73,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final revenue = backend.orders
         .where(
           (order) =>
-              order.status != OrderStatus.cancelled && sameDay(order.placedAt, now),
+              OrderStatus.visibleToStore(order.status) &&
+              order.status != OrderStatus.cancelled &&
+              sameDay(order.placedAt, now),
         )
         .fold<int>(0, (sum, order) => sum + order.total);
     final unavailable = backend.products.where((product) => !product.isAvailable).length;
@@ -105,9 +118,27 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'Free delivery above (₹)'),
         ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _upiId,
+          decoration: const InputDecoration(
+            labelText: 'UPI ID',
+            hintText: 'bloomly@oksbi',
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _upiName,
+          decoration: const InputDecoration(labelText: 'Name on the UPI account'),
+        ),
         if (_message != null) ...[
           const SizedBox(height: 8),
-          Text(_message!, style: const TextStyle(color: BloomlyColors.greenDark)),
+          Text(
+            _message!,
+            style: TextStyle(
+              color: _messageIsError ? BloomlyColors.danger : BloomlyColors.greenDark,
+            ),
+          ),
         ],
         const SizedBox(height: 12),
         Align(
@@ -116,8 +147,19 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             onPressed: () async {
               final fee = int.tryParse(_fee.text.trim());
               final free = int.tryParse(_free.text.trim());
+              final upiId = _upiId.text.trim();
               if (_city.text.trim().isEmpty || fee == null || free == null || fee < 0 || free < 0) {
-                setState(() => _message = 'Check the city and the two amounts.');
+                setState(() {
+                  _message = 'Check the city and the two amounts.';
+                  _messageIsError = true;
+                });
+                return;
+              }
+              if (upiId.isNotEmpty && !isUpiId(upiId)) {
+                setState(() {
+                  _message = 'Use a UPI ID like bloomly@oksbi.';
+                  _messageIsError = true;
+                });
                 return;
               }
               await backend.updateStore(
@@ -126,9 +168,16 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   etaLabel: _eta.text.trim().isEmpty ? '15–30 min' : _eta.text.trim(),
                   deliveryFee: fee,
                   freeDeliveryAbove: free,
+                  upiId: upiId,
+                  upiName: _upiName.text.trim().isEmpty ? 'Bloomly' : _upiName.text.trim(),
                 ),
               );
-              if (mounted) setState(() => _message = 'Saved');
+              if (mounted) {
+                setState(() {
+                  _message = 'Saved';
+                  _messageIsError = false;
+                });
+              }
             },
             child: const Text('Save store settings'),
           ),

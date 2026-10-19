@@ -54,6 +54,12 @@ class ProductImage extends StatelessWidget {
         _tile(),
         if (bytes != null)
           Image.memory(bytes!, fit: BoxFit.cover, gaplessPlayback: true)
+        else if (url != null && url!.startsWith('assets/'))
+          Image.asset(
+            url!,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          )
         else if (enableNetwork && url != null && url!.isNotEmpty)
           CachedNetworkImage(
             imageUrl: url!,
@@ -67,9 +73,9 @@ class ProductImage extends StatelessWidget {
 
   Widget _tile() {
     final color = switch (kind) {
-      ColorKind.fruit => const Color(0xFFF8E7D2),
-      ColorKind.flower => const Color(0xFFFBE6CF),
-      ColorKind.vegetable => const Color(0xFFE5F3E4),
+      ColorKind.fruit => BloomlyColors.fruitWash,
+      ColorKind.flower => BloomlyColors.peach,
+      ColorKind.vegetable => BloomlyColors.leafWash,
     };
     return ColoredBox(
       color: color,
@@ -97,11 +103,8 @@ class QtyStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: BloomlyColors.green),
-      ),
+      color: BloomlyColors.green,
+      borderRadius: BorderRadius.circular(999),
       child: SizedBox(
         height: 32,
         child: Row(
@@ -114,7 +117,7 @@ class QtyStepper extends StatelessWidget {
                 '$qty',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: BloomlyColors.greenDark,
+                  color: Colors.white,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -133,7 +136,7 @@ class QtyStepper extends StatelessWidget {
       child: SizedBox(
         width: 28,
         height: 32,
-        child: Icon(icon, size: 16, color: BloomlyColors.greenDark),
+        child: Icon(icon, size: 16, color: Colors.white),
       ),
     );
   }
