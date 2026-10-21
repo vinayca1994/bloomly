@@ -56,11 +56,17 @@ Future<dynamic> main(dynamic context) async {
 
 Client _client() {
   return Client()
-      .setEndpoint(Platform.environment['APPWRITE_FUNCTION_API_ENDPOINT'] ?? '')
-      .setProject(Platform.environment['APPWRITE_FUNCTION_PROJECT_ID'] ?? '')
-      .setKey(
-        Platform.environment['APPWRITE_FUNCTION_API_KEY'] ??
-            Platform.environment['APPWRITE_API_KEY'] ??
-            '',
-      );
+      .setEndpoint(_env('APPWRITE_FUNCTION_API_ENDPOINT'))
+      .setProject(_env('APPWRITE_FUNCTION_PROJECT_ID'))
+      .setKey(_firstKey());
+}
+
+String _env(String key) => Platform.environment[key]?.trim() ?? '';
+
+String _firstKey() {
+  for (final key in ['APPWRITE_FUNCTION_API_KEY', 'APPWRITE_API_KEY']) {
+    final value = _env(key);
+    if (value.isNotEmpty) return value;
+  }
+  return '';
 }

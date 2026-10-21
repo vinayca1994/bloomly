@@ -86,6 +86,13 @@ class MemoryBackend extends BloomlyBackend {
   String? loadError;
 
   @override
+  Future<void> reload() async {
+    loadError = null;
+    await expireStaleUpiOrders();
+    notifyListeners();
+  }
+
+  @override
   late StoreSettings store;
 
   @override
@@ -486,6 +493,42 @@ class MemoryBackend extends BloomlyBackend {
     ];
     if (updated != null) _emit(updated);
     notifyListeners();
+  }
+
+  @override
+  Future<String?> cancelOrder(String orderId) async {
+    final user = currentUser;
+    final order = orderById(orderId);
+    if (user == null || order == null) return 'Order not found.';
+    final asOwner = user.isOwner;
+    final asCustomer = user.id == order.userId;
+    if (!asOwner && !asCustomer) return 'This order belongs to someone else.';
+    if (asOwner && !OrderStatus.canCancel(order.status)) {
+      return 'This order can no longer be cancelled.';
+    }
+    if (!asOwner && !OrderStatus.customerCanCancel(order.status)) {
+      return 'You can cancel only before the store starts packing.';
+    }
+    _replaceOrder(
+      order.copyWith(
+        status: OrderStatus.cancelled,
+        paymentStatus: order.awaitingPayment ? PaymentStatus.failed : order.paymentStatus,
+      ),
+    );
+    return null;
+  }
+
+  @override
+  Future<void> expireStaleUpiOrders() async {
+    final stale = orders.where((order) => order.upiTimedOut).toList();
+    for (final order in stale) {
+      _replaceOrder(
+        order.copyWith(
+          status: OrderStatus.cancelled,
+          paymentStatus: PaymentStatus.failed,
+        ),
+      );
+    }
   }
 
   @override

@@ -2,6 +2,6 @@ name: payments
 description: Creates Bloomly UPI orders and lets the store confirm them.
 publish_to: none
 environment:
-  sdk: ^3.13.5
+  sdk: '>=3.5.0 <4.0.0'
 dependencies:
   dart_appwrite: ^30.0.0

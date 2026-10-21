@@ -11,10 +11,10 @@ flutter run -d chrome
 flutter run
 ```
 
-Debug sign-in, password `bloomly123` for both:
+Debug / memory-mode sign-in, password `bloomly123`:
 
-- Customer: `customer@bloomly.app` (a Koramangala address is already saved)
-- Owner: `owner@bloomly.app` (opens the store console)
+- Customer (memory demo only): `customer@bloomly.app` (a Koramangala address is already saved)
+- Owner (Appwrite): `srichandankrishnaenterprises@gmail.com` (opens the store console; password `bloomly123` until you change it)
 
 Delivery is ₹25, and free from ₹199. The service city starts as Bengaluru. The owner can change the city, the fee, and the free-delivery threshold.
 
@@ -33,19 +33,27 @@ dart run tool/seed.dart
 
 Optional: `APPWRITE_OWNER_EMAIL` and `APPWRITE_OWNER_PASSWORD`. Defaults are the demo owner above. Run the seed again after pulling version 1 so the phone, location, and payment columns are added to an existing project.
 
-In the Appwrite console, add an SMS provider for phone sign-in. MSG91 is the usual choice for Indian numbers. The app calls `createPhoneToken`; it does not hold an SMS key.
+Phone auth is enabled. For live OTPs, add MSG91 (or Twilio) in the Appwrite Console; step-by-step is in [docs/SMS.md](docs/SMS.md). Until then, use mock number `9999999999` with code `123456`. The app calls `createPhoneToken` and never holds an SMS key.
 
-Deploy the three Dart functions in `functions/` with entrypoint `lib/main.dart`. Use these ids:
+Deploy the Dart functions with `appwrite push functions --all --force` (see `appwrite.config.json`). Entrypoint is `lib/main.dart`. Free Appwrite plans allow two functions, so account deletion is an action on `payments` (`action: deleteAccount`). The standalone folder `functions/delete-account` remains as reference if you upgrade and split it out.
 
 | Id | Scopes | Variables |
 | --- | --- | --- |
-| `phone-login` | users.read | the function API key Appwrite injects |
-| `payments` | rows.read, rows.write, users.read | `BLOOMLY_UPI_ID`, `BLOOMLY_UPI_NAME` |
-| `delete-account` | users.read, users.write, rows.read, rows.write | the function API key |
+| `phone-login` | users.read | secret `APPWRITE_API_KEY` (same key as seed; dynamic function keys can arrive empty) |
+| `payments` | rows.read, rows.write, users.read, users.write | secret `APPWRITE_API_KEY`, plus `BLOOMLY_UPI_ID`, `BLOOMLY_UPI_NAME` |
 
 `dart run tool/seed.dart` reads those values from the environment or from `.env`. The API key stays out of the app. If the Appwrite defines are absent, Bloomly uses the in-memory shop.
 
 Run the app against that project. Pass the UPI ID only if you want it as the default before the owner saves one in Today:
+
+```bash
+./scripts/run_appwrite.sh chrome
+# or in Cursor / VS Code: launch "Bloomly (Appwrite)" / "Bloomly (Appwrite · Chrome)"
+# which uses --dart-define-from-file=dart_defines.json (never put APPWRITE_API_KEY there)
+```
+
+
+Equivalent manual command:
 
 ```bash
 flutter run -d chrome \

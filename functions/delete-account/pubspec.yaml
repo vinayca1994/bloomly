@@ -2,6 +2,6 @@ name: delete_account
 description: Deletes the signed-in Bloomly customer, their addresses, and their orders.
 publish_to: none
 environment:
-  sdk: ^3.13.5
+  sdk: '>=3.5.0 <4.0.0'
 dependencies:
   dart_appwrite: ^30.0.0

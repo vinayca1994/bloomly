@@ -1,0 +1,97 @@
+{
+    "projectId": "6ad5903b00090bd47e4e",
+    "projectName": "Bloomly",
+    "endpoint": "https://fra.cloud.appwrite.io/v1",
+    "settings": {
+        "services": {
+            "account": true,
+            "avatars": true,
+            "databases": true,
+            "locale": true,
+            "health": true,
+            "storage": true,
+            "teams": true,
+            "users": true,
+            "functions": true,
+            "graphql": true,
+            "messaging": true
+        },
+        "auth": {
+            "methods": {
+                "jwt": true,
+                "phone": true,
+                "invites": true,
+                "anonymous": true,
+                "email-otp": true,
+                "magic-url": true,
+                "email-password": true
+            },
+            "security": {
+                "usersessions": 10,
+                "sessionalerts": false,
+                "passworddictionary": false,
+                "passwordhistory": 0,
+                "passwordsessions": false,
+                "personaldata": false,
+                "sessionlength": 31536000,
+                "duration": 31536000
+            }
+        }
+    },
+    "functions": [
+        {
+            "$id": "phone-login",
+            "name": "phone-login",
+            "runtime": "dart-3.5",
+            "specification": "s-0.5vcpu-512mb",
+            "execute": [
+                "any"
+            ],
+            "scopes": [
+                "users.read"
+            ],
+            "events": [],
+            "schedule": "",
+            "timeout": 15,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "lib/main.dart",
+            "commands": "dart pub get",
+            "path": "functions/phone-login",
+            "vars": []
+        },
+        {
+            "$id": "payments",
+            "name": "payments",
+            "runtime": "dart-3.5",
+            "specification": "s-0.5vcpu-512mb",
+            "execute": [
+                "users"
+            ],
+            "scopes": [
+                "rows.read",
+                "rows.write",
+                "users.read",
+                "users.write"
+            ],
+            "events": [],
+            "schedule": "",
+            "timeout": 30,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "lib/main.dart",
+            "commands": "dart pub get",
+            "path": "functions/payments",
+            "vars": [
+                {
+                    "key": "BLOOMLY_UPI_ID",
+                    "value": "9060344838@ptyes"
+                },
+                {
+                    "key": "BLOOMLY_UPI_NAME",
+                    "value": "Bloomly"
+                }
+            ]
+        }
+    ]
+}

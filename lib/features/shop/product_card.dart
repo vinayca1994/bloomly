@@ -19,7 +19,9 @@ class ProductCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final backend = ref.watch(backendProvider);
-    final cart = ref.watch(cartProvider.notifier);
+    // Watch cart *state* so the badge/stepper rebuild when qty changes.
+    ref.watch(cartProvider);
+    final cart = ref.read(cartProvider.notifier);
     final lead = product.lead;
     final qty = cart.qtyOfProduct(product.id);
     final off = percentOff(lead.price, lead.mrp);
@@ -136,7 +138,7 @@ class ProductCard extends ConsumerWidget {
   }
 
   Widget _action(BuildContext context, WidgetRef ref, int qty) {
-    if (qty <= 0 || product.variants.length > 1) {
+    if (qty <= 0) {
       return Material(
         color: BloomlyColors.green,
         borderRadius: BorderRadius.circular(999),
@@ -148,9 +150,9 @@ class ProductCard extends ConsumerWidget {
             constraints: const BoxConstraints(minWidth: 64),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             alignment: Alignment.center,
-            child: Text(
-              qty > 0 ? '$qty' : 'ADD',
-              style: const TextStyle(
+            child: const Text(
+              'ADD',
+              style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
                 fontSize: 13,
@@ -158,6 +160,15 @@ class ProductCard extends ConsumerWidget {
             ),
           ),
         ),
+      );
+    }
+    final multiple = product.variants.length > 1;
+    if (multiple) {
+      // Total across variants; + opens size picker, − undoes last add.
+      return QtyStepper(
+        qty: qty,
+        onMinus: () => ref.read(cartProvider.notifier).removeOne(product.id),
+        onPlus: () => showVariantSheet(context, product),
       );
     }
     final variant = product.variants.first;

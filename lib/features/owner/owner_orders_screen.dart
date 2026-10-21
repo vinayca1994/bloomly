@@ -61,16 +61,11 @@ class OwnerOrdersScreen extends ConsumerWidget {
                 Wrap(
                   spacing: 8,
                   children: [
-                    if (order.paymentMethod == PaymentMethod.upi && order.awaitingPayment) ...[
+                    if (order.paymentMethod == PaymentMethod.upi && order.awaitingPayment)
                       FilledButton(
                         onPressed: () => backend.confirmUpiPayment(order.id),
                         child: const Text('Payment received'),
                       ),
-                      OutlinedButton(
-                        onPressed: () => backend.updateOrderStatus(order.id, OrderStatus.cancelled),
-                        child: const Text('Cancel'),
-                      ),
-                    ],
                     if (next != null)
                       FilledButton(
                         onPressed: () => backend.updateOrderStatus(order.id, next),
@@ -78,7 +73,7 @@ class OwnerOrdersScreen extends ConsumerWidget {
                       ),
                     if (OrderStatus.canCancel(order.status))
                       OutlinedButton(
-                        onPressed: () => backend.updateOrderStatus(order.id, OrderStatus.cancelled),
+                        onPressed: () => backend.cancelOrder(order.id),
                         child: const Text('Cancel'),
                       ),
                   ],

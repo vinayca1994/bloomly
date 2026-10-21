@@ -6,6 +6,7 @@ class StoreSettings {
     required this.freeDeliveryAbove,
     this.upiId = '',
     this.upiName = 'Bloomly',
+    this.storePhone = '',
   });
 
   final String city;
@@ -14,6 +15,9 @@ class StoreSettings {
   final int freeDeliveryAbove;
   final String upiId;
   final String upiName;
+
+  /// Indian mobile for call / WhatsApp (10 digits or +91…).
+  final String storePhone;
 
   static const fallback = StoreSettings(
     city: 'Bengaluru',
@@ -29,6 +33,7 @@ class StoreSettings {
     int? freeDeliveryAbove,
     String? upiId,
     String? upiName,
+    String? storePhone,
   }) {
     return StoreSettings(
       city: city ?? this.city,
@@ -37,6 +42,7 @@ class StoreSettings {
       freeDeliveryAbove: freeDeliveryAbove ?? this.freeDeliveryAbove,
       upiId: upiId ?? this.upiId,
       upiName: upiName ?? this.upiName,
+      storePhone: storePhone ?? this.storePhone,
     );
   }
 
@@ -47,6 +53,7 @@ class StoreSettings {
     'freeDeliveryAbove': freeDeliveryAbove,
     'upiId': upiId,
     'upiName': upiName,
+    'storePhone': storePhone,
   };
 }
 
@@ -221,6 +228,7 @@ class Address {
     required this.city,
     required this.pincode,
     required this.isDefault,
+    this.landmark = '',
     this.latitude,
     this.longitude,
   });
@@ -232,24 +240,40 @@ class Address {
   final String area;
   final String city;
   final String pincode;
+  final String landmark;
   final bool isDefault;
   final double? latitude;
   final double? longitude;
 
-  String get snapshot => '$label · $line, $area, $city $pincode';
+  String get snapshot {
+    final place = landmark.trim().isEmpty ? line : '$line, ${landmark.trim()}';
+    return '$label · $place, $area, $city $pincode';
+  }
 
-  Address copyWith({bool? isDefault}) {
+  Address copyWith({
+    String? label,
+    String? line,
+    String? area,
+    String? city,
+    String? pincode,
+    String? landmark,
+    bool? isDefault,
+    double? latitude,
+    double? longitude,
+    bool clearCoords = false,
+  }) {
     return Address(
       id: id,
       userId: userId,
-      label: label,
-      line: line,
-      area: area,
-      city: city,
-      pincode: pincode,
+      label: label ?? this.label,
+      line: line ?? this.line,
+      area: area ?? this.area,
+      city: city ?? this.city,
+      pincode: pincode ?? this.pincode,
+      landmark: landmark ?? this.landmark,
       isDefault: isDefault ?? this.isDefault,
-      latitude: latitude,
-      longitude: longitude,
+      latitude: clearCoords ? null : (latitude ?? this.latitude),
+      longitude: clearCoords ? null : (longitude ?? this.longitude),
     );
   }
 
@@ -260,6 +284,7 @@ class Address {
     'area': area,
     'city': city,
     'pincode': pincode,
+    'landmark': landmark,
     'isDefault': isDefault,
     'latitude': latitude?.toString() ?? '',
     'longitude': longitude?.toString() ?? '',
@@ -294,7 +319,13 @@ class OrderStatus {
   static bool canCancel(String status) {
     return status == placed ||
         status == packing ||
-        status == outForDelivery;
+        status == outForDelivery ||
+        status == paymentPending;
+  }
+
+  /// Customer may cancel only before packing starts (and while UPI is unpaid).
+  static bool customerCanCancel(String status) {
+    return status == placed || status == paymentPending;
   }
 }
 
@@ -361,6 +392,13 @@ class OrderRecord {
   final List<OrderItem> items;
 
   bool get awaitingPayment => status == OrderStatus.paymentPending;
+
+  static const upiPaymentTimeout = Duration(minutes: 45);
+
+  bool get upiTimedOut =>
+      awaitingPayment &&
+      paymentMethod == PaymentMethod.upi &&
+      DateTime.now().difference(placedAt) >= upiPaymentTimeout;
 
   OrderRecord copyWith({
     String? status,

@@ -14,5 +14,4 @@ class Ids {
   static const ownerUser = 'bloomly-owner';
   static const phoneLogin = 'phone-login';
   static const payments = 'payments';
-  static const deleteAccount = 'delete-account';
 }

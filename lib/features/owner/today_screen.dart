@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format.dart';
+import '../../core/phone.dart';
 import '../../core/theme.dart';
 import '../../core/upi.dart';
 import '../../data/models.dart';
@@ -21,6 +22,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   late final TextEditingController _free;
   late final TextEditingController _upiId;
   late final TextEditingController _upiName;
+  late final TextEditingController _storePhone;
   String? _message;
   bool _messageIsError = false;
 
@@ -34,6 +36,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     _free = TextEditingController(text: '${store.freeDeliveryAbove}');
     _upiId = TextEditingController(text: store.upiId);
     _upiName = TextEditingController(text: store.upiName);
+    _storePhone = TextEditingController(text: store.storePhone);
   }
 
   @override
@@ -44,6 +47,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     _free.dispose();
     _upiId.dispose();
     _upiName.dispose();
+    _storePhone.dispose();
     super.dispose();
   }
 
@@ -60,6 +64,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       _free.text = '${backend.store.freeDeliveryAbove}';
       _upiId.text = backend.store.upiId;
       _upiName.text = backend.store.upiName;
+      _storePhone.text = backend.store.storePhone;
     }
     final now = DateTime.now();
     final open = backend.orders
@@ -131,6 +136,15 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           controller: _upiName,
           decoration: const InputDecoration(labelText: 'Name on the UPI account'),
         ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _storePhone,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'Store phone (call / WhatsApp)',
+            hintText: '10-digit mobile',
+          ),
+        ),
         if (_message != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -162,6 +176,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 });
                 return;
               }
+              final phoneRaw = _storePhone.text.trim();
+              if (phoneRaw.isNotEmpty && PhoneNumber.normalizeIndia(phoneRaw) == null) {
+                setState(() {
+                  _message = 'Use a valid 10-digit Indian mobile for the store phone.';
+                  _messageIsError = true;
+                });
+                return;
+              }
               await backend.updateStore(
                 StoreSettings(
                   city: _city.text.trim(),
@@ -170,6 +192,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   freeDeliveryAbove: free,
                   upiId: upiId,
                   upiName: _upiName.text.trim().isEmpty ? 'Bloomly' : _upiName.text.trim(),
+                  storePhone: phoneRaw.isEmpty ? '' : PhoneNumber.normalizeIndia(phoneRaw)!,
                 ),
               );
               if (mounted) {

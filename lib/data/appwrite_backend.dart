@@ -60,12 +60,21 @@ class AppwriteBackend extends BloomlyBackend {
   final Map<String, Uint8List> _images = {};
   final Map<String, StreamController<OrderRecord?>> _watchers = {};
 
+  @override
+  Future<void> reload() async {
+    ready = false;
+    loadError = null;
+    notifyListeners();
+    await _load();
+  }
+
   Future<void> _load() async {
     try {
       await _loadSession();
       await _refreshAddresses();
       await _reloadCatalog();
       await _reloadOrders();
+      await expireStaleUpiOrders();
       await _listen();
       loadError = null;
     } on AppwriteException catch (error) {
@@ -79,11 +88,15 @@ class AppwriteBackend extends BloomlyBackend {
   }
 
   Future<void> _listen() async {
+    await _subscription?.close();
     _subscription = _realtime.subscribe([
       Channel.tablesdb(Ids.database).table(Ids.orders).row().toString(),
     ]);
     _subscription!.stream.listen((_) {
-      unawaited(_reloadOrders());
+      unawaited(() async {
+        await _reloadOrders();
+        await expireStaleUpiOrders();
+      }());
     });
   }
 
@@ -349,7 +362,8 @@ class AppwriteBackend extends BloomlyBackend {
     if (user == null) return 'Sign in first.';
     if (user.isOwner) return 'The store owner account cannot be deleted here.';
     try {
-      await _execute(Ids.deleteAccount, {});
+      // Free plans allow two functions; deletion is an action on payments.
+      await _execute(Ids.payments, {'action': 'deleteAccount'});
       await signOut();
       return null;
     } on BloomlyException catch (error) {
@@ -585,6 +599,58 @@ class AppwriteBackend extends BloomlyBackend {
   }
 
   @override
+  Future<String?> cancelOrder(String orderId) async {
+    final user = currentUser;
+    final order = orderById(orderId);
+    if (user == null || order == null) return 'Order not found.';
+    final asOwner = user.isOwner;
+    final asCustomer = user.id == order.userId;
+    if (!asOwner && !asCustomer) return 'This order belongs to someone else.';
+    if (asOwner && !OrderStatus.canCancel(order.status)) {
+      return 'This order can no longer be cancelled.';
+    }
+    if (!asOwner && !OrderStatus.customerCanCancel(order.status)) {
+      return 'You can cancel only before the store starts packing.';
+    }
+    try {
+      await _tables.updateRow(
+        databaseId: Ids.database,
+        tableId: Ids.orders,
+        rowId: orderId,
+        data: {
+          'status': OrderStatus.cancelled,
+          if (order.awaitingPayment) 'paymentStatus': PaymentStatus.failed,
+        },
+      );
+      await _reloadOrders();
+      return null;
+    } on AppwriteException catch (error) {
+      return error.message ?? 'Could not cancel the order.';
+    }
+  }
+
+  @override
+  Future<void> expireStaleUpiOrders() async {
+    final stale = orders.where((order) => order.upiTimedOut).toList();
+    for (final order in stale) {
+      try {
+        await _tables.updateRow(
+          databaseId: Ids.database,
+          tableId: Ids.orders,
+          rowId: order.id,
+          data: {
+            'status': OrderStatus.cancelled,
+            'paymentStatus': PaymentStatus.failed,
+          },
+        );
+      } on AppwriteException {
+        // Row may belong to another customer; owner/session will catch theirs.
+      }
+    }
+    if (stale.isNotEmpty) await _reloadOrders();
+  }
+
+  @override
   Future<void> updateStore(StoreSettings next) async {
     await _tables.updateRow(
       databaseId: Ids.database,
@@ -736,6 +802,7 @@ StoreSettings _storeFrom(models.Row doc) {
     ),
     upiId: _text(data, 'upiId', ''),
     upiName: _text(data, 'upiName', StoreSettings.fallback.upiName),
+    storePhone: _text(data, 'storePhone', ''),
   );
 }
 
@@ -794,6 +861,7 @@ Address _addressFrom(models.Row doc) {
     area: _text(data, 'area', ''),
     city: _text(data, 'city', ''),
     pincode: _text(data, 'pincode', ''),
+    landmark: _text(data, 'landmark', ''),
     isDefault: _bool(data, 'isDefault'),
     latitude: _double(data, 'latitude'),
     longitude: _double(data, 'longitude'),

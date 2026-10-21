@@ -46,6 +46,7 @@ Future<void> main() async {
       _intCol('freeDeliveryAbove'),
       _varchar('upiId', 80, required: false),
       _varchar('upiName', 80, required: false, fallback: 'Bloomly'),
+      _varchar('storePhone', 20, required: false, fallback: ''),
     ],
     guestRead: true,
   );
@@ -102,6 +103,7 @@ Future<void> main() async {
       _varchar('area', 80),
       _varchar('city', 80),
       _varchar('pincode', 12),
+      _varchar('landmark', 120, required: false, fallback: ''),
       _boolCol('isDefault'),
       _varchar('latitude', 32, required: false, fallback: ''),
       _varchar('longitude', 32, required: false, fallback: ''),
@@ -240,12 +242,14 @@ Future<void> main() async {
 
   await _varcharColumn(tables, Ids.addresses, 'latitude', 32);
   await _varcharColumn(tables, Ids.addresses, 'longitude', 32);
+  await _varcharColumn(tables, Ids.addresses, 'landmark', 120);
   await _varcharColumn(tables, Ids.orders, 'paymentStatus', 16, fallback: 'pending');
   await _varcharColumn(tables, Ids.orders, 'gatewayOrderId', 64);
   await _varcharColumn(tables, Ids.orders, 'gatewayPaymentId', 64);
   await _varcharColumn(tables, Ids.profiles, 'phone', 20);
   await _varcharColumn(tables, Ids.store, 'upiId', 80);
   await _varcharColumn(tables, Ids.store, 'upiName', 80, fallback: 'Bloomly');
+  await _varcharColumn(tables, Ids.store, 'storePhone', 20);
 
   stdout.writeln('Bloomly is seeded. Owner: $email');
 }
@@ -360,7 +364,8 @@ Future<void> _ignore(Future<Object?> Function() action) async {
   try {
     await action();
   } on AppwriteException catch (error) {
-    if (error.code == 409) return;
+    // 409 already exists; 403 on free plans when create is blocked but resource is there.
+    if (error.code == 409 || error.code == 403) return;
     rethrow;
   }
 }

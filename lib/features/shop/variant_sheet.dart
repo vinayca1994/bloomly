@@ -26,7 +26,9 @@ class _VariantSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cart = ref.watch(cartProvider.notifier);
+    // Watch cart *state* so rows rebuild when qty changes.
+    ref.watch(cartProvider);
+    final cart = ref.read(cartProvider.notifier);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -42,7 +44,7 @@ class _VariantSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             for (final variant in product.variants) ...[
-              _row(context, ref, cart, variant),
+              _row(cart, variant),
               const Divider(height: 1, color: BloomlyColors.line),
             ],
           ],
@@ -51,12 +53,7 @@ class _VariantSheet extends ConsumerWidget {
     );
   }
 
-  Widget _row(
-    BuildContext context,
-    WidgetRef ref,
-    CartController cart,
-    Variant variant,
-  ) {
+  Widget _row(CartController cart, Variant variant) {
     final qty = cart.qtyOf(product.id, variant.id);
     final off = percentOff(variant.price, variant.mrp);
     return Padding(

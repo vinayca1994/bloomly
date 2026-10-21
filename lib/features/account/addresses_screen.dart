@@ -15,19 +15,44 @@ class AddressesScreen extends ConsumerStatefulWidget {
 class _AddressesScreenState extends ConsumerState<AddressesScreen> {
   final _label = TextEditingController(text: 'Home');
   final _line = TextEditingController();
+  final _landmark = TextEditingController();
   final _area = TextEditingController();
   final _city = TextEditingController();
   final _pincode = TextEditingController();
+  String? _editingId;
   String? _error;
 
   @override
   void dispose() {
     _label.dispose();
     _line.dispose();
+    _landmark.dispose();
     _area.dispose();
     _city.dispose();
     _pincode.dispose();
     super.dispose();
+  }
+
+  void _clearForm({required String city}) {
+    _editingId = null;
+    _label.text = 'Home';
+    _line.clear();
+    _landmark.clear();
+    _area.clear();
+    _city.text = city;
+    _pincode.clear();
+    _error = null;
+  }
+
+  void _fillForm(Address address) {
+    _editingId = address.id;
+    _label.text = address.label;
+    _line.text = address.line;
+    _landmark.text = address.landmark;
+    _area.text = address.area;
+    _city.text = address.city;
+    _pincode.text = address.pincode;
+    _error = null;
   }
 
   @override
@@ -49,20 +74,55 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                     color: BloomlyColors.card,
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    child: ListTile(
-                      title: Text(
-                        address.isDefault ? '${address.label} · Default' : address.label,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(address.snapshot),
-                      trailing: IconButton(
-                        onPressed: () => backend.deleteAddress(address.id),
-                        icon: const Icon(Icons.delete_outline),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Column(
+                        children: [
+                          ListTile(
+                            title: Text(
+                              address.isDefault ? '${address.label} · Default' : address.label,
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            subtitle: Text(address.snapshot),
+                            trailing: IconButton(
+                              onPressed: () => backend.deleteAddress(address.id),
+                              icon: const Icon(Icons.delete_outline),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+                            child: Row(
+                              children: [
+                                TextButton(
+                                  onPressed: () => setState(() => _fillForm(address)),
+                                  child: const Text('Edit'),
+                                ),
+                                if (!address.isDefault)
+                                  TextButton(
+                                    onPressed: () => backend.saveAddress(
+                                      address.copyWith(isDefault: true),
+                                    ),
+                                    child: const Text('Set default'),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 const SizedBox(height: 8),
-                Text('New address', style: BloomlyType.display(24)),
+                Text(
+                  _editingId == null ? 'New address' : 'Edit address',
+                  style: BloomlyType.display(24),
+                ),
+                if (_editingId != null) ...[
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: () => setState(() => _clearForm(city: backend.store.city)),
+                    child: const Text('Cancel edit'),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   onPressed: _useLocation,
@@ -85,6 +145,11 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                 const SizedBox(height: 8),
                 TextField(controller: _line, decoration: const InputDecoration(labelText: 'House / street')),
                 const SizedBox(height: 8),
+                TextField(
+                  controller: _landmark,
+                  decoration: const InputDecoration(labelText: 'Landmark (optional)'),
+                ),
+                const SizedBox(height: 8),
                 TextField(controller: _area, decoration: const InputDecoration(labelText: 'Area')),
                 const SizedBox(height: 8),
                 TextField(controller: _city, decoration: const InputDecoration(labelText: 'City')),
@@ -99,7 +164,10 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                   Text(_error!, style: const TextStyle(color: BloomlyColors.danger)),
                 ],
                 const SizedBox(height: 12),
-                FilledButton(onPressed: () => _save(user.id), child: const Text('Save address')),
+                FilledButton(
+                  onPressed: () => _save(user.id),
+                  child: Text(_editingId == null ? 'Save address' : 'Update address'),
+                ),
               ],
             ),
     );
@@ -126,23 +194,31 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
     final detected = ref.read(placeProvider).place;
     final sameCity = detected != null &&
         detected.city.trim().toLowerCase() == _city.text.trim().toLowerCase();
+    Address? editing;
+    if (_editingId != null) {
+      for (final address in existing) {
+        if (address.id == _editingId) {
+          editing = address;
+          break;
+        }
+      }
+    }
     await backend.saveAddress(
       Address(
-        id: 'addr${DateTime.now().millisecondsSinceEpoch}',
+        id: _editingId ?? 'addr${DateTime.now().millisecondsSinceEpoch}',
         userId: userId,
         label: _label.text.trim().isEmpty ? 'Home' : _label.text.trim(),
         line: _line.text.trim(),
+        landmark: _landmark.text.trim(),
         area: _area.text.trim(),
         city: _city.text.trim(),
         pincode: _pincode.text.trim(),
-        isDefault: existing.isEmpty,
-        latitude: sameCity ? detected.latitude : null,
-        longitude: sameCity ? detected.longitude : null,
+        isDefault: editing?.isDefault ?? existing.isEmpty,
+        latitude: sameCity ? detected.latitude : editing?.latitude,
+        longitude: sameCity ? detected.longitude : editing?.longitude,
       ),
     );
-    _line.clear();
-    _area.clear();
-    _pincode.clear();
-    setState(() => _error = null);
+    if (!mounted) return;
+    setState(() => _clearForm(city: backend.store.city));
   }
 }

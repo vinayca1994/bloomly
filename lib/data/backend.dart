@@ -8,6 +8,9 @@ abstract class BloomlyBackend extends ChangeNotifier {
   bool get ready;
   String? get loadError;
 
+  /// Reloads catalog/session after a failed startup (or pull-to-refresh style retry).
+  Future<void> reload();
+
   StoreSettings get store;
   List<ShopCategory> get categories;
   List<Product> get products;
@@ -81,6 +84,13 @@ abstract class BloomlyBackend extends ChangeNotifier {
   Future<String?> completeTestPayment(String orderId);
 
   Future<void> updateOrderStatus(String orderId, String status);
+
+  /// Customer or owner cancels when [OrderStatus.customerCanCancel] / owner rules allow.
+  Future<String?> cancelOrder(String orderId);
+
+  /// Cancels stale UPI orders still awaiting payment past [OrderRecord.upiPaymentTimeout].
+  Future<void> expireStaleUpiOrders();
+
   Future<void> updateStore(StoreSettings next);
   Future<void> setProductAvailable(String productId, bool available);
   Future<void> setVariantPrice(String productId, String variantId, int price);

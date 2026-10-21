@@ -14,16 +14,18 @@ Bottom navigation: Home, Categories, Orders, Account. Search sits under the addr
 - A category uses a left rail of subcategories and a two-column grid. Flowers add region chips: North, South, East, West.
 - A product card shows the photo or a fallback tile, the unit, the price, the struck MRP, and a green ADD control. More than one unit opens a size sheet.
 - Cart shows line steppers and the bill. Delivery is ₹25 and free at ₹199. Both numbers live on the store record.
-- Addresses can be typed or filled from the current location. The customer still enters the house and street. Latitude and longitude are kept when the detected city matches.
-- Checkout offers cash on delivery, or UPI through BHIM, GPay, PhonePe, or Paytm. The payable amount is computed on the server from catalog prices. The app opens a `upi://pay` link for the store UPI ID. The customer can record a reference, and the order becomes Placed only after the owner confirms the credit. Cash orders are Placed immediately and stay unpaid until delivery.
-- Tracking steps are Placed, Packing, Out for delivery, and Delivered. Cancelled is terminal. A UPI payment that has not been confirmed stays Awaiting payment. The store sees it so they can confirm or cancel it, and it does not count as revenue.
+- Addresses can be typed, edited, set as default, and filled from the current location. Optional landmark. The customer still enters the house and street. Latitude and longitude are kept when the detected city matches.
+- Checkout offers cash on delivery, or UPI through BHIM, GPay, PhonePe, or Paytm. The payable amount is computed on the server from catalog prices. The app opens a `upi://pay` link for the store UPI ID. The customer can record or update a UTR reference on tracking. The order becomes Placed only after the owner confirms the credit. Unpaid UPI awaiting payment auto-cancels after 45 minutes. Cash orders are Placed immediately and stay unpaid until delivery.
+- Tracking steps are Placed, Packing, Out for delivery, and Delivered. Cancelled is terminal. Customers may cancel while status is Placed or Awaiting payment (before packing). Call and WhatsApp buttons use the store phone from Today settings.
+- A UPI payment that has not been confirmed stays Awaiting payment. The store sees it so they can confirm or cancel it, and it does not count as revenue.
+- If catalog load fails at startup, Retry reloads without restarting the app.
 - Account can open privacy details and delete the customer account.
 
 ## Owner
 
 The console replaces the shop shell. Wide screens use a sidebar. A phone uses a drawer.
 
-- Today: open orders, today's revenue, unavailable products, and store settings. Awaiting-payment orders are not open and do not count as revenue.
+- Today: open orders, today's revenue, unavailable products, and store settings (city, fees, UPI, store phone). Awaiting-payment orders are not open and do not count as revenue.
 - Orders: advance status or cancel. Awaiting UPI payments can be confirmed or cancelled. They are not packed until the owner marks the payment received.
 - Catalog: search, filter, availability switch, inline variant price, and add product.
 
@@ -33,10 +35,10 @@ Only a profile with role `owner` can open `/owner`. On Appwrite that role comes 
 
 Tables: store, categories, products, variants, addresses, orders, order_items, profiles. Product photos go in the `product-images` bucket. The cart stays on the device until checkout. Order tracking listens to Appwrite Realtime when a project is configured, and to the in-memory store otherwise.
 
-Orders store `paymentMethod` (`cod` or `upi`), `paymentStatus` (`pending`, `submitted`, `paid`, or `failed`), the UPI ID in `gatewayOrderId`, and the customer’s reference in `gatewayPaymentId`. The store row stores `upiId` and `upiName`. Addresses store optional latitude and longitude. Profiles store an optional phone.
+Orders store `paymentMethod` (`cod` or `upi`), `paymentStatus` (`pending`, `submitted`, `paid`, or `failed`), the UPI ID in `gatewayOrderId`, and the customer’s reference in `gatewayPaymentId`. The store row stores `upiId`, `upiName`, and `storePhone`. Addresses store optional landmark, latitude, and longitude. Profiles store an optional phone.
 
-Functions: `phone-login` looks up the user id for a mobile number, `payments` creates the UPI order and accepts the owner’s confirmation, and `delete-account` removes the signed-in customer. The Appwrite API key stays on those functions. The UPI ID is public.
+Functions: `phone-login` looks up the user id for a mobile number, and `payments` creates the UPI order, accepts the owner’s confirmation, and deletes a signed-in customer (`action: deleteAccount`). Free plans allow two functions, so deletion is not a separate deployment. The Appwrite API key stays on those functions. The UPI ID is public.
 
 ## Out of scope
 
-Live rider maps, multiple stores, coupons, and push notifications.
+Live rider maps, multiple stores, coupons, and push notifications. Google Places autofill and FCM order alerts are later backlog items, not required for first go-live.

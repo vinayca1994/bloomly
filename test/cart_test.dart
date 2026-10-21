@@ -37,6 +37,31 @@ void main() {
     expect(billTotal(199), 199);
   });
 
+  test('removeOne decrements the most recent line for a product', () {
+    final container = ProviderContainer(
+      overrides: [
+        cartProvider.overrideWith(
+          () => _SeedCart([
+            const CartLine(productId: 'tomato', variantId: 'v250', qty: 2),
+            const CartLine(productId: 'tomato', variantId: 'v500', qty: 1),
+          ]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final cart = container.read(cartProvider.notifier);
+    expect(cart.qtyOfProduct('tomato'), 3);
+
+    cart.removeOne('tomato');
+    expect(cart.qtyOf('tomato', 'v500'), 0);
+    expect(cart.qtyOf('tomato', 'v250'), 2);
+    expect(cart.qtyOfProduct('tomato'), 2);
+
+    cart.removeOne('tomato');
+    expect(cart.qtyOf('tomato', 'v250'), 1);
+  });
+
   testWidgets('cart shows a delivery fee under ₹199', (tester) async {
     final backend = MemoryBackend.seeded();
     final tomato = backend.productById('tomato')!;

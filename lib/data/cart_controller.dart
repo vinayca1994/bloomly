@@ -89,6 +89,17 @@ class CartController extends Notifier<List<CartLine>> {
     setQty(productId, variantId, qtyOf(productId, variantId) + 1);
   }
 
+  /// Decrements the most recently added line for [productId] (any variant).
+  void removeOne(String productId) {
+    for (var i = state.length - 1; i >= 0; i--) {
+      final line = state[i];
+      if (line.productId == productId) {
+        setQty(line.productId, line.variantId, line.qty - 1);
+        return;
+      }
+    }
+  }
+
   void clear() {
     state = [];
     _persist();

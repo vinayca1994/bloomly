@@ -36,7 +36,17 @@ class BloomlyApp extends ConsumerWidget {
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(backend.loadError!, textAlign: TextAlign.center),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(backend.loadError!, textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () => ref.read(backendProvider).reload(),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
               ),
             ),
           );

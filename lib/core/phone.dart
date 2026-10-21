@@ -12,4 +12,18 @@ class PhoneNumber {
     if (!_mobile.hasMatch(digits)) return null;
     return '+91$digits';
   }
+
+  static Uri? telUri(String raw) {
+    final e164 = normalizeIndia(raw);
+    if (e164 == null) return null;
+    return Uri(scheme: 'tel', path: e164);
+  }
+
+  static Uri? whatsAppUri(String raw, {String text = ''}) {
+    final e164 = normalizeIndia(raw);
+    if (e164 == null) return null;
+    return Uri.https('wa.me', e164.substring(1), {
+      if (text.trim().isNotEmpty) 'text': text.trim(),
+    });
+  }
 }

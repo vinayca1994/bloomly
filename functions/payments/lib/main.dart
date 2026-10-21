@@ -40,9 +40,52 @@ Future<Map<String, dynamic>> handle({
   if (decoded is! Map) return {'error': 'Expected a JSON body.'};
   final payload = Map<String, dynamic>.from(decoded);
   final action = payload['action']?.toString() ?? 'create';
+  if (action == 'deleteAccount') return _deleteAccount(userId);
   if (action == 'note') return _note(payload, userId);
   if (action == 'confirm') return _confirm(payload, userId);
   return _create(payload, userId);
+}
+
+/// Free Appwrite plans allow two functions, so account deletion lives here.
+Future<Map<String, dynamic>> _deleteAccount(String userId) async {
+  if (userId.isEmpty) return {'error': 'Sign in first.'};
+  final users = Users(_client());
+  final user = await users.get(userId: userId);
+  if (user.labels.contains('owner')) {
+    return {'error': 'The store owner account cannot be deleted here.'};
+  }
+  final tables = _tables();
+  final orders = await tables.listRows(
+    databaseId: _database,
+    tableId: _orders,
+    queries: [Query.equal('userId', userId), Query.limit(100)],
+  );
+  for (final order in orders.rows) {
+    final items = await tables.listRows(
+      databaseId: _database,
+      tableId: _orderItems,
+      queries: [Query.equal('orderId', order.$id), Query.limit(100)],
+    );
+    for (final item in items.rows) {
+      await tables.deleteRow(databaseId: _database, tableId: _orderItems, rowId: item.$id);
+    }
+    await tables.deleteRow(databaseId: _database, tableId: _orders, rowId: order.$id);
+  }
+  final addresses = await tables.listRows(
+    databaseId: _database,
+    tableId: 'addresses',
+    queries: [Query.equal('userId', userId), Query.limit(100)],
+  );
+  for (final address in addresses.rows) {
+    await tables.deleteRow(databaseId: _database, tableId: 'addresses', rowId: address.$id);
+  }
+  try {
+    await tables.deleteRow(databaseId: _database, tableId: 'profiles', rowId: userId);
+  } on AppwriteException {
+    // Phone accounts may not have a profile row.
+  }
+  await users.delete(userId: userId);
+  return {'ok': true};
 }
 
 Future<Map<String, dynamic>> _create(Map<String, dynamic> payload, String userId) async {
@@ -105,6 +148,7 @@ Future<Map<String, dynamic>> _create(Map<String, dynamic> payload, String userId
   final total = subtotal + fee;
   final permissions = [
     Permission.read(Role.user(userId)),
+    Permission.update(Role.user(userId)),
     Permission.read(Role.label('owner')),
     Permission.update(Role.label('owner')),
   ];
@@ -233,13 +277,19 @@ String _firstName(Object? stored, String? fromEnv) {
 
 Client _client() {
   return Client()
-      .setEndpoint(Platform.environment['APPWRITE_FUNCTION_API_ENDPOINT'] ?? '')
-      .setProject(Platform.environment['APPWRITE_FUNCTION_PROJECT_ID'] ?? '')
-      .setKey(
-        Platform.environment['APPWRITE_FUNCTION_API_KEY'] ??
-            Platform.environment['APPWRITE_API_KEY'] ??
-            '',
-      );
+      .setEndpoint(_env('APPWRITE_FUNCTION_API_ENDPOINT'))
+      .setProject(_env('APPWRITE_FUNCTION_PROJECT_ID'))
+      .setKey(_firstKey());
+}
+
+String _env(String key) => Platform.environment[key]?.trim() ?? '';
+
+String _firstKey() {
+  for (final key in ['APPWRITE_FUNCTION_API_KEY', 'APPWRITE_API_KEY']) {
+    final value = _env(key);
+    if (value.isNotEmpty) return value;
+  }
+  return '';
 }
 
 TablesDB _tables() => TablesDB(_client());
