@@ -5,21 +5,34 @@ import '../../data/stories.dart';
 import 'promo_card.dart';
 
 class StoryBanner extends StatelessWidget {
-  const StoryBanner({required this.stories, super.key});
+  const StoryBanner({
+    required this.stories,
+    this.bleed = false,
+    this.aspect = 0,
+    super.key,
+  });
 
   final List<Story> stories;
+  final bool bleed;
+  final double aspect;
 
   @override
   Widget build(BuildContext context) {
     if (stories.isEmpty) return const SizedBox.shrink();
-    return _BannerCarousel(stories: stories);
+    return _BannerCarousel(stories: stories, bleed: bleed, aspect: aspect);
   }
 }
 
 class _BannerCarousel extends StatefulWidget {
-  const _BannerCarousel({required this.stories});
+  const _BannerCarousel({
+    required this.stories,
+    required this.bleed,
+    required this.aspect,
+  });
 
   final List<Story> stories;
+  final bool bleed;
+  final double aspect;
 
   @override
   State<_BannerCarousel> createState() => _BannerCarouselState();
@@ -38,7 +51,7 @@ class _BannerCarouselState extends State<_BannerCarousel>
     _page = PageController();
     _dwell = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4),
+      duration: const Duration(seconds: 5),
     );
     _dwell.addStatusListener(_onDwell);
     if (widget.stories.length > 1) _dwell.forward();
@@ -103,32 +116,33 @@ class _BannerCarouselState extends State<_BannerCarousel>
 
   @override
   Widget build(BuildContext context) {
+    final pages = Listener(
+      onPointerDown: (_) => _hold(true),
+      onPointerUp: (_) => _hold(false),
+      onPointerCancel: (_) => _hold(false),
+      child: PageView.builder(
+        controller: _page,
+        itemCount: widget.stories.length,
+        onPageChanged: (index) {
+          setState(() => _index = index);
+          _restartDwell();
+        },
+        itemBuilder: (context, index) => Padding(
+          padding: EdgeInsets.symmetric(horizontal: widget.bleed ? 0 : 2),
+          child: PromoCard(story: widget.stories[index], bleed: widget.bleed),
+        ),
+      ),
+    );
+    final frame = widget.aspect > 0
+        ? AspectRatio(aspectRatio: widget.aspect, child: pages)
+        : SizedBox(height: 156, child: pages);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.only(bottom: widget.bleed ? 8 : 16),
       child: Column(
         children: [
-          SizedBox(
-            height: 156,
-            child: Listener(
-              onPointerDown: (_) => _hold(true),
-              onPointerUp: (_) => _hold(false),
-              onPointerCancel: (_) => _hold(false),
-              child: PageView.builder(
-                controller: _page,
-                itemCount: widget.stories.length,
-                onPageChanged: (index) {
-                  setState(() => _index = index);
-                  _restartDwell();
-                },
-                itemBuilder: (context, index) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: PromoCard(story: widget.stories[index]),
-                ),
-              ),
-            ),
-          ),
+          frame,
           if (widget.stories.length > 1) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             _Dots(count: widget.stories.length, index: _index),
           ],
         ],
@@ -150,11 +164,11 @@ class _Dots extends StatelessWidget {
       children: [
         for (var i = 0; i < count; i++)
           Container(
-            width: i == index ? 16 : 6,
-            height: 6,
-            margin: EdgeInsets.symmetric(horizontal: 3),
+            width: i == index ? 18 : 8,
+            height: 3,
+            margin: const EdgeInsets.symmetric(horizontal: 3),
             decoration: BoxDecoration(
-              color: i == index ? context.bloom.text : context.bloom.border,
+              color: i == index ? context.bloom.primary : context.bloom.border,
               borderRadius: BorderRadius.circular(99),
             ),
           ),

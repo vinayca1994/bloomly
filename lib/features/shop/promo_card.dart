@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/promo_templates.dart';
 import '../../data/stories.dart';
+import 'bloom_media.dart';
 import 'story_style.dart';
 
 class PromoCard extends StatelessWidget {
@@ -60,8 +61,29 @@ class PromoCard extends StatelessWidget {
                 motif,
               ),
             };
-            if (!bleed) return body;
-            return SizedBox.expand(child: body);
+            final framed = !bleed ? body : SizedBox.expand(child: body);
+            if (story.mediaKind == StoryMediaKind.none || story.mediaUrl.isEmpty) {
+              return framed;
+            }
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                BloomMedia(story: story),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        ground.withValues(alpha: 0.92),
+                        ground.withValues(alpha: 0.25),
+                      ],
+                    ),
+                  ),
+                ),
+                framed,
+              ],
+            );
           },
         ),
       ),

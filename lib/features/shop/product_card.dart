@@ -42,7 +42,7 @@ class ProductCard extends ConsumerWidget {
           borderRadius: BorderRadius.circular(BloomTokens.radiusMd),
           onTap: soldOut ? null : () => _add(context, ref),
           child: Opacity(
-            opacity: soldOut ? 0.72 : 1,
+            opacity: 1,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -55,7 +55,7 @@ class ProductCard extends ConsumerWidget {
                       children: [
                         Positioned.fill(
                           child: Opacity(
-                            opacity: soldOut ? 0.45 : 1,
+                            opacity: soldOut ? 0.4 : 1,
                             child: ProductImage(
                               emoji: emojiFor(product, backend.categories),
                               kind: kindFor(product, backend.categories),
@@ -85,10 +85,10 @@ class ProductCard extends ConsumerWidget {
                             ),
                           ),
                         Positioned(
-                          right: 8,
-                          bottom: 8,
+                          right: 4,
+                          bottom: 4,
                           child: soldOut
-                              ? const SizedBox.shrink()
+                              ? _NotifyButton(name: product.name)
                               : _action(context, ref, qty),
                         ),
                       ],
@@ -101,6 +101,43 @@ class ProductCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
+                        money(lead.price),
+                        style: BloomlyType.uiText(
+                          16,
+                          weight: FontWeight.w800,
+                          color: tokens.text,
+                        ),
+                      ),
+                      if (off > 0)
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                money(lead.mrp),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: BloomlyType.uiText(
+                                  12,
+                                  color: tokens.textSecondary,
+                                ).copyWith(decoration: TextDecoration.lineThrough),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              color: tokens.discountBg,
+                              child: Text(
+                                '$off%',
+                                style: BloomlyType.uiText(
+                                  11,
+                                  weight: FontWeight.w800,
+                                  color: tokens.discountFg,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      Text(
                         product.name,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -111,25 +148,8 @@ class ProductCard extends ConsumerWidget {
                           height: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 2),
                       Text(
-                        money(lead.price),
-                        style: BloomlyType.uiText(
-                          16,
-                          weight: FontWeight.w800,
-                          color: tokens.text,
-                        ),
-                      ),
-                      if (off > 0)
-                        Text(
-                          money(lead.mrp),
-                          style: BloomlyType.uiText(
-                            12,
-                            color: tokens.textSecondary,
-                          ).copyWith(decoration: TextDecoration.lineThrough),
-                        ),
-                      Text(
-                        multiple ? '${lead.label} +' : lead.label,
+                        multiple ? '${product.variants.length} options' : lead.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: BloomlyType.uiText(12, color: tokens.textSecondary),
@@ -146,23 +166,35 @@ class ProductCard extends ConsumerWidget {
   }
 
   Widget _action(BuildContext context, WidgetRef ref, int qty) {
-    if (qty <= 0) return _AddButton(onTap: () => _add(context, ref));
     final multiple = product.variants.length > 1;
-    if (multiple) {
-      return QtyStepper(
+    final width = compact ? 72.0 : 88.0;
+    final Widget control;
+    if (qty <= 0) {
+      control = _AddButton(
+        compact: compact,
+        options: multiple ? product.variants.length : 0,
+        onTap: () => _add(context, ref),
+      );
+    } else if (multiple) {
+      control = QtyStepper(
         qty: qty,
         onMinus: () => ref.read(cartProvider.notifier).removeOne(product.id),
         onPlus: () => showVariantSheet(context, product),
       );
+    } else {
+      final variant = product.variants.first;
+      control = QtyStepper(
+        qty: qty,
+        onMinus: () => ref
+            .read(cartProvider.notifier)
+            .setQty(product.id, variant.id, qty - 1),
+        onPlus: () =>
+            ref.read(cartProvider.notifier).addOne(product.id, variant.id),
+      );
     }
-    final variant = product.variants.first;
-    return QtyStepper(
-      qty: qty,
-      onMinus: () => ref
-          .read(cartProvider.notifier)
-          .setQty(product.id, variant.id, qty - 1),
-      onPlus: () =>
-          ref.read(cartProvider.notifier).addOne(product.id, variant.id),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 150),
+      child: SizedBox(key: ValueKey(qty <= 0), width: width, child: control),
     );
   }
 
@@ -224,40 +256,92 @@ class _Badge extends StatelessWidget {
 }
 
 class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onTap});
+  const _AddButton({
+    required this.onTap,
+    required this.compact,
+    required this.options,
+  });
 
   final VoidCallback onTap;
+  final bool compact;
+  final int options;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.bloom;
+    final label = options > 1 ? '$options options' : 'ADD';
+    return Semantics(
+      button: true,
+      label: options > 1 ? '$options options' : 'Add to cart',
+      child: SizedBox(
+        height: 44,
+        child: Center(
+          child: Material(
+            color: tokens.surface,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                height: compact ? 32 : 36,
+                constraints: BoxConstraints(minWidth: compact ? 64 : 76),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: tokens.primary, width: 1.5),
+                  boxShadow: tokens.cardShadow,
+                ),
+                child: Text(
+                  label,
+                  style: BloomlyType.uiText(
+                    options > 1 ? 11 : 13,
+                    weight: FontWeight.w800,
+                    color: tokens.primary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotifyButton extends StatelessWidget {
+  const _NotifyButton({required this.name});
+
+  final String name;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.bloom;
     return Semantics(
       button: true,
-      label: 'Add to cart',
-      child: Material(
-        color: tokens.surface,
-        elevation: 0,
-        shadowColor: Colors.transparent,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            height: 36,
-            constraints: const BoxConstraints(minWidth: 76, minHeight: 36),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: tokens.borderFocus, width: 1.5),
-              boxShadow: tokens.cardShadow,
+      label: 'Notify me',
+      child: SizedBox(
+        height: 44,
+        child: Center(
+          child: TextButton(
+            style: TextButton.styleFrom(
+              minimumSize: const Size(64, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('We will note that $name is sold out.')),
+              );
+            },
             child: Text(
-              'ADD',
+              'Notify me',
               style: BloomlyType.uiText(
-                13,
+                11,
                 weight: FontWeight.w800,
-                color: tokens.link,
+                color: tokens.primary,
               ),
             ),
           ),

@@ -172,6 +172,12 @@ class UnconfiguredBackend extends BloomlyBackend {
   Future<void> updateStore(StoreSettings next) async {}
 
   @override
+  Future<String?> uploadPromoMedia({
+    required Uint8List bytes,
+    required String filename,
+  }) async => null;
+
+  @override
   Future<void> setProductAvailable(String productId, bool available) async {}
 
   @override

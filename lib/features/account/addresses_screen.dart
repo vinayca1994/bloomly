@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class AddressesScreen extends ConsumerStatefulWidget {
   const AddressesScreen({super.key});
@@ -87,7 +88,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                   _form = false;
                   _clearForm(city: backend.store.city);
                 }),
-                icon: const Icon(Icons.arrow_back),
+                icon: const Icon(BloomIcons.arrowLeft),
               )
             : null,
       ),
@@ -111,7 +112,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                 ],
                 OutlinedButton.icon(
                   onPressed: () => setState(() => _openNew(backend.store.city)),
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(BloomIcons.add),
                   label: const Text('Add new address'),
                 ),
               ],
@@ -147,10 +148,10 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                   color: tokens.infoBg,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 ),
-                child: Icon(Icons.location_on, size: 36, color: tokens.primary),
+                child: Icon(BloomIcons.mapPin, size: 36, color: tokens.primary),
               ),
               ListTile(
-                leading: Icon(Icons.near_me_outlined, color: tokens.link),
+                leading: Icon(BloomIcons.navigation, color: tokens.link),
                 title: Text(
                   place.requesting ? 'Finding you…' : 'Use my current location',
                   style: TextStyle(color: tokens.link, fontWeight: FontWeight.w700),
@@ -301,9 +302,9 @@ class _AddressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.bloom;
     final icon = switch (address.label.toLowerCase()) {
-      'home' => Icons.home_outlined,
-      'work' => Icons.work_outline,
-      _ => Icons.location_on_outlined,
+      'home' => BloomIcons.house,
+      'work' => BloomIcons.briefcase,
+      _ => BloomIcons.mapPin,
     };
     return DecoratedBox(
       decoration: BloomlyDecor.card(tokens),

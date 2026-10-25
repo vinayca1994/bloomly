@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../data/providers.dart';
 import 'cart_bar.dart';
 import 'product_card.dart';
+import '../../core/bloom_icons.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -100,7 +101,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             onSubmitted: _remember,
             decoration: InputDecoration(
               hintText: 'Search vegetables, fruits, flowers',
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(BloomIcons.search),
               suffixIcon: query.isEmpty
                   ? null
                   : IconButton(
@@ -109,7 +110,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         _controller.clear();
                         setState(() {});
                       },
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(BloomIcons.close),
                     ),
             ),
           ),
@@ -128,7 +129,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   height: 48,
                   child: Row(
                     children: [
-                      Icon(Icons.history, size: 20, color: tokens.textSecondary),
+                      Icon(BloomIcons.history, size: 20, color: tokens.textSecondary),
                       const SizedBox(width: 12),
                       Expanded(
                         child: InkWell(
@@ -142,7 +143,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       IconButton(
                         tooltip: 'Remove $term',
                         onPressed: () => _dropRecent(term),
-                        icon: Icon(Icons.close, size: 18, color: tokens.textSecondary),
+                        icon: Icon(BloomIcons.close, size: 18, color: tokens.textSecondary),
                       ),
                     ],
                   ),

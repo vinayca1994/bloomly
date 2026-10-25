@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../data/catalog_seed.dart';
 import 'bloom_emoji.dart';
 import 'theme.dart';
+import 'bloom_icons.dart';
 
 /// Emoji must not inherit Plus Jakarta Sans. That font has no emoji, and on
 /// the web the missing glyph draws as a menu icon.
@@ -120,13 +121,13 @@ class QtyStepper extends StatelessWidget {
     final tokens = context.bloom;
     return Material(
       color: tokens.primary,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(14),
       child: SizedBox(
-        height: 40,
+        height: 44,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _button(context, Icons.remove, onMinus, minusKey, 'Decrease, $qty in cart'),
+            _button(context, BloomIcons.minus, onMinus, minusKey, 'Decrease, $qty in cart'),
             SizedBox(
               width: 28,
               child: Text(
@@ -139,7 +140,7 @@ class QtyStepper extends StatelessWidget {
                 ),
               ),
             ),
-            _button(context, Icons.add, onPlus, plusKey, '$qty in cart, increase'),
+            _button(context, BloomIcons.add, onPlus, plusKey, '$qty in cart, increase'),
           ],
         ),
       ),
@@ -162,8 +163,8 @@ class QtyStepper extends StatelessWidget {
         onTap: onPressed,
         customBorder: const CircleBorder(),
         child: SizedBox(
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           child: Icon(icon, size: 18, color: tokens.onPrimary),
         ),
       ),
@@ -243,7 +244,7 @@ class FreeDeliveryBar extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  unlocked ? Icons.check_circle : Icons.local_shipping_outlined,
+                  unlocked ? BloomIcons.checkCircle : BloomIcons.truck,
                   size: 18,
                   color: unlocked ? tokens.success : tokens.onSecondary,
                 ),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class ReviewPanel extends ConsumerStatefulWidget {
   const ReviewPanel({required this.order, super.key});
@@ -231,7 +232,7 @@ class _OverallStars extends StatelessWidget {
             tooltip: '$star star${star == 1 ? '' : 's'}',
             onPressed: onChanged == null ? null : () => onChanged!(star),
             icon: Icon(
-              star <= value ? Icons.star : Icons.star_border,
+              star <= value ? BloomIcons.starFill : BloomIcons.star,
               color: tokens.star,
               size: 32,
             ),

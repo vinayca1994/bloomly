@@ -12,6 +12,7 @@ import '../../data/cart_controller.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
 import 'upi_sheet.dart';
+import '../../core/bloom_icons.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -120,13 +121,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               children: [
                 _payTile(
                   value: PaymentMethod.cod,
-                  icon: Icons.payments_outlined,
+                  icon: BloomIcons.money,
                   title: 'Cash on delivery',
                   subtitle: 'Pay when the order arrives',
                 ),
                 _payTile(
                   value: PaymentMethod.upi,
-                  icon: Icons.account_balance_wallet_outlined,
+                  icon: BloomIcons.wallet,
                   title: 'UPI',
                   subtitle: backend.usesTestCheckout
                       ? 'Demo only, until the store adds a UPI ID. No bank is charged.'
@@ -331,6 +332,29 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       fontSize: strong ? 16 : 14,
       color: strong ? tokens.text : tokens.textSecondary,
     );
+    if (strong) {
+      final ink = tokens.discountFg;
+      final emphasis = TextStyle(
+        fontWeight: FontWeight.w800,
+        fontSize: 18,
+        color: ink,
+      );
+      return Container(
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: tokens.discountBg,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Text(label, style: emphasis),
+            const Spacer(),
+            Text(value, style: emphasis),
+          ],
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -376,7 +400,7 @@ class _GuestSignInState extends ConsumerState<_GuestSignIn> {
         children: [
           Row(
             children: [
-              Icon(Icons.person_outline, color: tokens.info),
+              Icon(BloomIcons.user, color: tokens.info),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(

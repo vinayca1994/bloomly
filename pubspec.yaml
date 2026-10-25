@@ -49,6 +49,13 @@ dependencies:
   qr_flutter: ^4.1.0
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
+  phosphor_flutter: ^2.1.0
+  video_player: ^2.14.1
+  visibility_detector: ^0.4.0+2
+  lottie: ^3.6.1
+  flutter_cache_manager: ^3.4.5
+  file_picker: ^11.0.3
+  connectivity_plus: ^7.3.1
 
 dev_dependencies:
   flutter_test:
@@ -75,6 +82,7 @@ flutter:
 
   assets:
     - assets/products/
+    - assets/media/
 
   fonts:
     - family: BricolageGrotesque

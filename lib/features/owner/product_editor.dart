@@ -10,6 +10,7 @@ import '../../core/widgets.dart';
 import '../../data/catalog_seed.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class ProductEditor extends ConsumerStatefulWidget {
   const ProductEditor({this.productId, super.key});
@@ -124,7 +125,7 @@ class _ProductEditorState extends ConsumerState<ProductEditor> {
                     FilledButton.tonalIcon(
                       style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
                       onPressed: _pick,
-                      icon: const Icon(Icons.image_outlined, size: 18),
+                      icon: const Icon(BloomIcons.image, size: 18),
                       label: const Text('Change photo'),
                     ),
                     const SizedBox(height: 6),

@@ -15,6 +15,7 @@ import '../../data/providers.dart';
 import '../cart/upi_sheet.dart';
 import 'delivery_map.dart';
 import 'review_panel.dart';
+import '../../core/bloom_icons.dart';
 
 class TrackingScreen extends ConsumerStatefulWidget {
   const TrackingScreen({required this.orderId, super.key});
@@ -104,7 +105,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.place_outlined, color: heroFg, size: 18),
+                          Icon(BloomIcons.mapPin, color: heroFg, size: 18),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -219,7 +220,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.payments_outlined, size: 18, color: context.bloom.star),
+                            Icon(BloomIcons.money, size: 18, color: context.bloom.star),
                             const SizedBox(width: 8),
                             Expanded(child: Text(paymentLabel(order))),
                             Text(
@@ -449,7 +450,7 @@ class _StoreContact extends StatelessWidget {
           Expanded(
             child: OutlinedButton.icon(
               onPressed: () => launchUrl(call),
-              icon: const Icon(Icons.call_outlined),
+              icon: const Icon(BloomIcons.phone),
               label: const Text('Call store'),
             ),
           ),
@@ -458,7 +459,7 @@ class _StoreContact extends StatelessWidget {
           Expanded(
             child: OutlinedButton.icon(
               onPressed: () => launchUrl(chat, mode: LaunchMode.externalApplication),
-              icon: const Icon(Icons.chat_outlined),
+              icon: const Icon(BloomIcons.chat),
               label: const Text('WhatsApp'),
             ),
           ),
@@ -510,10 +511,10 @@ class _Steps extends StatelessWidget {
       'Enjoy the freshness',
     ];
     const icons = [
-      Icons.receipt_long_outlined,
-      Icons.inventory_2_outlined,
-      Icons.delivery_dining_outlined,
-      Icons.spa_outlined,
+      BloomIcons.receipt,
+      BloomIcons.package,
+      BloomIcons.moped,
+      BloomIcons.plant,
     ];
     return Column(
       children: [
@@ -531,7 +532,7 @@ class _Steps extends StatelessWidget {
                       color: i <= index ? context.bloom.primary : context.bloom.sunken,
                     ),
                     child: Icon(
-                      i < index ? Icons.check_rounded : icons[i],
+                      i < index ? BloomIcons.check : icons[i],
                       size: 16,
                       color: i <= index ? context.bloom.onPrimary : context.bloom.textSecondary,
                     ),

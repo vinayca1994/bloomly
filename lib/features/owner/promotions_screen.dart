@@ -1,14 +1,17 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../data/demo_promos.dart';
 import '../../data/models.dart';
 import '../../data/promo_templates.dart';
 import '../../data/providers.dart';
 import '../../data/stories.dart';
 import '../shop/promo_card.dart';
 import '../shop/story_style.dart';
+import '../../core/bloom_icons.dart';
 
 class PromotionsScreen extends ConsumerWidget {
   const PromotionsScreen({super.key});
@@ -109,7 +112,7 @@ class PromotionsScreen extends ConsumerWidget {
                               ),
                             ),
                             Icon(
-                              Icons.add,
+                              BloomIcons.add,
                               color: context.bloom.link,
                             ),
                           ],
@@ -263,12 +266,12 @@ class _BannerRow extends StatelessWidget {
                   IconButton(
                     tooltip: 'Move up',
                     onPressed: canUp ? onUp : null,
-                    icon: const Icon(Icons.arrow_upward),
+                    icon: const Icon(BloomIcons.arrowUp),
                   ),
                   IconButton(
                     tooltip: 'Move down',
                     onPressed: canDown ? onDown : null,
-                    icon: const Icon(Icons.arrow_downward),
+                    icon: const Icon(BloomIcons.arrowDown),
                   ),
                   TextButton(
                     onPressed: onHide,
@@ -309,9 +312,13 @@ class _PromotionEditorState extends ConsumerState<PromotionEditor> {
   late StoryPlacement _placement;
   late String _styleId;
   late String _route;
+  late StoryMediaKind _mediaKind;
+  late String _mediaUrl;
+  late String _posterUrl;
   DateTime? _start;
   DateTime? _end;
   String? _error;
+  var _uploading = false;
 
   @override
   void initState() {
@@ -326,6 +333,9 @@ class _PromotionEditorState extends ConsumerState<PromotionEditor> {
     final styles = promoStyles(draft?.themeId ?? '');
     if (_styleId.isEmpty && styles.isNotEmpty) _styleId = styles.first.id;
     _route = draft?.route ?? '';
+    _mediaKind = draft?.mediaKind ?? StoryMediaKind.none;
+    _mediaUrl = draft?.mediaUrl ?? '';
+    _posterUrl = draft?.posterUrl ?? '';
     _start = draft?.startsAt;
     _end = _shownEnd(draft?.endsAt);
   }
@@ -363,6 +373,71 @@ class _PromotionEditorState extends ConsumerState<PromotionEditor> {
               controller: _subtitle,
               decoration: const InputDecoration(labelText: 'Subtitle'),
             ),
+            const SizedBox(height: 16),
+            const Text('Media', style: TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final kind in StoryMediaKind.values)
+                  ChoiceChip(
+                    label: Text(_mediaLabel(kind)),
+                    selected: _mediaKind == kind,
+                    onSelected: (_) => setState(() => _mediaKind = kind),
+                  ),
+              ],
+            ),
+            if (_mediaKind != StoryMediaKind.none) ...[
+              const SizedBox(height: 8),
+              Text(
+                _mediaUrl.isEmpty ? 'No file yet.' : _mediaUrl,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: _uploading
+                        ? null
+                        : () => _pickMedia(poster: false),
+                    child: Text(_uploading ? 'Uploading…' : 'Upload file'),
+                  ),
+                  OutlinedButton(
+                    onPressed: _uploading
+                        ? null
+                        : () => _pickMedia(poster: true),
+                    child: const Text('Upload poster'),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() {
+                      _mediaKind = StoryMediaKind.video;
+                      _mediaUrl = sampleHeroVideo;
+                      _posterUrl = sampleHeroPoster;
+                    }),
+                    child: const Text('Sample loop'),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() {
+                      _mediaKind = StoryMediaKind.lottie;
+                      _mediaUrl = sampleLottie;
+                      _posterUrl = sampleHeroPoster;
+                    }),
+                    child: const Text('Sample Lottie'),
+                  ),
+                ],
+              ),
+              if (_posterUrl.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Poster: $_posterUrl',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
             const SizedBox(height: 16),
             const Text(
               'Publish on',
@@ -439,11 +514,14 @@ class _PromotionEditorState extends ConsumerState<PromotionEditor> {
             ),
             const SizedBox(height: 16),
             SizedBox(
-              height: _placement == StoryPlacement.homeClip
-                  ? 180
-                  : _placement == StoryPlacement.category
-                  ? 112
-                  : 156,
+              height: switch (_placement) {
+                StoryPlacement.homeClip => 180.0,
+                StoryPlacement.category => 112.0,
+                StoryPlacement.offerStrip => 40.0,
+                StoryPlacement.tileGrid => 140.0,
+                StoryPlacement.splash => 220.0,
+                StoryPlacement.homeBanner => 180.0,
+              },
               child: PromoCard(
                 story: draft.copyWith(
                   title: _title.text,
@@ -453,6 +531,9 @@ class _PromotionEditorState extends ConsumerState<PromotionEditor> {
                   styleId: _styleId,
                   motif: promoStyle(draft.themeId, _styleId)?.motif,
                   route: _route,
+                  mediaKind: _mediaKind,
+                  mediaUrl: _mediaUrl,
+                  posterUrl: _posterUrl,
                 ),
                 compact: _placement == StoryPlacement.homeClip,
               ),
@@ -540,6 +621,9 @@ class _PromotionEditorState extends ConsumerState<PromotionEditor> {
       hidden: false,
       startsAt: _start,
       endsAt: _end == null ? null : _exclusiveEnd(_end!),
+      mediaKind: _mediaKind,
+      mediaUrl: _mediaKind == StoryMediaKind.none ? '' : _mediaUrl,
+      posterUrl: _posterUrl,
     );
     final backend = ref.read(backendProvider);
     final current = [...backend.store.promotions];
@@ -562,6 +646,62 @@ class _PromotionEditorState extends ConsumerState<PromotionEditor> {
     }
     if (mounted) context.pop();
   }
+
+  Future<void> _pickMedia({required bool poster}) async {
+    final picked = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: poster
+          ? const ['jpg', 'jpeg', 'png', 'webp']
+          : switch (_mediaKind) {
+              StoryMediaKind.video => const ['mp4', 'webm'],
+              StoryMediaKind.lottie => const ['json'],
+              StoryMediaKind.image => const ['jpg', 'jpeg', 'png', 'webp'],
+              StoryMediaKind.none => const ['mp4', 'webm', 'json'],
+            },
+      withData: true,
+    );
+    final file = picked?.files.singleOrNull;
+    final bytes = file?.bytes;
+    if (file == null || bytes == null) {
+      if (mounted) {
+        setState(() => _error = 'Could not read that file.');
+      }
+      return;
+    }
+    if (bytes.length > 5000000) {
+      setState(() => _error = 'That file is over 5 MB.');
+      return;
+    }
+    setState(() {
+      _uploading = true;
+      _error = null;
+    });
+    try {
+      final url = await ref.read(backendProvider).uploadPromoMedia(
+        bytes: bytes,
+        filename: file.name,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (poster) {
+          _posterUrl = url ?? '';
+          if (url == null) {
+            _error = 'Demo shop keeps sample files. Use Sample loop or Sample Lottie.';
+          }
+        } else if (url == null) {
+          _error = 'Demo shop keeps sample files. Use Sample loop or Sample Lottie.';
+        } else {
+          _mediaUrl = url;
+        }
+      });
+    } on BloomlyException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Could not upload. Try again.');
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
 }
 
 String _placementLabel(StoryPlacement placement) {
@@ -570,6 +710,17 @@ String _placementLabel(StoryPlacement placement) {
     StoryPlacement.homeClip => 'Clips',
     StoryPlacement.category => 'Category',
     StoryPlacement.splash => 'Splash',
+    StoryPlacement.offerStrip => 'Offer strip',
+    StoryPlacement.tileGrid => 'Tile grid',
+  };
+}
+
+String _mediaLabel(StoryMediaKind kind) {
+  return switch (kind) {
+    StoryMediaKind.none => 'Artwork',
+    StoryMediaKind.image => 'Image',
+    StoryMediaKind.video => 'Video',
+    StoryMediaKind.lottie => 'Lottie',
   };
 }
 

@@ -8,6 +8,7 @@ import '../../core/widgets.dart';
 import '../../data/cart_controller.dart';
 import '../../data/catalog_seed.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -27,13 +28,13 @@ class CartScreen extends ConsumerWidget {
               context.go('/');
             }
           },
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(BloomIcons.arrowLeft),
         ),
       ),
       body: summary.lines.isEmpty
           ? const BloomEmpty(
               key: Key('cart-empty'),
-              icon: Icons.shopping_basket_outlined,
+              icon: BloomIcons.basket,
               title: 'Your cart is empty',
               body: 'Add vegetables, fruit, or flowers and they will wait here.',
             )

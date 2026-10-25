@@ -8,6 +8,7 @@ import '../../core/widgets.dart';
 import '../../data/cart_controller.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class OrdersScreen extends ConsumerWidget {
   const OrdersScreen({super.key});
@@ -24,7 +25,7 @@ class OrdersScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Orders')),
       body: user == null
           ? _Empty(
-              icon: Icons.receipt_long_outlined,
+              icon: BloomIcons.receipt,
               title: 'Sign in to see orders',
               body: 'Your placed orders stay with your account.',
               action: 'Sign in',
@@ -32,7 +33,7 @@ class OrdersScreen extends ConsumerWidget {
             )
           : orders.isEmpty
           ? const _Empty(
-              icon: Icons.shopping_basket_outlined,
+              icon: BloomIcons.basket,
               title: 'No orders yet',
               body:
                   'Vegetables, fruit, and flowers you order will show up here.',

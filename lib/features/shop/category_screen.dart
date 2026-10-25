@@ -7,6 +7,7 @@ import '../../data/providers.dart';
 import '../../data/stories.dart';
 import 'product_card.dart';
 import 'promo_card.dart';
+import '../../core/bloom_icons.dart';
 
 class CategoryScreen extends ConsumerStatefulWidget {
   const CategoryScreen({this.group, super.key});
@@ -86,7 +87,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
           IconButton(
             tooltip: 'Search',
             onPressed: () => context.push('/search'),
-            icon: const Icon(Icons.search),
+            icon: const Icon(BloomIcons.search),
           ),
         ],
       ),
@@ -124,9 +125,8 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
           if (promos.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-              child: SizedBox(
-                height: 112,
-                width: double.infinity,
+              child: AspectRatio(
+                aspectRatio: 2,
                 child: PromoCard(story: promos.first, dense: true),
               ),
             ),
@@ -180,7 +180,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                       crossAxisCount: 2,
                       mainAxisSpacing: 16,
                       crossAxisSpacing: 16,
-                      mainAxisExtent: 248,
+                      mainAxisExtent: 280,
                     ),
                     itemBuilder: (context, index) => ProductCard(product: products[index]),
                   ),

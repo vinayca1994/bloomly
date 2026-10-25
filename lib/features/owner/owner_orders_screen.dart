@@ -8,6 +8,7 @@ import '../../data/models.dart';
 import '../../data/providers.dart';
 import '../orders/review_panel.dart';
 import 'order_actions.dart';
+import '../../core/bloom_icons.dart';
 
 class OwnerOrdersScreen extends ConsumerStatefulWidget {
   const OwnerOrdersScreen({super.key});
@@ -111,7 +112,7 @@ class _OwnerOrdersScreenState extends ConsumerState<OwnerOrdersScreen> {
       onChanged: (_) => setState(() {}),
       decoration: const InputDecoration(
         hintText: 'Search orders',
-        prefixIcon: Icon(Icons.search),
+        prefixIcon: Icon(BloomIcons.search),
       ),
     );
   }

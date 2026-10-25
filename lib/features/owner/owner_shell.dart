@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../data/cart_controller.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class OwnerShell extends StatelessWidget {
   const OwnerShell({required this.child, super.key});
@@ -55,10 +56,10 @@ class OwnerShell extends StatelessWidget {
           }
         },
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.today_outlined), label: 'Today'),
-          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), label: 'Orders'),
-          NavigationDestination(icon: Icon(Icons.campaign_outlined), label: 'Promos'),
-          NavigationDestination(icon: Icon(Icons.more_horiz), label: 'More'),
+          NavigationDestination(icon: Icon(BloomIcons.sun), label: 'Today'),
+          NavigationDestination(icon: Icon(BloomIcons.receipt), label: 'Orders'),
+          NavigationDestination(icon: Icon(BloomIcons.megaphone), label: 'Promos'),
+          NavigationDestination(icon: Icon(BloomIcons.more), label: 'More'),
         ],
       ),
     );
@@ -103,16 +104,16 @@ class _Side extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(28, 28, 16, 20),
           child: Text('bloom', style: BloomlyType.display(26, color: tokens.link)),
         ),
-        _item(context, '/owner', 'Today', Icons.today_outlined),
-        _item(context, '/owner/orders', 'Orders', Icons.receipt_long_outlined),
-        _item(context, '/owner/promotions', 'Promotions', Icons.campaign_outlined),
-        _item(context, '/owner/catalog', 'Catalog', Icons.inventory_2_outlined),
-        _item(context, '/owner/riders', 'Riders', Icons.delivery_dining_outlined),
-        _item(context, '/owner/settings', 'Settings', Icons.settings_outlined),
+        _item(context, '/owner', 'Today', BloomIcons.sun),
+        _item(context, '/owner/orders', 'Orders', BloomIcons.receipt),
+        _item(context, '/owner/promotions', 'Promotions', BloomIcons.megaphone),
+        _item(context, '/owner/catalog', 'Catalog', BloomIcons.package),
+        _item(context, '/owner/riders', 'Riders', BloomIcons.moped),
+        _item(context, '/owner/settings', 'Settings', BloomIcons.gear),
         const Spacer(),
         const _SignOutTile(),
         ListTile(
-          leading: const Icon(Icons.storefront_outlined),
+          leading: const Icon(BloomIcons.storefront),
           title: const Text('Back to shop'),
           onTap: () => context.go('/'),
         ),
@@ -150,22 +151,22 @@ class _MoreSheet extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         ListTile(
-          leading: const Icon(Icons.inventory_2_outlined),
+          leading: const Icon(BloomIcons.package),
           title: const Text('Catalog'),
           onTap: () => _go(context, '/owner/catalog'),
         ),
         ListTile(
-          leading: const Icon(Icons.delivery_dining_outlined),
+          leading: const Icon(BloomIcons.moped),
           title: const Text('Riders'),
           onTap: () => _go(context, '/owner/riders'),
         ),
         ListTile(
-          leading: const Icon(Icons.settings_outlined),
+          leading: const Icon(BloomIcons.gear),
           title: const Text('Settings'),
           onTap: () => _go(context, '/owner/settings'),
         ),
         ListTile(
-          leading: const Icon(Icons.storefront_outlined),
+          leading: const Icon(BloomIcons.storefront),
           title: const Text('Back to shop'),
           onTap: () => _go(context, '/'),
         ),
@@ -186,7 +187,7 @@ class _SignOutTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListTile(
-      leading: Icon(Icons.logout, color: context.bloom.danger),
+      leading: Icon(BloomIcons.signOut, color: context.bloom.danger),
       title: Text('Sign out', style: TextStyle(color: context.bloom.danger)),
       onTap: () async {
         final nav = Navigator.of(context);

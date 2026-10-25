@@ -48,26 +48,28 @@ class _Bar extends ConsumerWidget {
     final backend = ref.watch(backendProvider);
     final tokens = context.bloom;
     final label = summary.count == 1 ? '1 item' : '${summary.count} items';
-    final remaining = backend.store.freeDeliveryAbove - summary.subtotal;
-    final nudge = summary.subtotal <= 0
-        ? null
-        : remaining <= 0
-        ? 'Free delivery'
-        : 'Add ${money(remaining)} for free delivery';
+    final goal = backend.store.freeDeliveryAbove;
+    final progress = goal <= 0 ? 1.0 : (summary.subtotal / goal).clamp(0.0, 1.0);
     final thumbs = summary.lines.take(3).toList();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Material(
-        color: tokens.strong,
-        borderRadius: BorderRadius.circular(BloomTokens.radiusXl),
-        elevation: 0,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(BloomTokens.radiusXl),
-          onTap: () => context.push('/cart'),
-          child: SizedBox(
+    return Material(
+      color: tokens.surface,
+      elevation: 8,
+      shadowColor: const Color(0x1F0F1F17),
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LinearProgressIndicator(
+            minHeight: 3,
+            value: progress,
+            backgroundColor: tokens.border,
+            color: tokens.discountBg,
+          ),
+          SizedBox(
             height: 64,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 16, 0),
+              padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
               child: Row(
                 children: [
                   SizedBox(
@@ -77,13 +79,13 @@ class _Bar extends ConsumerWidget {
                       children: [
                         for (var i = 0; i < thumbs.length; i++)
                           Positioned(
-                            left: i * 22,
+                            left: i * 22.0,
                             child: Container(
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: tokens.strong, width: 2),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: tokens.surface, width: 2),
                               ),
                               clipBehavior: Clip.antiAlias,
                               child: ProductImage(
@@ -102,48 +104,32 @@ class _Bar extends ConsumerWidget {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '$label · ${money(summary.total)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: BloomlyType.uiText(
-                            14,
-                            weight: FontWeight.w800,
-                            color: tokens.onStrong,
-                          ),
-                        ),
-                        if (nudge != null)
-                          Text(
-                            nudge,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: BloomlyType.uiText(
-                              12,
-                              weight: FontWeight.w600,
-                              color: tokens.onStrong.withValues(alpha: 0.72),
-                            ),
-                          ),
-                      ],
+                    child: Text(
+                      '$label · ${money(summary.total)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: BloomlyType.uiText(
+                        14,
+                        weight: FontWeight.w800,
+                        color: tokens.text,
+                      ),
                     ),
                   ),
-                  Text(
-                    'View cart',
-                    style: BloomlyType.uiText(
-                      13,
-                      weight: FontWeight.w800,
-                      color: tokens.onStrong,
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(96, 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      textStyle: BloomlyType.uiText(13, weight: FontWeight.w800),
                     ),
+                    onPressed: () => context.push('/cart'),
+                    child: const Text('View cart'),
                   ),
-                  Icon(Icons.chevron_right, color: tokens.onStrong, size: 20),
                 ],
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

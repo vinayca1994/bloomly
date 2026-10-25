@@ -8,6 +8,7 @@ import '../../core/upi.dart';
 import '../../data/cart_controller.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -117,9 +118,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _group(tokens, 'Team', [
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.delivery_dining_outlined, color: tokens.text),
+            leading: Icon(BloomIcons.moped, color: tokens.text),
             title: const Text('Riders'),
-            trailing: Icon(Icons.chevron_right, color: tokens.textSecondary),
+            trailing: Icon(BloomIcons.caretRight, color: tokens.textSecondary),
             onTap: () => context.go('/owner/riders'),
           ),
         ]),

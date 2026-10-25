@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class RidersScreen extends ConsumerStatefulWidget {
   const RidersScreen({super.key});
@@ -86,7 +87,7 @@ class _RidersScreenState extends ConsumerState<RidersScreen> {
           for (final rider in riders)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.delivery_dining),
+              leading: const Icon(BloomIcons.moped),
               title: Text(rider.name),
               subtitle: Text(rider.email.isEmpty ? 'Rider' : rider.email),
             ),

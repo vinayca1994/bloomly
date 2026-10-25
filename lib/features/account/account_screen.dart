@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/autoplay.dart';
 import '../../core/theme.dart';
 import '../../data/auth_result.dart';
 import '../../data/cart_controller.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
@@ -91,17 +93,34 @@ class AccountScreen extends ConsumerWidget {
               ),
             ),
           ]),
+          _group(context, 'Autoplay videos', [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: SegmentedButton<AutoplayChoice>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: AutoplayChoice.always, label: Text('Always')),
+                  ButtonSegment(value: AutoplayChoice.wifi, label: Text('Wi-Fi only')),
+                  ButtonSegment(value: AutoplayChoice.never, label: Text('Never')),
+                ],
+                selected: {ref.watch(autoplayProvider).choice},
+                onSelectionChanged: (value) {
+                  ref.read(autoplayProvider).setChoice(value.first);
+                },
+              ),
+            ),
+          ]),
           if (user != null)
             _group(context,
               'Orders, addresses and security',
               [
                 _row(context,
-                  icon: Icons.shopping_bag_outlined,
+                  icon: BloomIcons.shoppingBag,
                   title: 'Your orders',
                   onTap: () => context.go('/orders'),
                 ),
                 _row(context,
-                  icon: Icons.location_on_outlined,
+                  icon: BloomIcons.mapPin,
                   title: 'Saved addresses',
                   subtitle: saved == 0
                       ? 'None saved'
@@ -110,7 +129,7 @@ class AccountScreen extends ConsumerWidget {
                 ),
                 if (lock.supported)
                   _row(context,
-                    icon: Icons.lock_outline,
+                    icon: BloomIcons.lock,
                     title: 'App lock',
                     subtitle: lock.label,
                     trailing: Switch(
@@ -130,12 +149,12 @@ class AccountScreen extends ConsumerWidget {
             ),
           _group(context, 'Legal', [
             _row(context,
-              icon: Icons.info_outline,
+              icon: BloomIcons.info,
               title: 'About bloom',
               onTap: () => context.push('/account/about'),
             ),
             _row(context,
-              icon: Icons.shield_outlined,
+              icon: BloomIcons.shield,
               title: 'Privacy and terms',
               onTap: () => context.push('/account/privacy'),
             ),
@@ -143,7 +162,7 @@ class AccountScreen extends ConsumerWidget {
           if (user != null)
             _group(context, 'Account', [
               _row(context,
-                icon: Icons.logout,
+                icon: BloomIcons.signOut,
                 title: 'Sign out',
                 danger: true,
                 onTap: () async {
@@ -158,7 +177,7 @@ class AccountScreen extends ConsumerWidget {
               ),
               if (!user.isOwner && !user.isRider)
                 _row(context,
-                  icon: Icons.delete_outline,
+                  icon: BloomIcons.trash,
                   title: 'Delete account',
                   danger: true,
                   onTap: () => _delete(context, ref),
@@ -167,18 +186,18 @@ class AccountScreen extends ConsumerWidget {
           _group(context, 'Staff', [
             if (user?.isOwner == true)
               _row(context,
-                icon: Icons.storefront_outlined,
+                icon: BloomIcons.storefront,
                 title: 'Open store console',
                 onTap: () => context.go('/owner'),
               ),
             if (user?.isRider == true)
               _row(context,
-                icon: Icons.delivery_dining_outlined,
+                icon: BloomIcons.moped,
                 title: 'Open deliveries',
                 onTap: () => context.go('/rider'),
               ),
             _row(context,
-              icon: Icons.store_outlined,
+              icon: BloomIcons.storefront,
               title: 'Store team sign in',
               subtitle: 'Owner and riders',
               onTap: () {
@@ -294,7 +313,7 @@ class AccountScreen extends ConsumerWidget {
                 ),
                 ?trailing,
                 if (trailing == null && onTap != null)
-                  Icon(Icons.chevron_right, color: tokens.textSecondary),
+                  Icon(BloomIcons.caretRight, color: tokens.textSecondary),
               ],
             ),
           ),

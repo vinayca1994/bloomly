@@ -891,6 +891,24 @@ class AppwriteBackend extends BloomlyBackend {
   }
 
   @override
+  Future<String?> uploadPromoMedia({
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    if (bytes.length > 5000000) {
+      throw BloomlyException('That file is over 5 MB.');
+    }
+    if (_demo) return null;
+    final file = await _storage.createFile(
+      bucketId: Ids.promoMedia,
+      fileId: ID.unique(),
+      file: InputFile.fromBytes(bytes: bytes, filename: filename),
+      permissions: [Permission.read(Role.any())],
+    );
+    return '${config.endpoint}/storage/buckets/${Ids.promoMedia}/files/${file.$id}/view?project=${config.projectId}';
+  }
+
+  @override
   Future<void> updateStore(StoreSettings next) async {
     if (_demo) {
       store = next;

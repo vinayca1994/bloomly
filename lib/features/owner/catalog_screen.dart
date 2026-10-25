@@ -9,6 +9,7 @@ import '../../data/backend.dart';
 import '../../data/catalog_seed.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class CatalogScreen extends ConsumerWidget {
   const CatalogScreen({super.key});
@@ -56,7 +57,7 @@ class _CatalogBodyState extends ConsumerState<_CatalogBody> {
         foregroundColor: tokens.onPrimary,
         tooltip: 'Add product',
         onPressed: () => context.push('/owner/catalog/new'),
-        child: const Icon(Icons.add),
+        child: const Icon(BloomIcons.add),
       ),
       body: Column(
         children: [
@@ -66,7 +67,7 @@ class _CatalogBodyState extends ConsumerState<_CatalogBody> {
               controller: _search,
               decoration: InputDecoration(
                 hintText: 'Search ${backend.products.length} products',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(BloomIcons.search),
               ),
               onChanged: (_) => setState(() {}),
             ),

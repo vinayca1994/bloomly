@@ -10,6 +10,7 @@ import '../core/upi.dart';
 import 'auth_result.dart';
 import 'backend.dart';
 import 'catalog_seed.dart';
+import 'demo_promos.dart';
 import 'models.dart';
 import 'online_payment.dart';
 import 'pricing.dart';
@@ -26,6 +27,7 @@ class MemoryBackend extends BloomlyBackend {
     store = seedStore.copyWith(
       upiId: upiId.trim(),
       upiName: upiName.trim().isEmpty ? 'Bloom' : upiName.trim(),
+      promotions: demoPromotions,
     );
     categories = List<ShopCategory>.of(seedCategories);
     products = seedProducts
@@ -874,6 +876,12 @@ class MemoryBackend extends BloomlyBackend {
     store = next;
     notifyListeners();
   }
+
+  @override
+  Future<String?> uploadPromoMedia({
+    required Uint8List bytes,
+    required String filename,
+  }) async => null;
 
   @override
   Future<void> setProductAvailable(String productId, bool available) async {

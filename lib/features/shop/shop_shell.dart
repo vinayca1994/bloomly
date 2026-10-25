@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import 'cart_bar.dart';
+import '../../core/bloom_icons.dart';
 
 class CustomerShell extends StatelessWidget {
   const CustomerShell({required this.shell, super.key});
@@ -10,10 +11,10 @@ class CustomerShell extends StatelessWidget {
   final StatefulNavigationShell shell;
 
   static const destinations = <(IconData, IconData, String)>[
-    (Icons.home_outlined, Icons.home, 'Home'),
-    (Icons.grid_view_outlined, Icons.grid_view, 'Categories'),
-    (Icons.receipt_long_outlined, Icons.receipt_long, 'Orders'),
-    (Icons.person_outline, Icons.person, 'Account'),
+    (BloomIcons.house, BloomIcons.houseFill, 'Home'),
+    (BloomIcons.squares, BloomIcons.squaresFill, 'Categories'),
+    (BloomIcons.receipt, BloomIcons.receiptFill, 'Orders'),
+    (BloomIcons.user, BloomIcons.userFill, 'Account'),
   ];
 
   @override
@@ -31,7 +32,11 @@ class CustomerShell extends StatelessWidget {
             child: Column(
               children: [
                 Expanded(child: shell),
-                if (showCart) const CartBar(),
+                if (showCart)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: CartBar(),
+                  ),
                 DecoratedBox(
                   decoration: BoxDecoration(
                     color: tokens.surface,
@@ -57,10 +62,10 @@ class _CompactNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: context.bloom.surface,
-      child: SizedBox(
-        height: 76,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
           child: Row(
             children: [
               for (var index = 0; index < CustomerShell.destinations.length; index++)
@@ -114,15 +119,15 @@ class _NavItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 56,
-              height: 30,
-              alignment: Alignment.center,
+              width: 24,
+              height: 3,
               decoration: BoxDecoration(
-                color: selected ? tokens.secondary : Colors.transparent,
-                borderRadius: BorderRadius.circular(999),
+                color: selected ? tokens.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(99),
               ),
-              child: Icon(selected ? selectedIcon : icon, size: 22, color: color),
             ),
+            const SizedBox(height: 4),
+            Icon(selected ? selectedIcon : icon, size: 24, color: color),
             const SizedBox(height: 2),
             Text(
               label,

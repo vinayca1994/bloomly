@@ -10,6 +10,7 @@ import '../../core/widgets.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
 import '../orders/review_panel.dart';
+import '../../core/bloom_icons.dart';
 
 class RiderScreen extends ConsumerStatefulWidget {
   const RiderScreen({super.key});
@@ -203,7 +204,7 @@ class _RiderScreenState extends ConsumerState<RiderScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: FilledButton.icon(
                   onPressed: _busy ? null : () => _deliver(next.id),
-                  icon: const Icon(Icons.check),
+                  icon: const Icon(BloomIcons.check),
                   label: const Text('Mark delivered'),
                 ),
               ),
