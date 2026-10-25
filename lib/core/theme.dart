@@ -88,7 +88,8 @@ class BloomlyTheme {
       outline: tokens.border,
       outlineVariant: tokens.border,
     );
-    final radius = BorderRadius.circular(999);
+    final radius = BorderRadius.circular(14);
+    final pill = BorderRadius.circular(999);
     final label = BloomlyType.label.copyWith(color: tokens.onPrimary);
     final text = _textTheme(tokens);
     return ThemeData(
@@ -141,7 +142,7 @@ class BloomlyTheme {
           foregroundColor: tokens.onPrimary,
           disabledBackgroundColor: tokens.sunken,
           disabledForegroundColor: tokens.textDisabled,
-          minimumSize: const Size(48, 56),
+          minimumSize: const Size(48, 52),
           shape: RoundedRectangleBorder(borderRadius: radius),
           textStyle: label,
         ),
@@ -149,8 +150,8 @@ class BloomlyTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: tokens.text,
-          minimumSize: const Size(48, 48),
-          side: BorderSide(color: tokens.borderStrong, width: 1.5),
+          minimumSize: const Size(48, 44),
+          side: BorderSide(color: tokens.primary, width: 1.5),
           shape: RoundedRectangleBorder(borderRadius: radius),
           textStyle: BloomlyType.label.copyWith(color: tokens.text, fontSize: 14),
         ),
@@ -158,7 +159,7 @@ class BloomlyTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: tokens.link,
-          minimumSize: const Size(48, 48),
+          minimumSize: const Size(48, 36),
           textStyle: BloomlyType.label.copyWith(color: tokens.link, fontSize: 14),
         ),
       ),
@@ -182,7 +183,7 @@ class BloomlyTheme {
           color: tokens.onSecondary,
         ),
         side: BorderSide(color: tokens.border),
-        shape: RoundedRectangleBorder(borderRadius: radius),
+        shape: RoundedRectangleBorder(borderRadius: pill),
         padding: const EdgeInsets.symmetric(horizontal: 8),
       ),
       cardTheme: CardThemeData(

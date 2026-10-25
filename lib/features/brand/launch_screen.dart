@@ -140,7 +140,7 @@ class _SplashFrame extends StatelessWidget {
                           fontSize: 40,
                           height: 1,
                           fontWeight: FontWeight.w700,
-                          color: Petal.s300,
+                          color: BloomBrand.basilDark,
                         ),
                       ),
                       SizedBox(height: 4),
@@ -166,7 +166,7 @@ class _SplashFrame extends StatelessWidget {
               child: TextButton(
                 style: TextButton.styleFrom(
                   foregroundColor: Sun.s100,
-                  backgroundColor: const Color(0x80100B1B),
+                  backgroundColor: const Color(0x800C1511),
                   minimumSize: const Size(48, 36),
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -227,7 +227,7 @@ class _LaunchFrame extends StatelessWidget {
                       'bloom',
                       style: BloomlyType.display(
                         52,
-                        color: failed ? context.bloom.link : Petal.s300,
+                        color: failed ? context.bloom.link : BloomBrand.basilDark,
                       ),
                     ),
                     if (!failed) ...[
@@ -264,7 +264,7 @@ class _LaunchFrame extends StatelessWidget {
                 child: TextButton(
                   style: TextButton.styleFrom(
                     foregroundColor: Sun.s100,
-                    backgroundColor: const Color(0x80100B1B),
+                    backgroundColor: const Color(0x800C1511),
                     minimumSize: const Size(48, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,

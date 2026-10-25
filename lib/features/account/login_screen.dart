@@ -740,7 +740,7 @@ class _AuthHeader extends StatelessWidget {
                       children: [
                         Text(
                           'bloom',
-                          style: BloomlyType.display(26, color: Petal.s300),
+                          style: BloomlyType.display(26, color: BloomBrand.basilDark),
                         ),
                         const SizedBox(height: 8),
                         Text(title, style: BloomlyType.display(28, color: bloomWhite)),
@@ -768,9 +768,9 @@ class _BloomHeaderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawCircle(Offset(size.width - 48, 54), 22, Paint()..color = Basil.s400);
-    canvas.drawCircle(Offset(size.width - 18, 96), 14, Paint()..color = Petal.s400);
+    canvas.drawCircle(Offset(size.width - 18, 96), 14, Paint()..color = BloomBrand.marigold);
     canvas.drawCircle(Offset(size.width - 78, 108), 12, Paint()..color = Mango.s300);
-    canvas.drawCircle(Offset(36, 36), 10, Paint()..color = Petal.s300.withValues(alpha: 0.7));
+    canvas.drawCircle(Offset(36, 36), 10, Paint()..color = BloomBrand.lime.withValues(alpha: 0.85));
     canvas.drawCircle(Offset(size.width * 0.72, 78), 6, Paint()..color = Sun.s300);
     final leaf = Path()
       ..moveTo(size.width - 90, 70)

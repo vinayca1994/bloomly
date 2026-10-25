@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
 
-/// Petal Pop primitives. Exact values from the design `tokens.json`.
-abstract final class Petal {
-  static const s50 = Color(0xFFFFF3F8);
-  static const s100 = Color(0xFFFEE5EF);
-  static const s200 = Color(0xFFFFCCE1);
-  static const s300 = Color(0xFFFEA7CD);
-  static const s400 = Color(0xFFFB7AB8);
-  static const s500 = Color(0xFFEB50A1);
-  static const s600 = Color(0xFFD22B89);
-  static const s700 = Color(0xFFAE1E70);
-  static const s800 = Color(0xFF891557);
-  static const s900 = Color(0xFF641440);
-  static const s950 = Color(0xFF400927);
+/// Basil & Lime, palette A. Lime is a fill behind ink text only.
+abstract final class BloomBrand {
+  static const basil = Color(0xFF0B6B4B);
+  static const basilDark = Color(0xFF4FD39A);
+  static const onBasilDark = Color(0xFF06231A);
+  static const basilPressed = Color(0xFF08543B);
+  static const lime = Color(0xFFC8F25A);
+  static const marigold = Color(0xFFF4A21A);
+  static const ink = Color(0xFF0F1F17);
+  static const paper = Color(0xFFF5F8F2);
+  static const night = Color(0xFF0C1511);
+  static const cardDark = Color(0xFF15211B);
+  static const textDark = Color(0xFFEAF2EC);
+  static const secondaryText = Color(0xFF4E5F55);
+  static const secondaryTextDark = Color(0xFFA3B4AA);
+  static const success = Color(0xFF1E7A3C);
+  static const successDark = Color(0xFF5FD58A);
+  static const warning = Color(0xFF8A5A00);
+  static const warningDark = Color(0xFFF2B84B);
+  static const danger = Color(0xFFC2352B);
+  static const dangerDark = Color(0xFFFF8A7E);
 }
 
 abstract final class Basil {
@@ -43,18 +51,19 @@ abstract final class Mango {
   static const s950 = Color(0xFF371B00);
 }
 
+/// Green-ink neutrals. The name stays so older call sites compile.
 abstract final class Plum {
-  static const s50 = Color(0xFFF9F8FC);
-  static const s100 = Color(0xFFF1F0F6);
-  static const s200 = Color(0xFFE3E0EA);
-  static const s300 = Color(0xFFD0CCDA);
-  static const s400 = Color(0xFFA6A1B4);
-  static const s500 = Color(0xFF827C93);
-  static const s600 = Color(0xFF665E79);
-  static const s700 = Color(0xFF4D4561);
-  static const s800 = Color(0xFF332B46);
-  static const s900 = Color(0xFF1E172E);
-  static const s950 = Color(0xFF100B1B);
+  static const s50 = Color(0xFFF5F8F2);
+  static const s100 = Color(0xFFE7EEE4);
+  static const s200 = Color(0xFFD5E0D8);
+  static const s300 = Color(0xFFB7C6BC);
+  static const s400 = Color(0xFFA3B4AA);
+  static const s500 = Color(0xFF6E8076);
+  static const s600 = Color(0xFF4E5F55);
+  static const s700 = Color(0xFF2C4036);
+  static const s800 = Color(0xFF1C2B24);
+  static const s900 = Color(0xFF0F1F17);
+  static const s950 = Color(0xFF0C1511);
 }
 
 abstract final class Chili {
@@ -101,7 +110,7 @@ abstract final class Sun {
 
 const bloomWhite = Color(0xFFFFFFFF);
 
-/// Semantic Petal Pop colours for one brightness.
+/// Semantic Basil & Lime colours for one brightness.
 class BloomTokens extends ThemeExtension<BloomTokens> {
   const BloomTokens({
     required this.brightness,
@@ -207,104 +216,104 @@ class BloomTokens extends ThemeExtension<BloomTokens> {
 
   static const light = BloomTokens(
     brightness: Brightness.light,
-    canvas: Plum.s50,
+    canvas: BloomBrand.paper,
     surface: bloomWhite,
     raised: bloomWhite,
     sunken: Plum.s100,
-    inverse: Plum.s900,
-    text: Plum.s900,
-    textSecondary: Plum.s600,
-    textDisabled: Plum.s400,
-    link: Petal.s700,
+    inverse: BloomBrand.ink,
+    text: BloomBrand.ink,
+    textSecondary: BloomBrand.secondaryText,
+    textDisabled: Plum.s500,
+    link: BloomBrand.basil,
     textInverse: bloomWhite,
     border: Plum.s200,
-    borderStrong: Plum.s500,
-    borderFocus: Petal.s600,
-    primary: Petal.s600,
-    primaryPressed: Petal.s700,
+    borderStrong: BloomBrand.secondaryText,
+    borderFocus: BloomBrand.basil,
+    primary: BloomBrand.basil,
+    primaryPressed: BloomBrand.basilPressed,
     onPrimary: bloomWhite,
-    secondary: Petal.s100,
-    onSecondary: Petal.s800,
-    strong: Plum.s900,
+    secondary: Color(0xFFE5F5EC),
+    onSecondary: BloomBrand.basil,
+    strong: BloomBrand.ink,
     onStrong: bloomWhite,
-    danger: Chili.s700,
-    success: Basil.s700,
-    successBg: Basil.s50,
-    warning: Sun.s800,
-    warningBg: Sun.s50,
-    info: Sky.s700,
-    infoBg: Sky.s50,
-    discountBg: Basil.s700,
-    discountFg: bloomWhite,
-    washVeg: Basil.s50,
-    washFruit: Mango.s50,
-    washFlower: Petal.s50,
-    awaitingBg: Sun.s100,
-    awaitingFg: Sun.s800,
-    placedBg: Sky.s100,
-    placedFg: Sky.s800,
-    packingBg: Mango.s100,
-    packingFg: Mango.s800,
-    outBg: Petal.s100,
-    outFg: Petal.s800,
-    deliveredBg: Basil.s100,
-    deliveredFg: Basil.s800,
-    cancelledBg: Chili.s100,
-    cancelledFg: Chili.s800,
-    star: Sun.s400,
-    etaBg: Sun.s200,
-    etaFg: Plum.s950,
+    danger: BloomBrand.danger,
+    success: BloomBrand.success,
+    successBg: Color(0xFFE5F6EA),
+    warning: BloomBrand.warning,
+    warningBg: Color(0xFFFFF4DE),
+    info: BloomBrand.basil,
+    infoBg: Color(0xFFE5F5EC),
+    discountBg: BloomBrand.lime,
+    discountFg: BloomBrand.ink,
+    washVeg: Color(0xFFE7F6EC),
+    washFruit: Color(0xFFFFF3E0),
+    washFlower: Color(0xFFFFF6E4),
+    awaitingBg: Color(0xFFFFF4DE),
+    awaitingFg: BloomBrand.warning,
+    placedBg: Color(0xFFE5F5EC),
+    placedFg: BloomBrand.basil,
+    packingBg: Color(0xFFFFF1D6),
+    packingFg: BloomBrand.warning,
+    outBg: Color(0xFFE5F5EC),
+    outFg: BloomBrand.basil,
+    deliveredBg: Color(0xFFE5F6EA),
+    deliveredFg: BloomBrand.success,
+    cancelledBg: Color(0xFFFDECEA),
+    cancelledFg: BloomBrand.danger,
+    star: BloomBrand.marigold,
+    etaBg: BloomBrand.lime,
+    etaFg: BloomBrand.ink,
   );
 
   static const dark = BloomTokens(
     brightness: Brightness.dark,
-    canvas: Plum.s950,
-    surface: Plum.s900,
+    canvas: BloomBrand.night,
+    surface: BloomBrand.cardDark,
     raised: Plum.s800,
-    sunken: Plum.s950,
-    inverse: Plum.s50,
-    text: Plum.s50,
-    textSecondary: Plum.s400,
-    textDisabled: Plum.s600,
-    link: Petal.s300,
-    textInverse: Plum.s950,
-    border: Plum.s800,
-    borderStrong: Plum.s500,
-    borderFocus: Petal.s400,
-    primary: Petal.s400,
-    primaryPressed: Petal.s300,
-    onPrimary: Plum.s950,
-    secondary: Petal.s900,
-    onSecondary: Petal.s200,
-    strong: Plum.s50,
-    onStrong: Plum.s950,
-    danger: Chili.s400,
-    success: Basil.s300,
-    successBg: Basil.s950,
-    warning: Sun.s300,
-    warningBg: Sun.s950,
-    info: Sky.s300,
-    infoBg: Sky.s950,
-    discountBg: Basil.s400,
-    discountFg: Basil.s950,
-    washVeg: Basil.s950,
-    washFruit: Mango.s950,
-    washFlower: Petal.s950,
-    awaitingBg: Sun.s900,
-    awaitingFg: Sun.s200,
-    placedBg: Sky.s900,
-    placedFg: Sky.s200,
-    packingBg: Mango.s900,
-    packingFg: Mango.s200,
-    outBg: Petal.s900,
-    outFg: Petal.s200,
-    deliveredBg: Basil.s900,
-    deliveredFg: Basil.s200,
-    cancelledBg: Chili.s900,
-    cancelledFg: Chili.s200,
-    star: Sun.s400,
-    etaBg: Sun.s200,
-    etaFg: Plum.s950,
+    sunken: BloomBrand.night,
+    inverse: BloomBrand.textDark,
+    text: BloomBrand.textDark,
+    textSecondary: BloomBrand.secondaryTextDark,
+    textDisabled: Plum.s500,
+    link: BloomBrand.basilDark,
+    textInverse: BloomBrand.night,
+    border: Color(0xFF24362E),
+    borderStrong: BloomBrand.secondaryTextDark,
+    borderFocus: BloomBrand.basilDark,
+    primary: BloomBrand.basilDark,
+    primaryPressed: Color(0xFF8AE8C0),
+    onPrimary: BloomBrand.onBasilDark,
+    secondary: Color(0xFF0E3326),
+    onSecondary: BloomBrand.basilDark,
+    strong: BloomBrand.textDark,
+    onStrong: BloomBrand.night,
+    danger: BloomBrand.dangerDark,
+    success: BloomBrand.successDark,
+    successBg: Color(0xFF0E2A1A),
+    warning: BloomBrand.warningDark,
+    warningBg: Color(0xFF2A2110),
+    info: BloomBrand.basilDark,
+    infoBg: Color(0xFF0E3326),
+    discountBg: BloomBrand.lime,
+    discountFg: BloomBrand.ink,
+    washVeg: Color(0xFF10281C),
+    washFruit: Color(0xFF2A2110),
+    washFlower: Color(0xFF2A2414),
+    awaitingBg: Color(0xFF2A2110),
+    awaitingFg: BloomBrand.warningDark,
+    placedBg: Color(0xFF0E3326),
+    placedFg: BloomBrand.basilDark,
+    packingBg: Color(0xFF2A2110),
+    packingFg: BloomBrand.marigold,
+    outBg: Color(0xFF0E3326),
+    outFg: BloomBrand.basilDark,
+    deliveredBg: Color(0xFF0E2A1A),
+    deliveredFg: BloomBrand.successDark,
+    cancelledBg: Color(0xFF2A1412),
+    cancelledFg: BloomBrand.dangerDark,
+    star: BloomBrand.marigold,
+    etaBg: BloomBrand.lime,
+    etaFg: BloomBrand.ink,
   );
 
   static const fast = Duration(milliseconds: 150);
@@ -324,7 +333,7 @@ class BloomTokens extends ThemeExtension<BloomTokens> {
       ? const []
       : const [
           BoxShadow(
-            color: Color(0x0F100B1B),
+            color: Color(0x0F0F1F17),
             blurRadius: 18,
             offset: Offset(0, 8),
           ),
@@ -334,7 +343,7 @@ class BloomTokens extends ThemeExtension<BloomTokens> {
       ? const []
       : const [
           BoxShadow(
-            color: Color(0x1F100B1B),
+            color: Color(0x1F0F1F17),
             blurRadius: 32,
             offset: Offset(0, 12),
           ),

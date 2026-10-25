@@ -128,9 +128,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables?sub=leafy',
     look: PromoLook(
-      ground: Basil.s900,
-      ink: Sun.s50,
-      accent: Mango.s300,
+      ground: BloomBrand.basil,
+      ink: bloomWhite,
+      accent: BloomBrand.lime,
       motif: StoryMotif.neem,
     ),
     styles: [
@@ -164,9 +164,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.fruit,
     route: '/categories/fruits?sub=seasonal-fruit',
     look: PromoLook(
-      ground: Sun.s200,
-      ink: Plum.s900,
-      accent: Sky.s700,
+      ground: BloomBrand.marigold,
+      ink: BloomBrand.ink,
+      accent: BloomBrand.basil,
       motif: StoryMotif.cane,
     ),
     styles: [
@@ -200,8 +200,8 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.flower,
     route: '/categories/flowers?sub=loose-flowers',
     look: PromoLook(
-      ground: Petal.s100,
-      ink: Petal.s900,
+      ground: Color(0xFFFFF6E4),
+      ink: BloomBrand.ink,
       accent: Mango.s600,
       motif: StoryMotif.flower,
     ),
@@ -236,9 +236,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.marigold,
     route: '/categories/flowers?sub=loose-flowers',
     look: PromoLook(
-      ground: Plum.s950,
-      ink: Sun.s100,
-      accent: Sun.s300,
+      ground: BloomBrand.night,
+      ink: BloomBrand.paper,
+      accent: BloomBrand.marigold,
       motif: StoryMotif.lamp,
     ),
     styles: [
@@ -272,9 +272,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables',
     look: PromoLook(
-      ground: Basil.s700,
-      ink: bloomWhite,
-      accent: Sun.s200,
+      ground: BloomBrand.lime,
+      ink: BloomBrand.ink,
+      accent: BloomBrand.basil,
       motif: StoryMotif.leaf,
     ),
     styles: [
@@ -308,9 +308,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.fruit,
     route: '/categories/fruits?sub=everyday-fruit',
     look: PromoLook(
-      ground: Chili.s800,
-      ink: Petal.s50,
-      accent: Basil.s300,
+      ground: BloomBrand.basil,
+      ink: bloomWhite,
+      accent: BloomBrand.marigold,
       motif: StoryMotif.orange,
     ),
     styles: [
@@ -344,9 +344,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.fruit,
     route: '/categories/fruits?sub=seasonal-fruit',
     look: PromoLook(
-      ground: Mango.s300,
-      ink: Plum.s900,
-      accent: Chili.s700,
+      ground: BloomBrand.marigold,
+      ink: BloomBrand.ink,
+      accent: BloomBrand.basil,
       motif: StoryMotif.mango,
     ),
     styles: [
@@ -380,9 +380,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables?sub=leafy',
     look: PromoLook(
-      ground: Sky.s900,
-      ink: Sky.s50,
-      accent: Basil.s300,
+      ground: BloomBrand.basil,
+      ink: bloomWhite,
+      accent: BloomBrand.lime,
       motif: StoryMotif.rain,
     ),
     styles: [
@@ -452,9 +452,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables',
     look: PromoLook(
-      ground: Basil.s50,
-      ink: Basil.s900,
-      accent: Petal.s600,
+      ground: BloomBrand.lime,
+      ink: BloomBrand.ink,
+      accent: BloomBrand.basil,
       motif: StoryMotif.leaf,
     ),
     styles: [
@@ -488,9 +488,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.marigold,
     route: '/categories/vegetables',
     look: PromoLook(
-      ground: Petal.s600,
+      ground: BloomBrand.basil,
       ink: bloomWhite,
-      accent: Sun.s300,
+      accent: BloomBrand.marigold,
       motif: StoryMotif.basket,
     ),
     styles: [
@@ -524,9 +524,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables?sub=daily-veg',
     look: PromoLook(
-      ground: Basil.s50,
-      ink: Plum.s900,
-      accent: Basil.s700,
+      ground: BloomBrand.paper,
+      ink: BloomBrand.ink,
+      accent: BloomBrand.basil,
       motif: StoryMotif.basket,
     ),
     styles: [
@@ -560,9 +560,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.flower,
     route: '/categories/flowers',
     look: PromoLook(
-      ground: Petal.s50,
+      ground: BloomBrand.paper,
       ink: Plum.s900,
-      accent: Petal.s700,
+      accent: BloomBrand.basil,
       motif: StoryMotif.region,
     ),
     styles: [
