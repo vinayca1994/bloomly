@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import 'order_actions.dart';
 
 class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
@@ -37,9 +38,10 @@ class TodayScreen extends ConsumerWidget {
     }).length;
     final low = backend.products.where((product) => !product.forSale).take(6).toList();
     final tokens = context.bloom;
+    final desk = MediaQuery.sizeOf(context).width >= 1280;
 
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(desk ? 32 : 20),
       children: [
         Row(
           children: [
@@ -72,22 +74,25 @@ class TodayScreen extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 20),
-        Row(
-          children: [
-            Text(
-              'LIVE ORDERS',
-              style: BloomlyType.uiText(
-                11,
-                weight: FontWeight.w800,
-                color: tokens.textSecondary,
+        if (!desk)
+          Row(
+            children: [
+              Text(
+                'LIVE ORDERS',
+                style: BloomlyType.uiText(
+                  11,
+                  weight: FontWeight.w800,
+                  color: tokens.textSecondary,
+                ),
               ),
-            ),
-            const Spacer(),
-            TextButton(onPressed: () => context.go('/owner/orders'), child: const Text('See all')),
-          ],
-        ),
+              const Spacer(),
+              TextButton(onPressed: () => context.go('/owner/orders'), child: const Text('See all')),
+            ],
+          ),
         if (live.isEmpty)
           Text('No open orders', style: TextStyle(color: tokens.textSecondary))
+        else if (desk)
+          _LiveOrdersTable(orders: live)
         else
           for (final order in live.take(6))
             Padding(
@@ -96,22 +101,21 @@ class TodayScreen extends ConsumerWidget {
                 decoration: BloomlyDecor.card(tokens),
                 child: ListTile(
                   title: Text(
-                    '${order.addressSnapshot.split(',').first} · ${money(order.total)}',
+                    '${orderCustomer(order)} · ${money(order.total)}',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   subtitle: Text(
                     '${order.items.length} items · ${paymentLabel(order)}',
                   ),
                   trailing: StatusPill(
-                    status: order.awaitingPayment ? OrderStatus.paymentPending : order.status,
-                    label: statusLabel(
-                      order.awaitingPayment ? OrderStatus.paymentPending : order.status,
-                    ),
+                    status: orderStatusKey(order),
+                    label: statusLabel(orderStatusKey(order)),
                   ),
                   onTap: () => context.go('/owner/orders'),
                 ),
               ),
             ),
+        if (!desk) ...[
         const SizedBox(height: 12),
         Text(
           'LOW AVAILABILITY',
@@ -147,6 +151,7 @@ class TodayScreen extends ConsumerWidget {
           onPressed: () => context.go('/owner/settings'),
           child: const Text('Store settings'),
         ),
+        ],
       ],
     );
   }
@@ -172,5 +177,107 @@ class TodayScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+class _LiveOrdersTable extends ConsumerWidget {
+  const _LiveOrdersTable({required this.orders});
+
+  final List<OrderRecord> orders;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.bloom;
+    return DecoratedBox(
+      decoration: BloomlyDecor.card(tokens, radius: BloomTokens.radiusLg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+            child: Row(
+              children: [
+                Text('Live orders', style: BloomlyType.display(20, color: tokens.text)),
+                const Spacer(),
+                TextButton(onPressed: () => context.go('/owner/orders'), child: const Text('See all')),
+              ],
+            ),
+          ),
+          Table(
+            columnWidths: const {
+              0: FlexColumnWidth(1.4),
+              1: FlexColumnWidth(2),
+              2: FlexColumnWidth(1.2),
+              3: FlexColumnWidth(1),
+              4: FlexColumnWidth(1.6),
+              5: FlexColumnWidth(1.8),
+            },
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            children: [
+              TableRow(
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: tokens.border)),
+                ),
+                children: [
+                  for (final label in ['Order', 'Customer', 'Items', 'Total', 'Status', ''])
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Text(
+                        label.toUpperCase(),
+                        style: BloomlyType.uiText(
+                          11,
+                          weight: FontWeight.w800,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              for (final order in orders)
+                TableRow(
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: tokens.border)),
+                  ),
+                  children: [
+                    _cell(Text('#${order.id}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                    _cell(Text(orderCustomer(order))),
+                    _cell(Text('${order.items.length} items')),
+                    _cell(Text(money(order.total), style: const TextStyle(fontWeight: FontWeight.w700))),
+                    _cell(
+                      StatusPill(
+                        status: orderStatusKey(order),
+                        label: statusLabel(orderStatusKey(order)),
+                      ),
+                    ),
+                    _cell(_rowAction(context, ref, order)),
+                  ],
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cell(Widget child) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: child,
+    );
+  }
+
+  Widget _rowAction(BuildContext context, WidgetRef ref, OrderRecord order) {
+    final actions = orderActions(context, ref, order);
+    if (actions.isEmpty) return const SizedBox.shrink();
+    final primary = actions.first;
+    final style = FilledButton.styleFrom(
+      minimumSize: const Size(0, 40),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+    final button = order.awaitingPayment
+        ? FilledButton(style: style, onPressed: primary.$2, child: Text(primary.$1))
+        : FilledButton.tonal(style: style, onPressed: primary.$2, child: Text(primary.$1));
+    return Align(alignment: Alignment.centerLeft, child: button);
   }
 }
