@@ -213,6 +213,8 @@ class ProductCard extends ConsumerWidget {
       SnackBar(
         content: Text('${product.name} added'),
         duration: const Duration(seconds: 2),
+        // An action otherwise keeps the bar up and covers the cart.
+        persist: false,
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () {
