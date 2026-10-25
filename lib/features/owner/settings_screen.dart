@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/phone.dart';
 import '../../core/theme.dart';
 import '../../core/upi.dart';
+import '../../data/cart_controller.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
 
@@ -65,63 +67,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _upiName.text = backend.store.upiName;
       _storePhone.text = backend.store.storePhone;
     }
+    final tokens = context.bloom;
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       children: [
-        Text('Settings', style: BloomlyType.display(28, color: context.bloom.text)),
+        Text('Settings', style: BloomlyType.display(28, color: tokens.text)),
         const SizedBox(height: 16),
-        Text(
-          'Store',
-          style: BloomlyType.display(18, color: context.bloom.text),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _city,
-          decoration: const InputDecoration(labelText: 'City'),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _eta,
-          decoration: const InputDecoration(labelText: 'ETA label'),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _fee,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Delivery fee (₹)'),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _free,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Free delivery above (₹)',
+        _group(tokens, 'Store', [
+          TextField(
+            controller: _city,
+            decoration: const InputDecoration(labelText: 'City'),
           ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _upiId,
-          decoration: const InputDecoration(
-            labelText: 'UPI ID',
-            hintText: 'bloom@oksbi',
+          TextField(
+            controller: _eta,
+            decoration: const InputDecoration(labelText: 'Delivery time shown'),
           ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _upiName,
-          decoration: const InputDecoration(
-            labelText: 'Name on the UPI account',
+          TextField(
+            controller: _storePhone,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: 'Store phone',
+              hintText: '10-digit mobile',
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _storePhone,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'Store phone (call / WhatsApp)',
-            hintText: '10-digit mobile',
+        ]),
+        _group(tokens, 'Payments', [
+          TextField(
+            controller: _upiId,
+            decoration: const InputDecoration(
+              labelText: 'UPI ID',
+              hintText: 'bloom@oksbi',
+            ),
           ),
-        ),
+          TextField(
+            controller: _upiName,
+            decoration: const InputDecoration(labelText: 'Name on the UPI account'),
+          ),
+          TextField(
+            controller: _fee,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Delivery fee (₹)'),
+          ),
+          TextField(
+            controller: _free,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Free delivery above (₹)'),
+          ),
+        ]),
+        _group(tokens, 'Team', [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.delivery_dining_outlined, color: tokens.text),
+            title: const Text('Riders'),
+            trailing: Icon(Icons.chevron_right, color: tokens.textSecondary),
+            onTap: () => context.go('/owner/riders'),
+          ),
+        ]),
         if (_message != null) ...[
           SizedBox(height: 8),
           Text(
@@ -134,9 +135,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
         const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton(
+        FilledButton(
             onPressed: () async {
               final fee = int.tryParse(_fee.text.trim());
               final free = int.tryParse(_free.text.trim());
@@ -195,9 +194,60 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               }
             },
             child: const Text('Save store settings'),
-          ),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () async {
+            final error = await backend.signOut();
+            if (error == null) {
+              ref.read(cartProvider.notifier).clear();
+              if (context.mounted) context.go('/');
+            } else if (context.mounted) {
+              setState(() {
+                _message = error;
+                _messageIsError = true;
+              });
+            }
+          },
+          child: Text('Sign out', style: TextStyle(color: tokens.danger)),
         ),
       ],
+    );
+  }
+
+  Widget _group(BloomTokens tokens, String title, List<Widget> children) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              title,
+              style: BloomlyType.uiText(
+                12,
+                weight: FontWeight.w700,
+                color: tokens.textSecondary,
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BloomlyDecor.card(tokens),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Column(
+                children: [
+                  for (final child in children) ...[
+                    child,
+                    const SizedBox(height: 8),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
