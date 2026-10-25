@@ -100,7 +100,7 @@ class ProductImage extends StatelessWidget {
 }
 
 class QtyStepper extends StatelessWidget {
-  QtyStepper({
+  const QtyStepper({
     required this.qty,
     required this.onMinus,
     required this.onPlus,
@@ -172,7 +172,7 @@ class QtyStepper extends StatelessWidget {
 }
 
 class StatusPill extends StatelessWidget {
-  StatusPill({required this.status, required this.label, super.key});
+  const StatusPill({required this.status, required this.label, super.key});
 
   final String status;
   final String label;
@@ -336,7 +336,7 @@ class BloomEmpty extends StatelessWidget {
 
 /// Six visual boxes over one code field. The field stays the source of truth.
 class OtpBoxes extends StatelessWidget {
-  OtpBoxes({required this.controller, required this.focusNode, super.key});
+  const OtpBoxes({required this.controller, required this.focusNode, super.key});
 
   final TextEditingController controller;
   final FocusNode focusNode;

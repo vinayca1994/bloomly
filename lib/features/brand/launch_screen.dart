@@ -88,7 +88,7 @@ class _LaunchGateState extends ConsumerState<LaunchGate> {
 }
 
 class _LaunchFrame extends StatelessWidget {
-  _LaunchFrame({this.message, this.onRetry});
+  const _LaunchFrame({this.message, this.onRetry});
 
   final String? message;
   final VoidCallback? onRetry;

@@ -630,8 +630,9 @@ class MemoryBackend extends BloomlyBackend {
 
   @override
   Future<String?> updateOrderStatus(String orderId, String status) async {
-    if (currentUser?.isOwner != true)
+    if (currentUser?.isOwner != true) {
       return 'Only the store can update an order.';
+    }
     final current = orderById(orderId);
     if (current == null) return 'Order not found.';
     final allowed =
@@ -656,8 +657,9 @@ class MemoryBackend extends BloomlyBackend {
 
   @override
   Future<String?> markRefunded(String orderId) async {
-    if (currentUser?.isOwner != true)
+    if (currentUser?.isOwner != true) {
       return 'Only the store can mark a refund.';
+    }
     final order = orderById(orderId);
     if (order == null) return 'Order not found.';
     if (order.paymentStatus != PaymentStatus.refundPending) {

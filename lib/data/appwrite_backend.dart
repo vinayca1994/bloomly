@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
@@ -772,8 +771,9 @@ class AppwriteBackend extends BloomlyBackend {
     required String orderId,
     required String riderId,
   }) async {
-    if (currentUser?.isOwner != true)
+    if (currentUser?.isOwner != true) {
       return 'Only the store can assign a rider.';
+    }
     try {
       await _execute(Ids.payments, {
         'action': 'assignRider',
@@ -1037,8 +1037,9 @@ class AppwriteBackend extends BloomlyBackend {
   ];
 
   Future<void> _ensureProfile() async {
-    if (currentUser == null || currentUser!.isOwner || currentUser!.isRider)
+    if (currentUser == null || currentUser!.isOwner || currentUser!.isRider) {
       return;
+    }
     try {
       await _execute(Ids.payments, {'action': 'ensureProfile'});
     } on BloomlyException {

@@ -224,7 +224,7 @@ class _Badge extends StatelessWidget {
 }
 
 class _AddButton extends StatelessWidget {
-  _AddButton({required this.onTap});
+  const _AddButton({required this.onTap});
 
   final VoidCallback onTap;
 

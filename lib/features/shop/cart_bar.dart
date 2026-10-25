@@ -38,7 +38,7 @@ class CartBar extends ConsumerWidget {
 }
 
 class _Bar extends ConsumerWidget {
-  _Bar({required this.summaryCount, super.key});
+  const _Bar({required this.summaryCount, super.key});
 
   final int summaryCount;
 

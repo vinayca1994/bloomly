@@ -214,7 +214,7 @@ class _LocationProbeState extends ConsumerState<_LocationProbe> {
 }
 
 class _SearchTap extends StatelessWidget {
-  _SearchTap({required this.onTap});
+  const _SearchTap({required this.onTap});
 
   final VoidCallback onTap;
 

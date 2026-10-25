@@ -49,7 +49,7 @@ class CustomerShell extends StatelessWidget {
 }
 
 class _CompactNav extends StatelessWidget {
-  _CompactNav({required this.shell});
+  const _CompactNav({required this.shell});
 
   final StatefulNavigationShell shell;
 
@@ -85,7 +85,7 @@ class _CompactNav extends StatelessWidget {
 }
 
 class _NavItem extends StatelessWidget {
-  _NavItem({
+  const _NavItem({
     required this.selected,
     required this.icon,
     required this.selectedIcon,

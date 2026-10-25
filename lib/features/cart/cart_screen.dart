@@ -147,7 +147,7 @@ class CartScreen extends ConsumerWidget {
 }
 
 class _Bill extends StatelessWidget {
-  _Bill({required this.summary});
+  const _Bill({required this.summary});
 
   final CartSummary summary;
 

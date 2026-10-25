@@ -216,7 +216,7 @@ class RiderScoreList extends StatelessWidget {
 }
 
 class _OverallStars extends StatelessWidget {
-  _OverallStars({required this.value, this.onChanged});
+  const _OverallStars({required this.value, this.onChanged});
 
   final int value;
   final ValueChanged<int>? onChanged;
