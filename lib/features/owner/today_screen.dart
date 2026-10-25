@@ -89,10 +89,10 @@ class TodayScreen extends ConsumerWidget {
               TextButton(onPressed: () => context.go('/owner/orders'), child: const Text('See all')),
             ],
           ),
-        if (live.isEmpty)
-          Text('No open orders', style: TextStyle(color: tokens.textSecondary))
-        else if (desk)
+        if (desk)
           _LiveOrdersTable(orders: live)
+        else if (live.isEmpty)
+          Text('No open orders', style: TextStyle(color: tokens.textSecondary))
         else
           for (final order in live.take(6))
             Padding(
@@ -233,6 +233,19 @@ class _LiveOrdersTable extends ConsumerWidget {
                     ),
                 ],
               ),
+              if (orders.isEmpty)
+                TableRow(
+                  children: [
+                    for (var i = 0; i < 6; i++)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        child: Text(
+                          i == 0 ? 'No open orders' : '',
+                          style: TextStyle(color: tokens.textSecondary),
+                        ),
+                      ),
+                  ],
+                ),
               for (final order in orders)
                 TableRow(
                   decoration: BoxDecoration(
