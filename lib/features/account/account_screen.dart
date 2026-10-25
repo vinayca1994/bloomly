@@ -74,6 +74,23 @@ class AccountScreen extends ConsumerWidget {
                 child: const Text('Sign in'),
               ),
             ),
+          _group(context, 'Appearance', [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: SegmentedButton<ThemeMode>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: ThemeMode.system, label: Text('System')),
+                  ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+                  ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                ],
+                selected: {ref.watch(themeModeProvider).mode},
+                onSelectionChanged: (value) {
+                  ref.read(themeModeProvider).setMode(value.first);
+                },
+              ),
+            ),
+          ]),
           if (user != null)
             _group(context,
               'Orders, addresses and security',

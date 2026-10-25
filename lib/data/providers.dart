@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../core/app_lock.dart';
 import '../core/bill.dart';
 import '../core/config.dart';
+import '../core/theme_choice.dart';
 import 'appwrite_backend.dart';
 import 'backend.dart';
 import 'cart_controller.dart';
@@ -28,6 +29,12 @@ final appLockProvider = ChangeNotifierProvider<AppLockController>((ref) {
   final lock = AppLockController();
   lock.load();
   return lock;
+});
+
+final themeModeProvider = ChangeNotifierProvider<ThemeChoice>((ref) {
+  final choice = ThemeChoice();
+  choice.load();
+  return choice;
 });
 
 class ResolvedLine {
