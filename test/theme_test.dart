@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:bloomly/core/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,5 +17,29 @@ void main() {
     expect(dark.extension<BloomTokens>()?.canvas, Plum.s950);
     expect(light.extension<BloomTokens>()?.success, Basil.s700);
     expect(light.extension<BloomTokens>()?.danger, Chili.s700);
+    expect(light.textTheme.bodyMedium?.fontFamily, BloomlyType.ui);
+    expect(light.textTheme.bodyMedium?.fontFamilyFallback, [BloomlyType.ui]);
+    expect(light.textTheme.headlineLarge?.fontFamily, isNot('Roboto'));
+    for (final style in <TextStyle?>[
+      light.textTheme.bodyLarge,
+      light.textTheme.bodyMedium,
+      light.textTheme.labelLarge,
+      light.textTheme.titleMedium,
+      dark.textTheme.bodyMedium,
+    ]) {
+      expect(style?.fontFamily, isNot('Roboto'));
+    }
+  });
+
+  test('the font manifest ships a local Roboto so web does not fetch it', () {
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    expect(
+      pubspec,
+      contains(
+        RegExp(
+          r'family: Roboto\s+fonts:\s+- asset: assets/fonts/PlusJakartaSans\.ttf',
+        ),
+      ),
+    );
   });
 }

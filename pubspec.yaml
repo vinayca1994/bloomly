@@ -91,6 +91,12 @@ flutter:
           weight: 700
         - asset: assets/fonts/PlusJakartaSans.ttf
           weight: 800
+    # Flutter web downloads a family named Roboto from fonts.gstatic.com unless
+    # the font manifest already has one. This file is Plus Jakarta, so that
+    # fallback stays on a face we ship. The page font policy blocks the CDN.
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 /// The log line is `bloom.crash` plus the exception. It does not upload
 /// anywhere until a reporting URL is added beside this hook.
 class CrashLog {
+  /// Call this in the same zone as `runApp`, after the binding is initialized.
   static void install() {
     final previous = FlutterError.onError;
     FlutterError.onError = (details) {

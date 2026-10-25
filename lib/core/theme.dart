@@ -97,6 +97,7 @@ class BloomlyTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: tokens.canvas,
       fontFamily: BloomlyType.ui,
+      fontFamilyFallback: const [BloomlyType.ui],
       textTheme: text,
       primaryTextTheme: text,
       extensions: [tokens],
