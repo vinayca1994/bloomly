@@ -252,8 +252,9 @@ class PromoCard extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
+            fontFamily: 'BricolageGrotesque',
             color: ink,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             fontSize: compact ? 15 : (dense ? 18 : 20),
             height: 1.15,
           ),

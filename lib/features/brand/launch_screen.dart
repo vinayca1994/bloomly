@@ -62,11 +62,11 @@ class _LaunchGateState extends ConsumerState<LaunchGate> {
       timedOut: _timedOut,
       failed: failed,
     )) {
-      return LockGate(child: widget.child ?? const SizedBox.shrink());
+      return LockGate(child: widget.child ?? SizedBox.shrink());
     }
     if (splash.isNotEmpty) {
       return ColoredBox(
-        color: BloomlyColors.canvas,
+        color: context.bloom.canvas,
         child: SafeArea(
           child: Center(
             child: Padding(
@@ -88,7 +88,7 @@ class _LaunchGateState extends ConsumerState<LaunchGate> {
 }
 
 class _LaunchFrame extends StatelessWidget {
-  const _LaunchFrame({this.message, this.onRetry});
+  _LaunchFrame({this.message, this.onRetry});
 
   final String? message;
   final VoidCallback? onRetry;
@@ -96,12 +96,12 @@ class _LaunchFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: BloomlyColors.canvas,
+      color: context.bloom.canvas,
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
+          constraints: BoxConstraints(maxWidth: 480),
           child: ColoredBox(
-            color: BloomlyColors.paper,
+            color: context.bloom.canvas,
             child: SafeArea(
               child: Center(
                 child: Padding(
@@ -109,7 +109,10 @@ class _LaunchFrame extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('bloom', style: BloomlyType.display(52)),
+                      Text(
+                        'bloom',
+                        style: BloomlyType.display(52, color: context.bloom.link),
+                      ),
                       if (message != null) ...[
                         const SizedBox(height: 16),
                         Text(message!, textAlign: TextAlign.center),

@@ -62,17 +62,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ],
       ),
       body: query.isEmpty
-          ? const Center(
+          ? Center(
               child: Text(
                 'Try tomato, mango, or jasmine',
-                style: TextStyle(color: BloomlyColors.muted),
+                style: TextStyle(color: context.bloom.textSecondary),
               ),
             )
           : results.isEmpty
           ? Center(
               child: Text(
                 'No matches for “$query”',
-                style: const TextStyle(color: BloomlyColors.muted),
+                style: TextStyle(color: context.bloom.textSecondary),
               ),
             )
           : GridView.builder(

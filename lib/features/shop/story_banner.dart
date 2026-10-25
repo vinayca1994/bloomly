@@ -45,6 +45,12 @@ class _BannerCarouselState extends State<_BannerCarousel>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) _dwell.stop();
+  }
+
+  @override
   void didUpdateWidget(_BannerCarousel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_sameIds(oldWidget.stories, widget.stories)) return;
@@ -63,12 +69,18 @@ class _BannerCarouselState extends State<_BannerCarousel>
 
   void _onDwell(AnimationStatus status) {
     if (status != AnimationStatus.completed || !mounted || _held) return;
+    if (MediaQuery.disableAnimationsOf(context)) return;
     if (widget.stories.length < 2) return;
     final next = (_index + 1) % widget.stories.length;
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    if (reduce) {
+      _page.jumpToPage(next);
+      return;
+    }
     _page.animateToPage(
       next,
-      duration: const Duration(milliseconds: 420),
-      curve: Curves.easeOutCubic,
+      duration: BloomTokens.slow,
+      curve: BloomTokens.easeEmphasized,
     );
   }
 
@@ -140,9 +152,9 @@ class _Dots extends StatelessWidget {
           Container(
             width: i == index ? 16 : 6,
             height: 6,
-            margin: const EdgeInsets.symmetric(horizontal: 3),
+            margin: EdgeInsets.symmetric(horizontal: 3),
             decoration: BoxDecoration(
-              color: i == index ? BloomlyColors.ink : BloomlyColors.line,
+              color: i == index ? context.bloom.text : context.bloom.border,
               borderRadius: BorderRadius.circular(99),
             ),
           ),

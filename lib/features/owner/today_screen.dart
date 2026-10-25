@@ -1,256 +1,172 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
-import '../../core/phone.dart';
 import '../../core/theme.dart';
-import '../../core/upi.dart';
+import '../../core/widgets.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
 
-class TodayScreen extends ConsumerStatefulWidget {
+class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
 
   @override
-  ConsumerState<TodayScreen> createState() => _TodayScreenState();
-}
-
-class _TodayScreenState extends ConsumerState<TodayScreen> {
-  late final TextEditingController _city;
-  late final TextEditingController _eta;
-  late final TextEditingController _fee;
-  late final TextEditingController _free;
-  late final TextEditingController _upiId;
-  late final TextEditingController _upiName;
-  late final TextEditingController _storePhone;
-  String? _message;
-  bool _messageIsError = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final store = StoreSettings.fallback;
-    _city = TextEditingController(text: store.city);
-    _eta = TextEditingController(text: store.etaLabel);
-    _fee = TextEditingController(text: '${store.deliveryFee}');
-    _free = TextEditingController(text: '${store.freeDeliveryAbove}');
-    _upiId = TextEditingController(text: store.upiId);
-    _upiName = TextEditingController(text: store.upiName);
-    _storePhone = TextEditingController(text: store.storePhone);
-  }
-
-  @override
-  void dispose() {
-    _city.dispose();
-    _eta.dispose();
-    _fee.dispose();
-    _free.dispose();
-    _upiId.dispose();
-    _upiName.dispose();
-    _storePhone.dispose();
-    super.dispose();
-  }
-
-  bool _filled = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final backend = ref.watch(backendProvider);
-    if (!_filled) {
-      _filled = true;
-      _city.text = backend.store.city;
-      _eta.text = backend.store.etaLabel;
-      _fee.text = '${backend.store.deliveryFee}';
-      _free.text = '${backend.store.freeDeliveryAbove}';
-      _upiId.text = backend.store.upiId;
-      _upiName.text = backend.store.upiName;
-      _storePhone.text = backend.store.storePhone;
-    }
     final now = DateTime.now();
-    final open = backend.orders
-        .where(
-          (order) =>
-              OrderStatus.visibleToStore(order.status) &&
-              order.status != OrderStatus.delivered &&
-              order.status != OrderStatus.cancelled,
-        )
-        .length;
+    final live = backend.orders.where((order) {
+      final visible =
+          OrderStatus.visibleToStore(order.status) ||
+          (order.paymentMethod == PaymentMethod.upi && order.awaitingPayment);
+      return visible &&
+          order.status != OrderStatus.delivered &&
+          order.status != OrderStatus.cancelled;
+    }).toList()..sort((a, b) => b.placedAt.compareTo(a.placedAt));
+    final awaiting = live.where((order) => order.awaitingPayment).length;
     final revenue = backend.orders
         .where((order) => order.countsAsRevenue(now))
         .fold<int>(0, (sum, order) => sum + order.total);
-    final unavailable = backend.products
-        .where((product) => !product.isAvailable)
-        .length;
+    final todayCount = backend.orders.where((order) {
+      final placed = order.placedAt.toLocal();
+      final day = now.toLocal();
+      return placed.year == day.year &&
+          placed.month == day.month &&
+          placed.day == day.day &&
+          order.status != OrderStatus.paymentPending;
+    }).length;
+    final low = backend.products.where((product) => !product.forSale).take(6).toList();
+    final tokens = context.bloom;
 
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const Text(
-          'Today',
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+        Row(
+          children: [
+            Expanded(
+              child: Text('Today', style: BloomlyType.display(28, color: tokens.text)),
+            ),
+            Container(
+              height: 28,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: tokens.etaBg,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                backend.store.etaLabel,
+                style: BloomlyType.uiText(12, weight: FontWeight.w800, color: tokens.etaFg),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Wrap(
           spacing: 12,
           runSpacing: 12,
           children: [
-            _stat('Open orders', '$open'),
-            _stat('Revenue', money(revenue)),
-            _stat('Unavailable', '$unavailable'),
+            _stat(context, 'Orders today', '$todayCount', tokens.success),
+            _stat(context, 'Sales', money(revenue), tokens.success),
+            _stat(context, 'Awaiting', '$awaiting', tokens.warning),
           ],
         ),
-        const SizedBox(height: 24),
-        const Text(
-          'Store',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _city,
-          decoration: const InputDecoration(labelText: 'City'),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _eta,
-          decoration: const InputDecoration(labelText: 'ETA label'),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _fee,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Delivery fee (₹)'),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _free,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Free delivery above (₹)',
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _upiId,
-          decoration: const InputDecoration(
-            labelText: 'UPI ID',
-            hintText: 'bloom@oksbi',
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _upiName,
-          decoration: const InputDecoration(
-            labelText: 'Name on the UPI account',
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _storePhone,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'Store phone (call / WhatsApp)',
-            hintText: '10-digit mobile',
-          ),
-        ),
-        if (_message != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            _message!,
-            style: TextStyle(
-              color: _messageIsError
-                  ? BloomlyColors.danger
-                  : BloomlyColors.greenDark,
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Text(
+              'LIVE ORDERS',
+              style: BloomlyType.uiText(
+                11,
+                weight: FontWeight.w800,
+                color: tokens.textSecondary,
+              ),
             ),
-          ),
-        ],
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton(
-            onPressed: () async {
-              final fee = int.tryParse(_fee.text.trim());
-              final free = int.tryParse(_free.text.trim());
-              final upiId = _upiId.text.trim();
-              if (_city.text.trim().isEmpty ||
-                  fee == null ||
-                  free == null ||
-                  fee < 0 ||
-                  free < 0) {
-                setState(() {
-                  _message = 'Check the city and the two amounts.';
-                  _messageIsError = true;
-                });
-                return;
-              }
-              if (upiId.isNotEmpty && !isUpiId(upiId)) {
-                setState(() {
-                  _message = 'Use a UPI ID like bloom@oksbi.';
-                  _messageIsError = true;
-                });
-                return;
-              }
-              final phoneRaw = _storePhone.text.trim();
-              if (phoneRaw.isNotEmpty &&
-                  PhoneNumber.normalizeIndia(phoneRaw) == null) {
-                setState(() {
-                  _message =
-                      'Use a valid 10-digit Indian mobile for the store phone.';
-                  _messageIsError = true;
-                });
-                return;
-              }
-              await backend.updateStore(
-                StoreSettings(
-                  city: _city.text.trim(),
-                  etaLabel: _eta.text.trim().isEmpty
-                      ? '15–30 min'
-                      : _eta.text.trim(),
-                  deliveryFee: fee,
-                  freeDeliveryAbove: free,
-                  upiId: upiId,
-                  upiName: _upiName.text.trim().isEmpty
-                      ? 'Bloom'
-                      : _upiName.text.trim(),
-                  storePhone: phoneRaw.isEmpty
-                      ? ''
-                      : PhoneNumber.normalizeIndia(phoneRaw)!,
-                  promotions: backend.store.promotions,
+            const Spacer(),
+            TextButton(onPressed: () => context.go('/owner/orders'), child: const Text('See all')),
+          ],
+        ),
+        if (live.isEmpty)
+          Text('No open orders', style: TextStyle(color: tokens.textSecondary))
+        else
+          for (final order in live.take(6))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: DecoratedBox(
+                decoration: BloomlyDecor.card(tokens),
+                child: ListTile(
+                  title: Text(
+                    '${order.addressSnapshot.split(',').first} · ${money(order.total)}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: Text(
+                    '${order.items.length} items · ${paymentLabel(order)}',
+                  ),
+                  trailing: StatusPill(
+                    status: order.awaitingPayment ? OrderStatus.paymentPending : order.status,
+                    label: statusLabel(
+                      order.awaitingPayment ? OrderStatus.paymentPending : order.status,
+                    ),
+                  ),
+                  onTap: () => context.go('/owner/orders'),
                 ),
-              );
-              if (mounted) {
-                setState(() {
-                  _message = 'Saved';
-                  _messageIsError = false;
-                });
-              }
-            },
-            child: const Text('Save store settings'),
-          ),
+              ),
+            ),
+        const SizedBox(height: 12),
+        Text(
+          'LOW AVAILABILITY',
+          style: BloomlyType.uiText(11, weight: FontWeight.w800, color: tokens.textSecondary),
+        ),
+        const SizedBox(height: 8),
+        DecoratedBox(
+          decoration: BloomlyDecor.card(tokens),
+          child: low.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Everything on the shelf is available.',
+                    style: TextStyle(color: tokens.textSecondary),
+                  ),
+                )
+              : Column(
+                  children: [
+                    for (final product in low)
+                      ListTile(
+                        title: Text(product.name),
+                        trailing: Text(
+                          'Sold out',
+                          style: TextStyle(color: tokens.danger, fontWeight: FontWeight.w800),
+                        ),
+                        onTap: () => context.go('/owner/catalog/${product.id}'),
+                      ),
+                  ],
+                ),
+        ),
+        const SizedBox(height: 16),
+        OutlinedButton(
+          onPressed: () => context.go('/owner/settings'),
+          child: const Text('Store settings'),
         ),
       ],
     );
   }
 
-  Widget _stat(String label, String value) {
+  Widget _stat(BuildContext context, String label, String value, Color accent) {
+    final tokens = context.bloom;
     return SizedBox(
       width: 180,
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+      child: DecoratedBox(
+        decoration: BloomlyDecor.card(tokens),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(color: BloomlyColors.muted)),
+              Text(label, style: TextStyle(color: tokens.textSecondary)),
               const SizedBox(height: 6),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+              Text(value, style: BloomlyType.display(22, color: tokens.text)),
+              const SizedBox(height: 4),
+              Text(label == 'Awaiting' ? 'UPI to confirm' : 'Today', style: TextStyle(color: accent, fontSize: 12)),
             ],
           ),
         ),

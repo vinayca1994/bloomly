@@ -106,17 +106,22 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
   Widget build(BuildContext context) {
     final lock = ref.watch(appLockProvider);
     return ColoredBox(
-      color: BloomlyColors.background,
+      color: context.bloom.canvas,
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(
+              SizedBox(
                 height: 72,
                 width: 120,
-                child: CustomPaint(painter: _LockMarkPainter()),
+                child: CustomPaint(
+                  painter: _LockMarkPainter(
+                    star: context.bloom.star,
+                    leaf: context.bloom.primary,
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               Text('bloom', style: BloomlyType.display(32)),
@@ -126,8 +131,8 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               if (_error != null) ...[
-                const SizedBox(height: 8),
-                Text(_error!, style: const TextStyle(color: BloomlyColors.danger)),
+                SizedBox(height: 8),
+                Text(_error!, style: TextStyle(color: context.bloom.danger)),
               ],
               const SizedBox(height: 16),
               FilledButton(onPressed: _unlock, child: const Text('Unlock')),
@@ -147,12 +152,15 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
 }
 
 class _LockMarkPainter extends CustomPainter {
-  const _LockMarkPainter();
+  const _LockMarkPainter({required this.star, required this.leaf});
+
+  final Color star;
+  final Color leaf;
 
   @override
   void paint(Canvas canvas, Size size) {
     final arc = Paint()
-      ..color = BloomlyColors.marigold
+      ..color = star
       ..style = PaintingStyle.stroke
       ..strokeWidth = 7
       ..strokeCap = StrokeCap.round;
@@ -163,11 +171,11 @@ class _LockMarkPainter extends CustomPainter {
       false,
       arc,
     );
-    final leaf = Path()
+    final leafPath = Path()
       ..moveTo(8, size.height - 8)
       ..quadraticBezierTo(28, 4, 62, 18)
       ..quadraticBezierTo(34, 28, 8, size.height - 8);
-    canvas.drawPath(leaf, Paint()..color = BloomlyColors.green);
+    canvas.drawPath(leafPath, Paint()..color = leaf);
   }
 
   @override

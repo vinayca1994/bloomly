@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../core/widgets.dart';
 import '../../data/auth_result.dart';
 import '../../data/providers.dart';
 
@@ -30,9 +33,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _busy = false;
   String? _error;
   String? _userId;
+  Timer? _resend;
+  int _resendLeft = 0;
+  var _queryApplied = false;
+  final _otpFocus = FocusNode();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_queryApplied) return;
+    _queryApplied = true;
+    final query = GoRouterState.of(context).uri.queryParameters;
+    if (query['step'] == 'otp' && (query['userId'] ?? '').isNotEmpty) {
+      _userId = query['userId'];
+      _phone.text = query['phone'] ?? _phone.text;
+      _channel = query['channel'] == 'sms' ? OtpChannel.sms : OtpChannel.whatsapp;
+      _step = _Step.otp;
+      _armResend();
+    }
+  }
+
+  void _armResend() {
+    _resend?.cancel();
+    _resendLeft = 30;
+    _resend = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        _resendLeft -= 1;
+        if (_resendLeft <= 0) timer.cancel();
+      });
+    });
+  }
 
   @override
   void dispose() {
+    _resend?.cancel();
+    _otpFocus.dispose();
     _phone.dispose();
     _code.dispose();
     _name.dispose();
@@ -46,55 +82,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final backend = ref.watch(backendProvider);
     final showDemo = kDebugMode && backend.demoShortcuts;
+    final tokens = context.bloom;
     return Scaffold(
-      backgroundColor: BloomlyColors.ink,
+      backgroundColor: tokens.canvas,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SafeArea(
-            bottom: false,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: BackButton(color: Color(0xFFF6F1E4)),
-            ),
-          ),
-          const _BotanicalHeader(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'bloom',
-                  style: BloomlyType.display(
-                    42,
-                    color: const Color(0xFFF6F1E4),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _title,
-                  style: BloomlyType.display(
-                    22,
-                    color: const Color(0xFFF0C14A),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _AuthHeader(title: _title, subtitle: _subtitle),
           Expanded(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                color: Color(0xFFF7F4EC),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-              ),
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
-                children: [
-                  if (kDebugMode) ...[
-                    const Text(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+              children: [
+                  if (kDebugMode && showDemo) ...[
+                    Text(
                       'Continue as',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                      style: BloomlyType.uiText(14, weight: FontWeight.w800, color: tokens.text),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -103,40 +105,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       children: [
                         _demoChip(
                           'Customer',
-                          const Color(0xFFE5F4F1),
-                          BloomlyColors.greenDark,
+                          tokens.washVeg,
+                          tokens.success,
                           _busy ? null : () => _signInDemo('customer'),
                         ),
                         _demoChip(
                           'Store owner',
-                          const Color(0xFFFFF0E8),
-                          const Color(0xFFB42318),
+                          tokens.washFruit,
+                          tokens.warning,
                           _busy ? null : () => _signInDemo('owner'),
                         ),
                         _demoChip(
                           'Rider',
-                          const Color(0xFFFFF6D8),
-                          const Color(0xFF8A5A00),
+                          tokens.awaitingBg,
+                          tokens.awaitingFg,
                           _busy ? null : () => _signInDemo('rider'),
                         ),
                       ],
                     ),
                     const SizedBox(height: 18),
                   ],
-                  Text(
-                    _subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF6E6254),
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
                   ..._fields(showDemo),
                   if (_error != null) ...[
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     Text(
                       _error!,
-                      style: const TextStyle(color: BloomlyColors.danger),
+                      style: TextStyle(color: context.bloom.danger),
                     ),
                   ],
                   const SizedBox(height: 18),
@@ -150,7 +144,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ..._links(),
                 ],
               ),
-            ),
           ),
         ],
       ),
@@ -160,9 +153,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String get _title {
     switch (_step) {
       case _Step.phone:
-        return 'Fresh in minutes.';
+        return 'Welcome to bloom';
       case _Step.otp:
-        return 'Enter the code';
+        return 'Enter the 6-digit code';
       case _Step.name:
         return 'What should we call you?';
       case _Step.email:
@@ -177,7 +170,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String get _subtitle {
     switch (_step) {
       case _Step.phone:
-        return 'Sign in with a code on WhatsApp or by SMS.';
+        return 'Fresh vegetables, fruit and flowers in minutes.';
       case _Step.otp:
         final where = _channel == OtpChannel.whatsapp
             ? 'on WhatsApp'
@@ -222,18 +215,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ];
       case _Step.otp:
+        final clock = '${_resendLeft ~/ 60}:${(_resendLeft % 60).toString().padLeft(2, '0')}';
         return [
-          TextField(
-            controller: _code,
-            keyboardType: TextInputType.number,
-            decoration: _field('6-digit code'),
+          OtpBoxes(controller: _code, focusNode: _otpFocus),
+          SizedBox(
+            height: 0,
+            child: TextField(
+              controller: _code,
+              focusNode: _otpFocus,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              autofocus: true,
+              style: const TextStyle(color: Colors.transparent, fontSize: 1),
+              decoration: const InputDecoration(
+                counterText: '',
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
+              onChanged: (value) {
+                final digits = value.replaceAll(RegExp(r'\D'), '');
+                if (digits != value) {
+                  _code.value = TextEditingValue(
+                    text: digits,
+                    selection: TextSelection.collapsed(offset: digits.length),
+                  );
+                }
+                setState(() {});
+              },
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            _resendLeft > 0 ? 'Resend in $clock' : 'You can resend the code',
+            style: BloomlyType.uiText(12, color: context.bloom.textSecondary),
           ),
           if (showDemo)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
                 'Demo code 123456',
-                style: TextStyle(color: BloomlyColors.muted, fontSize: 12),
+                style: BloomlyType.uiText(12, color: context.bloom.textSecondary),
               ),
             ),
         ];
@@ -291,36 +313,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             decoration: _field('New password'),
           ),
           if (showDemo)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
                 'Demo code 123456',
-                style: TextStyle(color: BloomlyColors.muted, fontSize: 12),
+                style: BloomlyType.uiText(12, color: context.bloom.textSecondary),
               ),
             ),
         ];
     }
   }
 
-  InputDecoration _field(String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE4DDD0)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE4DDD0)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: BloomlyColors.amber, width: 1.6),
-      ),
-    );
-  }
+  InputDecoration _field(String label) => InputDecoration(labelText: label);
 
   Future<void> _signInDemo(String role) async {
     setState(() {
@@ -372,9 +376,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             : OtpChannel.whatsapp;
         return [
           TextButton(
-            onPressed: _busy ? null : () => _submitPhone(_channel),
+            onPressed: _busy || _resendLeft > 0 ? null : () => _submitPhone(_channel),
             child: Text(
-              _channel == OtpChannel.whatsapp
+              _resendLeft > 0
+                  ? 'Resend in 0:${_resendLeft.toString().padLeft(2, '0')}'
+                  : _channel == OtpChannel.whatsapp
                   ? 'Resend on WhatsApp'
                   : 'Resend by SMS',
             ),
@@ -454,34 +460,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   List<Widget> _sendButtons() {
     return [
-      _primaryButton(
-        _pendingLabel(OtpChannel.whatsapp, 'Get code on WhatsApp'),
-        _busy ? null : () => _submitPhone(OtpChannel.whatsapp),
+      FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: context.bloom.strong,
+          foregroundColor: context.bloom.onStrong,
+        ),
+        onPressed: _busy ? null : () => _submitPhone(OtpChannel.whatsapp),
+        child: Text(_pendingLabel(OtpChannel.whatsapp, 'Get code on WhatsApp')),
       ),
       const SizedBox(height: 10),
       OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: BloomlyColors.amber,
-          minimumSize: const Size.fromHeight(52),
-          side: const BorderSide(color: BloomlyColors.amber),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
         onPressed: _busy ? null : () => _submitPhone(OtpChannel.sms),
         child: Text(_pendingLabel(OtpChannel.sms, 'Get code by SMS')),
+      ),
+      const SizedBox(height: 8),
+      TextButton(
+        onPressed: _busy ? null : _continueGuest,
+        child: const Text('Continue as guest'),
+      ),
+      Text(
+        'By continuing you agree to the Terms and Privacy policy.',
+        textAlign: TextAlign.center,
+        style: BloomlyType.uiText(12, color: context.bloom.textSecondary),
       ),
     ];
   }
 
+  void _continueGuest() {
+    final next = GoRouterState.of(context).uri.queryParameters['next'];
+    if (next != null && next.isNotEmpty) {
+      context.go(next);
+      return;
+    }
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/');
+  }
+
   Widget _primaryButton(String label, VoidCallback? onPressed) {
     return FilledButton(
-      style: FilledButton.styleFrom(
-        backgroundColor: BloomlyColors.gold,
-        foregroundColor: BloomlyColors.ink,
-        minimumSize: const Size.fromHeight(52),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
       onPressed: onPressed,
       child: Text(label),
     );
@@ -517,6 +536,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _userId = result.userId;
       _code.clear();
       _step = _Step.otp;
+      _armResend();
     });
   }
 
@@ -687,57 +707,76 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-class _BotanicalHeader extends StatelessWidget {
-  const _BotanicalHeader();
+class _AuthHeader extends StatelessWidget {
+  const _AuthHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      height: 64,
-      width: double.infinity,
-      child: CustomPaint(painter: _MarketMarkPainter()),
+    return Container(
+      height: 248,
+      decoration: const BoxDecoration(
+        color: Plum.s900,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      ),
+      child: Stack(
+        children: [
+          const Positioned.fill(child: CustomPaint(painter: _BloomHeaderPainter())),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const BackButton(color: bloomWhite),
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'bloom',
+                          style: BloomlyType.display(26, color: Petal.s300),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(title, style: BloomlyType.display(28, color: bloomWhite)),
+                        const SizedBox(height: 6),
+                        Text(
+                          subtitle,
+                          style: BloomlyType.uiText(14, color: Plum.s200),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _MarketMarkPainter extends CustomPainter {
-  const _MarketMarkPainter();
+class _BloomHeaderPainter extends CustomPainter {
+  const _BloomHeaderPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawCircle(
-      Offset(size.width * 0.12, 8),
-      28,
-      Paint()..color = const Color(0xFF2C261C),
-    );
-    final arc = Paint()
-      ..color = const Color(0xFFF0C14A)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 7
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(
-      Rect.fromCircle(
-        center: Offset(size.width * 0.82, size.height + 18),
-        radius: 46,
-      ),
-      -2.7,
-      1.7,
-      false,
-      arc,
-    );
+    canvas.drawCircle(Offset(size.width - 48, 54), 22, Paint()..color = Basil.s400);
+    canvas.drawCircle(Offset(size.width - 18, 96), 14, Paint()..color = Petal.s400);
+    canvas.drawCircle(Offset(size.width - 78, 108), 12, Paint()..color = Mango.s300);
+    canvas.drawCircle(Offset(36, 36), 10, Paint()..color = Petal.s300.withValues(alpha: 0.7));
+    canvas.drawCircle(Offset(size.width * 0.72, 78), 6, Paint()..color = Sun.s300);
     final leaf = Path()
-      ..moveTo(28, 52)
-      ..quadraticBezierTo(46, 8, 84, 22)
-      ..quadraticBezierTo(52, 32, 28, 52);
-    canvas.drawPath(leaf, Paint()..color = const Color(0xFFE7F6F1));
-    canvas.drawLine(
-      const Offset(36, 46),
-      const Offset(70, 24),
-      Paint()
-        ..color = const Color(0xFFF0C14A)
-        ..strokeWidth = 1.6
-        ..strokeCap = StrokeCap.round,
-    );
+      ..moveTo(size.width - 90, 70)
+      ..quadraticBezierTo(size.width - 40, 20, size.width - 20, 64)
+      ..quadraticBezierTo(size.width - 50, 78, size.width - 90, 70);
+    canvas.drawPath(leaf, Paint()..color = Basil.s300.withValues(alpha: 0.85));
   }
 
   @override

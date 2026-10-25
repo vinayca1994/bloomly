@@ -8,6 +8,7 @@ import '../../core/format.dart';
 import '../../core/phone.dart';
 import '../../core/theme.dart';
 import '../../core/upi.dart';
+import '../../core/widgets.dart';
 import '../../data/models.dart';
 import '../../data/online_payment.dart';
 import '../../data/providers.dart';
@@ -55,11 +56,16 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
         (user.isOwner || order.userId == user.id);
     final isCustomer = user != null && order != null && user.id == order.userId && !user.isOwner;
 
+    final tokens = context.bloom;
+    final (heroBg, heroFg) = order == null
+        ? (tokens.canvas, tokens.text)
+        : tokens.status(
+            order.awaitingPayment ? OrderStatus.paymentPending : order.status,
+          );
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F1),
+      backgroundColor: tokens.canvas,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF3F6F1),
-        title: const Text('Order'),
+        title: Text(order == null ? 'Order' : 'Order ${order.id}'),
       ),
       body: !allowed
           ? const Center(child: Text('This order is not available.'))
@@ -70,52 +76,40 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF0E7C66), Color(0xFF146B58)],
-                    ),
+                    color: heroBg,
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          order.status == OrderStatus.cancelled
-                              ? 'Cancelled'
-                              : order.awaitingPayment
-                              ? 'Awaiting payment'
-                              : statusLabel(order.status),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                          ),
-                        ),
+                      StatusPill(
+                        status: order.awaitingPayment
+                            ? OrderStatus.paymentPending
+                            : order.status,
+                        label: order.awaitingPayment
+                            ? 'Awaiting payment'
+                            : statusLabel(order.status),
                       ),
                       const SizedBox(height: 12),
-                      Text(money(order.total), style: BloomlyType.display(40, color: Colors.white)),
+                      Text(
+                        _heroTitle(order, backend.store.etaLabel),
+                        style: BloomlyType.display(32, color: heroFg),
+                      ),
                       const SizedBox(height: 4),
                       Text(
-                        formatWhen(order.placedAt),
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.78)),
+                        '${money(order.total)} · ${formatWhen(order.placedAt)}',
+                        style: BloomlyType.uiText(14, color: heroFg.withValues(alpha: 0.8)),
                       ),
                       const SizedBox(height: 12),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.place_outlined, color: Color(0xFFFFE08A), size: 18),
+                          Icon(Icons.place_outlined, color: heroFg, size: 18),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               order.addressSnapshot,
-                              style: const TextStyle(color: Colors.white, height: 1.35),
+                              style: BloomlyType.uiText(14, color: heroFg, height: 1.35),
                             ),
                           ),
                         ],
@@ -146,8 +140,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
                         '${order.riderName} is on the way',
-                        style: const TextStyle(
-                          color: BloomlyColors.greenDark,
+                        style: TextStyle(
+                          color: context.bloom.link,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -160,8 +154,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                 ],
                 ReviewPanel(order: order),
                 if (_actionError != null) ...[
-                  const SizedBox(height: 12),
-                  Text(_actionError!, style: const TextStyle(color: BloomlyColors.danger)),
+                  SizedBox(height: 12),
+                  Text(_actionError!, style: TextStyle(color: context.bloom.danger)),
                 ],
                 if (isCustomer && OrderStatus.customerCanCancel(order.status)) ...[
                   const SizedBox(height: 16),
@@ -190,14 +184,14 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                                 width: 36,
                                 height: 36,
                                 alignment: Alignment.center,
-                                decoration: const BoxDecoration(
-                                  color: BloomlyColors.leafWash,
+                                decoration: BoxDecoration(
+                                  color: context.bloom.washVeg,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Text(
                                   '${item.qty}',
-                                  style: const TextStyle(
-                                    color: BloomlyColors.greenDark,
+                                  style: TextStyle(
+                                    color: context.bloom.link,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
@@ -218,14 +212,14 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                         ),
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         decoration: BoxDecoration(
-                          color: BloomlyColors.fruitWash,
+                          color: context.bloom.washFruit,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.payments_outlined, size: 18, color: BloomlyColors.marigold),
+                            Icon(Icons.payments_outlined, size: 18, color: context.bloom.star),
                             const SizedBox(width: 8),
                             Expanded(child: Text(paymentLabel(order))),
                             Text(
@@ -236,10 +230,10 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                         ),
                       ),
                       if (order.gatewayPaymentId.trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         Text(
                           'UTR / reference: ${order.gatewayPaymentId}',
-                          style: const TextStyle(color: BloomlyColors.muted, fontSize: 13),
+                          style: TextStyle(color: context.bloom.textSecondary, fontSize: 13),
                         ),
                       ],
                     ],
@@ -345,6 +339,13 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
   }
 }
 
+String _heroTitle(OrderRecord order, String eta) {
+  if (order.status == OrderStatus.cancelled) return 'Cancelled';
+  if (order.status == OrderStatus.delivered) return 'Delivered';
+  if (order.awaitingPayment) return 'Awaiting payment';
+  return eta;
+}
+
 class _Panel extends StatelessWidget {
   const _Panel({required this.child});
 
@@ -354,17 +355,11 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.bloom.surface,
         borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: BloomlyColors.greenDark.withValues(alpha: 0.06),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: context.bloom.cardShadow,
       ),
       child: child,
     );
@@ -393,7 +388,7 @@ class _AwaitingUpi extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF6E8),
+        color: context.bloom.awaitingBg,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -405,12 +400,12 @@ class _AwaitingUpi extends StatelessWidget {
                 : 'Awaiting UPI payment',
             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             submitted
                 ? 'You marked this as paid. The store confirms the credit in their UPI app before packing. UTR: ${order.gatewayPaymentId.isEmpty ? 'not entered' : order.gatewayPaymentId}.'
                 : 'Pay with BHIM, GPay, PhonePe, or Paytm, then save your UTR. This order expires in about $mins min if unpaid.',
-            style: const TextStyle(color: BloomlyColors.muted),
+            style: TextStyle(color: context.bloom.textSecondary),
           ),
           if (onOpenPay != null || onEnterUtr != null) ...[
             const SizedBox(height: 12),
@@ -483,15 +478,15 @@ class _Cancelled extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDECEA),
+        color: context.bloom.cancelledBg,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
         upiFailed
             ? 'Cancelled — UPI was not confirmed in time (or was cancelled).'
             : 'Cancelled',
-        style: const TextStyle(
-          color: BloomlyColors.danger,
+        style: TextStyle(
+          color: context.bloom.danger,
           fontWeight: FontWeight.w800,
           fontSize: 16,
         ),
@@ -533,26 +528,26 @@ class _Steps extends StatelessWidget {
                     height: 32,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: i <= index ? BloomlyColors.amber : BloomlyColors.leafWash,
+                      color: i <= index ? context.bloom.primary : context.bloom.sunken,
                     ),
                     child: Icon(
                       i < index ? Icons.check_rounded : icons[i],
                       size: 16,
-                      color: i <= index ? Colors.white : BloomlyColors.muted,
+                      color: i <= index ? context.bloom.onPrimary : context.bloom.textSecondary,
                     ),
                   ),
                   if (i != OrderStatus.flow.length - 1)
                     Container(
                       width: 2,
                       height: 28,
-                      color: i < index ? BloomlyColors.amber : BloomlyColors.line,
+                      color: i < index ? context.bloom.primary : context.bloom.border,
                     ),
                 ],
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 4, bottom: 14),
+                  padding: EdgeInsets.only(top: 4, bottom: 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -561,15 +556,15 @@ class _Steps extends StatelessWidget {
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           color: i == index
-                              ? BloomlyColors.greenDark
+                              ? context.bloom.link
                               : i < index
-                              ? BloomlyColors.ink
-                              : BloomlyColors.muted,
+                              ? context.bloom.text
+                              : context.bloom.textSecondary,
                         ),
                       ),
                       Text(
                         captions[i],
-                        style: const TextStyle(color: BloomlyColors.muted, fontSize: 12),
+                        style: TextStyle(color: context.bloom.textSecondary, fontSize: 12),
                       ),
                     ],
                   ),

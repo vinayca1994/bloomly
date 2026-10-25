@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../core/widgets.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
 import '../orders/review_panel.dart';
@@ -42,69 +43,170 @@ class _RiderScreenState extends ConsumerState<RiderScreen> {
         return 1;
       });
 
+    final tokens = context.bloom;
+    final active = orders.where((order) => order.status == OrderStatus.outForDelivery).toList();
+    final next = active.isEmpty ? null : active.first;
+    final later = [
+      for (final order in orders)
+        if (next == null || order.id != next.id) order,
+    ];
+    final sharing = next != null && _sharingOrderId == next.id;
     return Scaffold(
       appBar: AppBar(title: const Text('Deliveries')),
       body: orders.isEmpty
-          ? const Center(child: Text('No deliveries yet', style: TextStyle(color: BloomlyColors.muted)))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: orders.length + (_error == null ? 0 : 1),
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                if (_error != null && index == 0) {
-                  return Text(_error!, style: const TextStyle(color: BloomlyColors.danger));
-                }
-                final order = orders[_error == null ? index : index - 1];
-                final review = backend.reviewFor(order.id);
-                final sharing = _sharingOrderId == order.id;
-                return Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(statusLabel(order.status), style: const TextStyle(fontWeight: FontWeight.w800)),
-                            const Spacer(),
-                            Text(money(order.total), style: const TextStyle(fontWeight: FontWeight.w800)),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(order.addressSnapshot),
-                        const SizedBox(height: 6),
-                        Text(order.items.map((item) => '${item.name} × ${item.qty}').join(', ')),
-                        if (order.status == OrderStatus.outForDelivery) ...[
-                          const SizedBox(height: 10),
-                          if (sharing)
-                            const Text('Sharing location', style: TextStyle(color: BloomlyColors.amber, fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
+          ? Center(
+              child: Text(
+                'No deliveries yet',
+                style: TextStyle(color: tokens.textSecondary),
+              ),
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: [
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(_error!, style: TextStyle(color: tokens.danger)),
+                  ),
+                if (next != null) ...[
+                  DecoratedBox(
+                    decoration: BloomlyDecor.card(tokens, border: false),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              FilledButton(
-                                onPressed: _busy ? null : () => sharing ? _stop() : _start(order.id),
-                                child: Text(sharing ? 'Stop sharing' : 'Start delivery'),
+                              Text(
+                                'Next delivery',
+                                style: BloomlyType.uiText(
+                                  12,
+                                  weight: FontWeight.w700,
+                                  color: tokens.textSecondary,
+                                ),
                               ),
-                              OutlinedButton(
-                                onPressed: _busy ? null : () => _deliver(order.id),
-                                child: const Text('Mark delivered'),
-                              ),
+                              const Spacer(),
+                              StatusPill(status: next.status, label: statusLabel(next.status)),
                             ],
                           ),
-                        ],
-                        if (review != null) ...[
                           const SizedBox(height: 8),
-                          Text('Your review', style: BloomlyType.display(16)),
-                          RiderScoreList(review: review),
+                          Text(
+                            '#${next.id}',
+                            style: BloomlyType.display(22, color: tokens.text),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            next.addressSnapshot,
+                            style: BloomlyType.uiText(14, color: tokens.textSecondary),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            next.items.map((item) => '${item.name} × ${item.qty}').join(', '),
+                          ),
+                          const SizedBox(height: 12),
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: tokens.secondary,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              child: Text(
+                                'Collect ${money(next.total)}',
+                                style: BloomlyType.uiText(
+                                  13,
+                                  weight: FontWeight.w800,
+                                  color: tokens.onSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                );
-              },
+                  const SizedBox(height: 12),
+                  DecoratedBox(
+                    decoration: BloomlyDecor.card(tokens),
+                    child: SwitchListTile(
+                      title: const Text('Sharing live location'),
+                      subtitle: Text(
+                        sharing
+                            ? 'Customer sees you on the map'
+                            : 'Start sharing when you leave',
+                        style: TextStyle(color: tokens.textSecondary),
+                      ),
+                      value: sharing,
+                      onChanged: _busy
+                          ? null
+                          : (value) {
+                              if (value) {
+                                _start(next.id);
+                              } else {
+                                _stop();
+                              }
+                            },
+                    ),
+                  ),
+                ],
+                if (later.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Text(
+                    'Later today',
+                    style: BloomlyType.uiText(
+                      12,
+                      weight: FontWeight.w700,
+                      color: tokens.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final order in later) ...[
+                    DecoratedBox(
+                      decoration: BloomlyDecor.card(tokens),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '#${order.id}',
+                                    style: const TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                ),
+                                StatusPill(status: order.status, label: statusLabel(order.status)),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(order.addressSnapshot),
+                            if (backend.reviewFor(order.id) case final review?) ...[
+                              const SizedBox(height: 8),
+                              Text('Your review', style: BloomlyType.display(16, color: tokens.text)),
+                              RiderScoreList(review: review),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ],
+              ],
+            ),
+      bottomNavigationBar: next == null
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: FilledButton.icon(
+                  onPressed: _busy ? null : () => _deliver(next.id),
+                  icon: const Icon(Icons.check),
+                  label: const Text('Mark delivered'),
+                ),
+              ),
             ),
     );
   }

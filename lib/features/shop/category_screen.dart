@@ -81,7 +81,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         }).toList();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.bloom.canvas,
       appBar: AppBar(automaticallyImplyLeading: false, title: Text(title)),
       body: Column(
         children: [
@@ -108,20 +108,20 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           BloomEmoji(group.emoji, size: 16),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           Text(
                             group.name,
                             style: BloomlyType.label.copyWith(
                               color: group.slug == _group
-                                  ? Colors.white
-                                  : BloomlyColors.ink,
+                                  ? context.bloom.onPrimary
+                                  : context.bloom.text,
                               fontSize: 14,
                             ),
                           ),
                         ],
                       ),
                       selected: group.slug == _group,
-                      selectedColor: BloomlyColors.ink,
+                      selectedColor: context.bloom.primary,
                       onSelected: (_) {
                         context.go('/categories/${group.slug}');
                       },
@@ -142,14 +142,14 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                     horizontal: 14,
                     vertical: 12,
                   ),
-                  decoration: BloomlyDecor.card(radius: 999),
-                  child: const Row(
+                  decoration: BloomlyDecor.card(context.bloom, radius: 999),
+                  child: Row(
                     children: [
-                      Icon(Icons.search, color: BloomlyColors.muted, size: 20),
+                      Icon(Icons.search, color: context.bloom.textSecondary, size: 20),
                       SizedBox(width: 8),
                       Text(
                         'Search in Bloom',
-                        style: TextStyle(color: BloomlyColors.muted),
+                        style: TextStyle(color: context.bloom.textSecondary),
                       ),
                     ],
                   ),
@@ -170,28 +170,28 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                       child: FilterChip(
                         label: Text(
                           region,
-                          style: const TextStyle(
-                            color: BloomlyColors.ink,
+                          style: TextStyle(
+                            color: context.bloom.text,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         selected: _region == region,
-                        selectedColor: BloomlyColors.marigold,
-                        checkmarkColor: BloomlyColors.ink,
+                        selectedColor: context.bloom.star,
+                        checkmarkColor: context.bloom.text,
                         onSelected: (_) => setState(() => _region = region),
                       ),
                     ),
                 ],
               ),
             ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Expanded(
             child: Row(
               children: [
                 SizedBox(
                   width: 92,
                   child: ColoredBox(
-                    color: BloomlyColors.canvas,
+                    color: context.bloom.canvas,
                     child: ListView(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       children: [
@@ -212,10 +212,10 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                 ),
                 Expanded(
                   child: products.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
                             'Nothing on this shelf right now.',
-                            style: TextStyle(color: BloomlyColors.muted),
+                            style: TextStyle(color: context.bloom.textSecondary),
                           ),
                         )
                       : GridView.builder(
@@ -258,17 +258,17 @@ class _RailItem extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? BloomlyColors.card : Colors.transparent,
+          color: selected ? context.bloom.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: selected ? BloomlyDecor.shadow : null,
+          boxShadow: selected ? context.bloom.cardShadow : null,
         ),
         child: Text(
           label,
           style: TextStyle(
             fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-            color: BloomlyColors.ink,
+            color: context.bloom.text,
             fontSize: 13,
           ),
         ),

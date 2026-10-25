@@ -36,12 +36,12 @@ class _RidersScreenState extends ConsumerState<RidersScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         Text('Add a rider', style: BloomlyType.display(22)),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           demo
               ? 'The rider signs in with this email and password, then shares location from their phone.'
               : 'Bloom emails a sign-in code. The rider opens the app and taps Forgot password.',
-          style: const TextStyle(color: BloomlyColors.muted),
+          style: TextStyle(color: context.bloom.textSecondary),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -65,12 +65,12 @@ class _RidersScreenState extends ConsumerState<RidersScreen> {
           ),
         ],
         if (_error != null) ...[
-          const SizedBox(height: 8),
-          Text(_error!, style: const TextStyle(color: BloomlyColors.danger)),
+          SizedBox(height: 8),
+          Text(_error!, style: TextStyle(color: context.bloom.danger)),
         ],
         if (_notice != null) ...[
-          const SizedBox(height: 8),
-          Text(_notice!, style: const TextStyle(color: BloomlyColors.greenDark)),
+          SizedBox(height: 8),
+          Text(_notice!, style: TextStyle(color: context.bloom.link)),
         ],
         const SizedBox(height: 12),
         FilledButton(
@@ -79,9 +79,9 @@ class _RidersScreenState extends ConsumerState<RidersScreen> {
         ),
         const SizedBox(height: 24),
         Text('Riders', style: BloomlyType.display(22)),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         if (riders.isEmpty)
-          const Text('No riders yet', style: TextStyle(color: BloomlyColors.muted))
+          Text('No riders yet', style: TextStyle(color: context.bloom.textSecondary))
         else
           for (final rider in riders)
             ListTile(

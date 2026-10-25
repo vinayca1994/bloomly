@@ -77,9 +77,9 @@ flutter:
     - assets/products/
 
   fonts:
-    - family: Fraunces
+    - family: BricolageGrotesque
       fonts:
-        - asset: assets/fonts/Fraunces.ttf
+        - asset: assets/fonts/BricolageGrotesque.ttf
     - family: PlusJakartaSans
       fonts:
         - asset: assets/fonts/PlusJakartaSans.ttf

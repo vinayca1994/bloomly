@@ -48,8 +48,8 @@ class _CatalogBodyState extends ConsumerState<_CatalogBody> {
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: BloomlyColors.green,
-        foregroundColor: Colors.white,
+        backgroundColor: context.bloom.primary,
+        foregroundColor: context.bloom.onPrimary,
         onPressed: () => context.push('/owner/catalog/new'),
         icon: const Icon(Icons.add),
         label: const Text('Add product'),
@@ -98,7 +98,7 @@ class _CatalogBodyState extends ConsumerState<_CatalogBody> {
               itemBuilder: (context, index) {
                 final product = products[index];
                 return Material(
-                  color: product.isAvailable ? Colors.white : const Color(0xFFF3F3F1),
+                  color: product.isAvailable ? context.bloom.surface : context.bloom.sunken,
                   borderRadius: BorderRadius.circular(16),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
@@ -112,13 +112,13 @@ class _CatalogBodyState extends ConsumerState<_CatalogBody> {
                                 onTap: () => context.push('/owner/catalog/${product.id}'),
                                 child: Text(
                                   product.name,
-                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                                 ),
                               ),
                             ),
                             Switch(
                               value: product.isAvailable,
-                              activeThumbColor: BloomlyColors.green,
+                              activeThumbColor: context.bloom.primary,
                               onChanged: (value) => backend.setProductAvailable(product.id, value),
                             ),
                           ],
@@ -179,12 +179,12 @@ class _PriceEditorState extends State<_PriceEditor> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: EdgeInsets.only(top: 6),
       child: Row(
         children: [
           SizedBox(
             width: 88,
-            child: Text(widget.variant.label, style: const TextStyle(color: BloomlyColors.muted)),
+            child: Text(widget.variant.label, style: TextStyle(color: context.bloom.textSecondary)),
           ),
           const Text('₹'),
           const SizedBox(width: 6),
@@ -193,15 +193,15 @@ class _PriceEditorState extends State<_PriceEditor> {
             child: TextField(
               controller: _controller,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(isDense: true),
+              decoration: InputDecoration(isDense: true),
               onSubmitted: (_) => _save(),
             ),
           ),
-          IconButton(onPressed: _save, icon: const Icon(Icons.check, color: BloomlyColors.amber)),
+          IconButton(onPressed: _save, icon: Icon(Icons.check, color: context.bloom.link)),
           Text(
             money(widget.variant.mrp),
-            style: const TextStyle(
-              color: BloomlyColors.muted,
+            style: TextStyle(
+              color: context.bloom.textSecondary,
               decoration: TextDecoration.lineThrough,
               fontSize: 12,
             ),

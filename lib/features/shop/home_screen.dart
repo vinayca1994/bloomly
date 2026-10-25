@@ -57,11 +57,14 @@ class HomeScreen extends ConsumerWidget {
                         onTap: () => context.push('/account/about'),
                         borderRadius: BorderRadius.circular(8),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          padding: EdgeInsets.symmetric(vertical: 2),
                           child: ExcludeSemantics(
                             child: Text(
                               'bloom',
-                              style: BloomlyType.display(26),
+                              style: BloomlyType.display(
+                                26,
+                                color: context.bloom.link,
+                              ),
                             ),
                           ),
                         ),
@@ -71,20 +74,19 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 Container(
                   margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
+                  height: 28,
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: BloomlyColors.green,
+                    color: context.bloom.etaBg,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     backend.store.etaLabel,
-                    style: const TextStyle(
-                      color: BloomlyColors.ink,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
+                    style: BloomlyType.uiText(
+                      12,
+                      weight: FontWeight.w800,
+                      color: context.bloom.etaFg,
                     ),
                   ),
                 ),
@@ -93,19 +95,20 @@ class HomeScreen extends ConsumerWidget {
             InkWell(
               onTap: () => _openAddress(context, backend.currentUser != null),
               child: Padding(
-                padding: const EdgeInsets.only(top: 2, bottom: 2),
+                padding: EdgeInsets.only(top: 2, bottom: 2),
                 child: Row(
                   children: [
                     Flexible(
                       child: Text(
                         title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
+                        style: BloomlyType.uiText(
+                          15,
+                          weight: FontWeight.w800,
+                          color: context.bloom.text,
                         ),
                       ),
                     ),
-                    const Icon(Icons.keyboard_arrow_down, size: 20),
+                    Icon(Icons.keyboard_arrow_down, size: 20),
                   ],
                 ),
               ),
@@ -114,15 +117,16 @@ class HomeScreen extends ConsumerWidget {
               subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: BloomlyColors.muted, fontSize: 13),
+              style: BloomlyType.uiText(13, color: context.bloom.textSecondary),
             ),
             if (outside) ...[
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               Text(
                 'Bloom delivers in ${backend.store.city} only.',
-                style: const TextStyle(
-                  color: BloomlyColors.danger,
-                  fontWeight: FontWeight.w600,
+                style: BloomlyType.uiText(
+                  14,
+                  weight: FontWeight.w600,
+                  color: context.bloom.danger,
                 ),
               ),
             ],
@@ -210,32 +214,35 @@ class _LocationProbeState extends ConsumerState<_LocationProbe> {
 }
 
 class _SearchTap extends StatelessWidget {
-  const _SearchTap({required this.onTap});
+  _SearchTap({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.bloom;
     return Material(
-      color: const Color(0xFFF3F3F3),
-      borderRadius: BorderRadius.circular(14),
+      color: tokens.surface,
+      borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: const Color(0xFFF3F3F3),
-            borderRadius: BorderRadius.circular(14),
+            color: tokens.surface,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: tokens.border),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.search, color: BloomlyColors.muted),
-              SizedBox(width: 8),
+              Icon(Icons.search, color: tokens.textSecondary, size: 20),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Search for vegetables, fruits, flowers',
-                  style: TextStyle(color: BloomlyColors.muted),
+                  style: BloomlyType.uiText(14, color: tokens.textSecondary),
                 ),
               ),
             ],
@@ -276,7 +283,7 @@ class _IconGrid extends StatelessWidget {
         crossAxisCount: 4,
         mainAxisSpacing: 12,
         crossAxisSpacing: 8,
-        childAspectRatio: 0.78,
+        childAspectRatio: 0.72,
       ),
       itemBuilder: (context, index) {
         final tile = tiles[index];
@@ -288,28 +295,24 @@ class _IconGrid extends StatelessWidget {
           child: Column(
             children: [
               Container(
-                width: 62,
-                height: 62,
+                width: 76,
+                height: 76,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: switch (tile.kind) {
-                    'flower' => BloomlyColors.peach,
-                    'fruit' => BloomlyColors.fruitWash,
-                    _ => BloomlyColors.leafWash,
-                  },
-                  shape: BoxShape.circle,
+                  color: context.bloom.washFor(tile.kind),
+                  borderRadius: BorderRadius.circular(BloomTokens.radiusLg),
                 ),
                 child: BloomEmoji(tile.emoji),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               Text(
                 tile.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: BloomlyColors.ink,
+                style: BloomlyType.uiText(
+                  12,
+                  weight: FontWeight.w800,
+                  color: context.bloom.text,
                 ),
               ),
             ],
@@ -335,7 +338,7 @@ class _RowSection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (products.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: 18),
+      padding: EdgeInsets.only(top: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -346,11 +349,7 @@ class _RowSection extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: BloomlyColors.ink,
-                  ),
+                  style: BloomlyType.display(20, color: context.bloom.text),
                 ),
               ),
               TextButton(onPressed: onSeeAll, child: const Text('See all')),

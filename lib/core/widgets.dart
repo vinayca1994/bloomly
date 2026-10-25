@@ -17,7 +17,7 @@ class BloomEmoji extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) => bloomEmoji(emoji, size);
+  Widget build(BuildContext context) => bloomEmoji(emoji, size, context.bloom.text);
 }
 
 class PhoneFrame extends StatelessWidget {
@@ -31,8 +31,9 @@ class PhoneFrame extends StatelessWidget {
       builder: (context, constraints) {
         final width = math.min(480.0, constraints.maxWidth);
         final height = constraints.maxHeight;
+        final tokens = context.bloom;
         return ColoredBox(
-          color: BloomlyColors.canvas,
+          color: tokens.canvas,
           child: Center(
             child: SizedBox(width: width, height: height, child: child),
           ),
@@ -64,7 +65,7 @@ class ProductImage extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        _tile(),
+        _tile(context),
         if (bytes != null)
           Image.memory(bytes!, fit: BoxFit.cover, gaplessPlayback: true)
         else if (url != null && url!.startsWith('assets/'))
@@ -78,17 +79,18 @@ class ProductImage extends StatelessWidget {
             imageUrl: url!,
             fit: BoxFit.cover,
             placeholder: (_, _) => const SizedBox.shrink(),
-            errorWidget: (_, _, _) => const SizedBox.shrink(),
+            errorWidget: (_, _, _) => SizedBox.shrink(),
           ),
       ],
     );
   }
 
-  Widget _tile() {
+  Widget _tile(BuildContext context) {
+    final tokens = context.bloom;
     final color = switch (kind) {
-      ColorKind.fruit => BloomlyColors.fruitWash,
-      ColorKind.flower => BloomlyColors.peach,
-      ColorKind.vegetable => BloomlyColors.leafWash,
+      ColorKind.fruit => tokens.washFruit,
+      ColorKind.flower => tokens.washFlower,
+      ColorKind.vegetable => tokens.washVeg,
     };
     return ColoredBox(
       color: color,
@@ -98,7 +100,7 @@ class ProductImage extends StatelessWidget {
 }
 
 class QtyStepper extends StatelessWidget {
-  const QtyStepper({
+  QtyStepper({
     required this.qty,
     required this.onMinus,
     required this.onPlus,
@@ -115,42 +117,266 @@ class QtyStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.bloom;
     return Material(
-      color: BloomlyColors.green,
+      color: tokens.primary,
       borderRadius: BorderRadius.circular(999),
       child: SizedBox(
-        height: 32,
+        height: 40,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _button(Icons.remove, onMinus, minusKey),
+            _button(context, Icons.remove, onMinus, minusKey, 'Decrease, $qty in cart'),
             SizedBox(
-              width: 22,
+              width: 28,
               child: Text(
                 '$qty',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: BloomlyColors.ink,
-                  fontWeight: FontWeight.w800,
+                style: BloomlyType.uiText(
+                  14,
+                  weight: FontWeight.w800,
+                  color: tokens.onPrimary,
                 ),
               ),
             ),
-            _button(Icons.add, onPlus, plusKey),
+            _button(context, Icons.add, onPlus, plusKey, '$qty in cart, increase'),
           ],
         ),
       ),
     );
   }
 
-  Widget _button(IconData icon, VoidCallback onPressed, Key? key) {
-    return InkWell(
-      key: key,
-      onTap: onPressed,
-      child: SizedBox(
-        width: 28,
-        height: 32,
-        child: Icon(icon, size: 16, color: BloomlyColors.ink),
+  Widget _button(
+    BuildContext context,
+    IconData icon,
+    VoidCallback onPressed,
+    Key? key,
+    String label,
+  ) {
+    final tokens = context.bloom;
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
+        key: key,
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(icon, size: 18, color: tokens.onPrimary),
+        ),
       ),
+    );
+  }
+}
+
+class StatusPill extends StatelessWidget {
+  StatusPill({required this.status, required this.label, super.key});
+
+  final String status;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final pair = context.bloom.status(status);
+    return Semantics(
+      label: 'Status $label',
+      child: Container(
+        height: 26,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: pair.$1,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: pair.$2, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: BloomlyType.uiText(12, weight: FontWeight.w800, color: pair.$2),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class FreeDeliveryBar extends StatelessWidget {
+  const FreeDeliveryBar({
+    required this.subtotal,
+    required this.freeAbove,
+    super.key,
+  });
+
+  final int subtotal;
+  final int freeAbove;
+
+  @override
+  Widget build(BuildContext context) {
+    if (subtotal <= 0 || freeAbove <= 0) return SizedBox.shrink();
+    final tokens = context.bloom;
+    final unlocked = subtotal >= freeAbove;
+    final remaining = freeAbove - subtotal;
+    final progress = (subtotal / freeAbove).clamp(0.0, 1.0);
+    final label = unlocked
+        ? 'Free delivery unlocked'
+        : 'Add ₹$remaining more for free delivery';
+    return Semantics(
+      label: label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: unlocked ? tokens.successBg : tokens.secondary,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  unlocked ? Icons.check_circle : Icons.local_shipping_outlined,
+                  size: 18,
+                  color: unlocked ? tokens.success : tokens.onSecondary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: BloomlyType.uiText(
+                      13,
+                      weight: FontWeight.w800,
+                      color: unlocked ? tokens.success : tokens.onSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                minHeight: 6,
+                value: progress,
+                backgroundColor: tokens.surface,
+                color: unlocked ? tokens.success : tokens.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class BloomEmpty extends StatelessWidget {
+  const BloomEmpty({
+    required this.icon,
+    required this.title,
+    required this.body,
+    this.action,
+    this.onPressed,
+    super.key,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final String? action;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.bloom;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: tokens.washFlower,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: tokens.link, size: 52),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: BloomlyType.display(24, color: tokens.text),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: BloomlyType.uiText(14, color: tokens.textSecondary, height: 1.4),
+            ),
+            if (action != null) ...[
+              const SizedBox(height: 18),
+              FilledButton(onPressed: onPressed, child: Text(action!)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Six visual boxes over one code field. The field stays the source of truth.
+class OtpBoxes extends StatelessWidget {
+  OtpBoxes({required this.controller, required this.focusNode, super.key});
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.bloom;
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final digits = controller.text;
+        return GestureDetector(
+          onTap: focusNode.requestFocus,
+          child: Row(
+            children: [
+              for (var i = 0; i < 6; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    height: 56,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: tokens.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: i == digits.length ? tokens.borderFocus : tokens.borderStrong,
+                        width: i == digits.length ? 2 : 1.5,
+                      ),
+                    ),
+                    child: Text(
+                      i < digits.length ? digits[i] : '',
+                      style: BloomlyType.display(24, color: tokens.text),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }

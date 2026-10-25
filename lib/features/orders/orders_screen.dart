@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../core/widgets.dart';
 import '../../data/cart_controller.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
@@ -39,12 +40,11 @@ class OrdersScreen extends ConsumerWidget {
           : ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
               itemCount: orders.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final order = orders[index];
-                final wash = _onWash(order);
                 return DecoratedBox(
-                  decoration: BloomlyDecor.card(),
+                  decoration: BloomlyDecor.card(context.bloom),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -57,25 +57,11 @@ class OrdersScreen extends ConsumerWidget {
                           children: [
                             Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _statusColor(order),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Text(
-                                    customerStatusLabel(order),
-                                    style: TextStyle(
-                                      color: wash
-                                          ? BloomlyColors.ink
-                                          : Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
+                                StatusPill(
+                                  status: order.paymentStatus == PaymentStatus.submitted
+                                      ? OrderStatus.paymentPending
+                                      : order.status,
+                                  label: customerStatusLabel(order),
                                 ),
                                 const Spacer(),
                                 Text(
@@ -87,8 +73,8 @@ class OrdersScreen extends ConsumerWidget {
                             const SizedBox(height: 10),
                             Text(
                               formatWhen(order.placedAt),
-                              style: const TextStyle(
-                                color: BloomlyColors.muted,
+                              style: TextStyle(
+                                color: context.bloom.textSecondary,
                                 fontSize: 12,
                               ),
                             ),
@@ -99,8 +85,8 @@ class OrdersScreen extends ConsumerWidget {
                                   .join(', '),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: BloomlyColors.ink,
+                              style: TextStyle(
+                                color: context.bloom.text,
                                 height: 1.3,
                               ),
                             ),
@@ -120,22 +106,6 @@ class OrdersScreen extends ConsumerWidget {
               },
             ),
     );
-  }
-
-  bool _onWash(OrderRecord order) {
-    return order.paymentStatus == PaymentStatus.submitted ||
-        order.status == OrderStatus.paymentPending;
-  }
-
-  Color _statusColor(OrderRecord order) {
-    if (order.paymentStatus == PaymentStatus.submitted)
-      return BloomlyColors.fruitWash;
-    return switch (order.status) {
-      OrderStatus.delivered => BloomlyColors.amber,
-      OrderStatus.cancelled => BloomlyColors.danger,
-      OrderStatus.paymentPending => BloomlyColors.fruitWash,
-      _ => BloomlyColors.marigold,
-    };
   }
 
   void _reorder(BuildContext context, WidgetRef ref, OrderRecord order) {
@@ -180,11 +150,11 @@ class _Empty extends StatelessWidget {
             Container(
               width: 64,
               height: 64,
-              decoration: const BoxDecoration(
-                color: BloomlyColors.leafWash,
+              decoration: BoxDecoration(
+                color: context.bloom.washVeg,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: BloomlyColors.greenDark),
+              child: Icon(icon, color: context.bloom.link),
             ),
             const SizedBox(height: 16),
             Text(
@@ -192,20 +162,17 @@ class _Empty extends StatelessWidget {
               textAlign: TextAlign.center,
               style: BloomlyType.display(26),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               body,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: BloomlyColors.muted, height: 1.4),
+              style: TextStyle(color: context.bloom.textSecondary, height: 1.4),
             ),
             if (action != null) ...[
-              const SizedBox(height: 18),
+              SizedBox(height: 18),
               FilledButton(
                 onPressed: onPressed,
-                child: Text(
-                  action!,
-                  style: BloomlyType.label.copyWith(color: BloomlyColors.ink),
-                ),
+                child: Text(action!),
               ),
             ],
           ],

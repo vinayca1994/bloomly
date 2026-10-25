@@ -39,16 +39,12 @@ class _BloomlyAppState extends ConsumerState<BloomlyApp>
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
-    final base = BloomlyTheme.light();
     return MaterialApp.router(
       title: 'Bloom',
       debugShowCheckedModeBanner: false,
-      theme: base.copyWith(
-        textTheme: base.textTheme.apply(fontFamily: 'PlusJakartaSans'),
-        primaryTextTheme: base.primaryTextTheme.apply(
-          fontFamily: 'PlusJakartaSans',
-        ),
-      ),
+      theme: BloomlyTheme.light(),
+      darkTheme: BloomlyTheme.dark(),
+      themeMode: ThemeMode.system,
       routerConfig: router,
       builder: (context, child) => LaunchGate(child: child),
     );

@@ -24,9 +24,9 @@ class PromotionsScreen extends ConsumerWidget {
       children: [
         Text('Promotions', style: BloomlyType.display(28)),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'A banner shows on Home only after you publish it, and only between its dates.',
-          style: TextStyle(color: BloomlyColors.muted),
+          style: TextStyle(color: context.bloom.textSecondary),
         ),
         const SizedBox(height: 16),
         if (banners.isEmpty)
@@ -50,9 +50,9 @@ class PromotionsScreen extends ConsumerWidget {
         const SizedBox(height: 28),
         Text('Templates', style: BloomlyType.display(22)),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Pick one to edit, then publish. Home stays unchanged until then.',
-          style: TextStyle(color: BloomlyColors.muted),
+          style: TextStyle(color: context.bloom.textSecondary),
         ),
         for (final category in promoCategories) ...[
           const SizedBox(height: 16),
@@ -71,7 +71,7 @@ class PromotionsScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(16),
                     onTap: () => _openTemplate(context, ref, template),
                     child: Ink(
-                      decoration: BloomlyDecor.card(radius: 16),
+                      decoration: BloomlyDecor.card(context.bloom, radius: 16),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,
@@ -100,17 +100,17 @@ class PromotionsScreen extends ConsumerWidget {
                                   ),
                                   Text(
                                     template.subtitle,
-                                    style: const TextStyle(
-                                      color: BloomlyColors.muted,
+                                    style: TextStyle(
+                                      color: context.bloom.textSecondary,
                                       fontSize: 13,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const Icon(
+                            Icon(
                               Icons.add,
-                              color: BloomlyColors.greenDark,
+                              color: context.bloom.link,
                             ),
                           ],
                         ),
@@ -211,7 +211,7 @@ class _BannerRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: DecoratedBox(
-        decoration: BloomlyDecor.card(radius: 16),
+        decoration: BloomlyDecor.card(context.bloom, radius: 16),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
           child: Column(
@@ -231,30 +231,30 @@ class _BannerRow extends StatelessWidget {
                   Expanded(
                     child: Text(
                       story.title,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
                   Text(
                     live ? 'On Home' : (story.hidden ? 'Hidden' : 'Scheduled'),
                     style: TextStyle(
                       color: live
-                          ? BloomlyColors.greenDark
-                          : BloomlyColors.muted,
+                          ? context.bloom.link
+                          : context.bloom.textSecondary,
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(
                 story.subtitle,
-                style: const TextStyle(color: BloomlyColors.muted),
+                style: TextStyle(color: context.bloom.textSecondary),
               ),
               Text(
                 _when(story),
-                style: const TextStyle(
-                  color: BloomlyColors.muted,
+                style: TextStyle(
+                  color: context.bloom.textSecondary,
                   fontSize: 12,
                 ),
               ),
@@ -277,9 +277,9 @@ class _BannerRow extends StatelessWidget {
                   TextButton(onPressed: onEdit, child: const Text('Edit')),
                   TextButton(
                     onPressed: onRemove,
-                    child: const Text(
+                    child: Text(
                       'Remove',
-                      style: TextStyle(color: BloomlyColors.danger),
+                      style: TextStyle(color: context.bloom.danger),
                     ),
                   ),
                 ],
@@ -471,10 +471,10 @@ class _PromotionEditorState extends ConsumerState<PromotionEditor> {
               onClear: () => setState(() => _end = null),
             ),
             if (_error != null) ...[
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(
                 _error!,
-                style: const TextStyle(color: BloomlyColors.danger),
+                style: TextStyle(color: context.bloom.danger),
               ),
             ],
             const SizedBox(height: 16),

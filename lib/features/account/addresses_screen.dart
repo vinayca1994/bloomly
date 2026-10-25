@@ -67,11 +67,11 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
       body: user == null
           ? const Center(child: Text('Sign in to save an address.'))
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               children: [
                 for (final address in addresses)
                   Card(
-                    color: BloomlyColors.card,
+                    color: context.bloom.surface,
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     child: Padding(
@@ -134,10 +134,10 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                   ),
                 ),
                 if (ref.watch(placeProvider).error != null) ...[
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     ref.watch(placeProvider).error!,
-                    style: const TextStyle(color: BloomlyColors.danger),
+                    style: TextStyle(color: context.bloom.danger),
                   ),
                 ],
                 const SizedBox(height: 8),
@@ -160,8 +160,8 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                   decoration: const InputDecoration(labelText: 'Pincode'),
                 ),
                 if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(_error!, style: const TextStyle(color: BloomlyColors.danger)),
+                  SizedBox(height: 8),
+                  Text(_error!, style: TextStyle(color: context.bloom.danger)),
                 ],
                 const SizedBox(height: 12),
                 FilledButton(

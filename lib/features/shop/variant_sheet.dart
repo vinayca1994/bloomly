@@ -11,7 +11,7 @@ void showVariantSheet(BuildContext context, Product product) {
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    backgroundColor: BloomlyColors.paper,
+    backgroundColor: context.bloom.canvas,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
@@ -38,14 +38,14 @@ class _VariantSheet extends ConsumerWidget {
           children: [
             Text(product.name, style: BloomlyType.display(24)),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Choose a size',
-              style: TextStyle(color: BloomlyColors.muted),
+              style: TextStyle(color: context.bloom.textSecondary),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             for (final variant in product.variants) ...[
-              _row(cart, variant),
-              const Divider(height: 1, color: BloomlyColors.line),
+              _row(context, cart, variant),
+              Divider(height: 1, color: context.bloom.border),
             ],
           ],
         ),
@@ -53,7 +53,7 @@ class _VariantSheet extends ConsumerWidget {
     );
   }
 
-  Widget _row(CartController cart, Variant variant) {
+  Widget _row(BuildContext context, CartController cart, Variant variant) {
     final qty = cart.qtyOf(product.id, variant.id);
     final off = percentOff(variant.price, variant.mrp);
     return Padding(
@@ -79,8 +79,8 @@ class _VariantSheet extends ConsumerWidget {
                       const SizedBox(width: 6),
                       Text(
                         money(variant.mrp),
-                        style: const TextStyle(
-                          color: BloomlyColors.muted,
+                        style: TextStyle(
+                          color: context.bloom.textSecondary,
                           decoration: TextDecoration.lineThrough,
                           fontSize: 12,
                         ),

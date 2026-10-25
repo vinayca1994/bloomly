@@ -1,38 +1,74 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../data/cart_controller.dart';
+import '../../data/providers.dart';
 
 class OwnerShell extends StatelessWidget {
   const OwnerShell({required this.child, super.key});
 
   final Widget child;
 
+  static const _wide = 900.0;
+
   @override
   Widget build(BuildContext context) {
     final path = GoRouterState.of(context).uri.path;
-    final wide = MediaQuery.sizeOf(context).width >= 900;
-    final nav = _Nav(path: path, onSelect: (route) => context.go(route));
+    final wide = MediaQuery.sizeOf(context).width >= _wide;
+    final tokens = context.bloom;
     if (wide) {
       return Scaffold(
-        backgroundColor: BloomlyColors.background,
+        backgroundColor: tokens.canvas,
         body: Row(
           children: [
             SizedBox(
-              width: 240,
-              child: Material(color: Colors.white, child: nav),
+              width: 248,
+              child: Material(
+                color: tokens.surface,
+                child: _Side(path: path),
+              ),
             ),
-            const VerticalDivider(width: 1),
+            VerticalDivider(width: 1, color: tokens.border),
             Expanded(child: child),
           ],
         ),
       );
     }
     return Scaffold(
+      backgroundColor: tokens.canvas,
       appBar: AppBar(title: Text(_title(path))),
-      drawer: Drawer(child: SafeArea(child: nav)),
       body: child,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _phoneIndex(path),
+        onDestinationSelected: (index) {
+          switch (index) {
+            case 0:
+              context.go('/owner');
+            case 1:
+              context.go('/owner/orders');
+            case 2:
+              context.go('/owner/promotions');
+            default:
+              _more(context);
+          }
+        },
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.today_outlined), label: 'Today'),
+          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), label: 'Orders'),
+          NavigationDestination(icon: Icon(Icons.campaign_outlined), label: 'Promos'),
+          NavigationDestination(icon: Icon(Icons.more_horiz), label: 'More'),
+        ],
+      ),
     );
+  }
+
+  int _phoneIndex(String path) {
+    if (path.startsWith('/owner/orders')) return 1;
+    if (path.startsWith('/owner/promotions')) return 2;
+    if (path == '/owner') return 0;
+    return 3;
   }
 
   String _title(String path) {
@@ -40,80 +76,128 @@ class OwnerShell extends StatelessWidget {
     if (path.startsWith('/owner/promotions')) return 'Promotions';
     if (path.startsWith('/owner/orders')) return 'Orders';
     if (path.startsWith('/owner/riders')) return 'Riders';
+    if (path.startsWith('/owner/settings')) return 'Settings';
     return 'Today';
+  }
+
+  void _more(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => const SafeArea(child: _MoreSheet()),
+    );
   }
 }
 
-class _Nav extends StatelessWidget {
-  const _Nav({required this.path, required this.onSelect});
+class _Side extends StatelessWidget {
+  const _Side({required this.path});
 
   final String path;
-  final ValueChanged<String> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    final tokens = context.bloom;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: Text(
-            'bloom',
-            style: TextStyle(
-              color: BloomlyColors.amber,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(28, 28, 16, 20),
+          child: Text('bloom', style: BloomlyType.display(26, color: tokens.link)),
         ),
         _item(context, '/owner', 'Today', Icons.today_outlined),
-        _item(
-          context,
-          '/owner/promotions',
-          'Promotions',
-          Icons.campaign_outlined,
-        ),
         _item(context, '/owner/orders', 'Orders', Icons.receipt_long_outlined),
-        _item(
-          context,
-          '/owner/riders',
-          'Riders',
-          Icons.delivery_dining_outlined,
-        ),
+        _item(context, '/owner/promotions', 'Promotions', Icons.campaign_outlined),
         _item(context, '/owner/catalog', 'Catalog', Icons.inventory_2_outlined),
-        const Divider(),
+        _item(context, '/owner/riders', 'Riders', Icons.delivery_dining_outlined),
+        _item(context, '/owner/settings', 'Settings', Icons.settings_outlined),
+        const Spacer(),
+        const _SignOutTile(),
+        ListTile(
+          leading: const Icon(Icons.storefront_outlined),
+          title: const Text('Back to shop'),
+          onTap: () => context.go('/'),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _item(BuildContext context, String route, String label, IconData icon) {
+    final tokens = context.bloom;
+    final selected = route == '/owner' ? path == '/owner' : path.startsWith(route);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: ListTile(
+        selected: selected,
+        selectedTileColor: tokens.secondary,
+        selectedColor: tokens.onSecondary,
+        iconColor: selected ? tokens.onSecondary : tokens.textSecondary,
+        textColor: selected ? tokens.onSecondary : tokens.textSecondary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+        leading: Icon(icon),
+        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+        onTap: () => context.go(route),
+      ),
+    );
+  }
+}
+
+class _MoreSheet extends StatelessWidget {
+  const _MoreSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          leading: const Icon(Icons.inventory_2_outlined),
+          title: const Text('Catalog'),
+          onTap: () => _go(context, '/owner/catalog'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.delivery_dining_outlined),
+          title: const Text('Riders'),
+          onTap: () => _go(context, '/owner/riders'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.settings_outlined),
+          title: const Text('Settings'),
+          onTap: () => _go(context, '/owner/settings'),
+        ),
         ListTile(
           leading: const Icon(Icons.storefront_outlined),
           title: const Text('Back to shop'),
           onTap: () => _go(context, '/'),
         ),
+        const _SignOutTile(),
       ],
     );
   }
 
   void _go(BuildContext context, String route) {
-    final scaffold = Scaffold.maybeOf(context);
-    if (scaffold?.isDrawerOpen ?? false) {
-      Navigator.of(context).pop();
-    }
-    onSelect(route);
+    Navigator.pop(context);
+    context.go(route);
   }
+}
 
-  Widget _item(
-    BuildContext context,
-    String route,
-    String label,
-    IconData icon,
-  ) {
-    final selected = route == '/owner'
-        ? path == '/owner'
-        : path.startsWith(route);
+class _SignOutTile extends ConsumerWidget {
+  const _SignOutTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListTile(
-      selected: selected,
-      selectedColor: BloomlyColors.greenDark,
-      leading: Icon(icon),
-      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
-      onTap: () => _go(context, route),
+      leading: Icon(Icons.logout, color: context.bloom.danger),
+      title: Text('Sign out', style: TextStyle(color: context.bloom.danger)),
+      onTap: () async {
+        final nav = Navigator.of(context);
+        final router = GoRouter.of(context);
+        if (nav.canPop()) nav.pop();
+        final error = await ref.read(backendProvider).signOut();
+        if (error == null) {
+          ref.read(cartProvider.notifier).clear();
+          router.go('/');
+        }
+      },
     );
   }
 }

@@ -46,6 +46,17 @@ class _ClipRailState extends State<_ClipRail>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _loop.stop();
+      _loop.value = 0;
+    } else if (!_loop.isAnimating) {
+      _loop.repeat(reverse: true);
+    }
+  }
+
+  @override
   void dispose() {
     _curve.dispose();
     _loop.dispose();

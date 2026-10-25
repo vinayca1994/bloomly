@@ -131,19 +131,19 @@ class _ProductEditorState extends ConsumerState<ProductEditor> {
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Available'),
+            title: Text('Available'),
             value: _available,
-            activeThumbColor: BloomlyColors.green,
+            activeThumbColor: context.bloom.primary,
             onChanged: (value) => setState(() => _available = value),
           ),
           const Text('Variants', style: TextStyle(fontWeight: FontWeight.w800)),
           for (var i = 0; i < _variants.length; i++) _variantFields(i),
           TextButton(
             onPressed: () => setState(() => _variants.add(_DraftVariant())),
-            child: const Text('Add variant'),
+            child: Text('Add variant'),
           ),
           if (_error != null)
-            Text(_error!, style: const TextStyle(color: BloomlyColors.danger)),
+            Text(_error!, style: TextStyle(color: context.bloom.danger)),
           const SizedBox(height: 8),
           FilledButton(
             onPressed: _busy ? null : () => _save(existing),
