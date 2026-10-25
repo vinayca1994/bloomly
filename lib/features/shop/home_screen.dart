@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../core/widgets.dart';
 import '../../data/backend.dart';
 import '../../data/catalog_seed.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../data/stories.dart';
 import 'product_card.dart';
+import 'story_banner.dart';
+import 'story_clips.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -21,12 +25,17 @@ class HomeScreen extends ConsumerWidget {
     final subtitle = address != null
         ? '${address.area}, ${address.city}'
         : (detected != null && detected.city.isNotEmpty)
-        ? (detected.area.isEmpty ? detected.city : '${detected.area}, ${detected.city}')
+        ? (detected.area.isEmpty
+              ? detected.city
+              : '${detected.area}, ${detected.city}')
         : '${backend.store.city} · Set your address';
     final city = address?.city ?? detected?.city ?? '';
-    final outside = city.isNotEmpty &&
+    final outside =
+        city.isNotEmpty &&
         city.trim().toLowerCase() != backend.store.city.trim().toLowerCase();
-    final forSale = backend.products.where((product) => product.forSale).toList();
+    final forSale = backend.products
+        .where((product) => product.forSale)
+        .toList();
 
     return Scaffold(
       body: SafeArea(
@@ -39,19 +48,41 @@ class HomeScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text('bloomly', style: BloomlyType.display(34)),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Semantics(
+                      button: true,
+                      label: 'About Bloom',
+                      child: InkWell(
+                        onTap: () => context.push('/account/about'),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: ExcludeSemantics(
+                            child: Text(
+                              'bloom',
+                              style: BloomlyType.display(26),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
                 Container(
                   margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: BloomlyColors.marigold,
+                    color: BloomlyColors.green,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     backend.store.etaLabel,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: BloomlyColors.ink,
                       fontWeight: FontWeight.w800,
                       fontSize: 12,
                     ),
@@ -68,7 +99,10 @@ class HomeScreen extends ConsumerWidget {
                     Flexible(
                       child: Text(
                         title,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                     const Icon(Icons.keyboard_arrow_down, size: 20),
@@ -85,13 +119,30 @@ class HomeScreen extends ConsumerWidget {
             if (outside) ...[
               const SizedBox(height: 10),
               Text(
-                'Bloomly delivers in ${backend.store.city} only.',
-                style: const TextStyle(color: BloomlyColors.danger, fontWeight: FontWeight.w600),
+                'Bloom delivers in ${backend.store.city} only.',
+                style: const TextStyle(
+                  color: BloomlyColors.danger,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
             const SizedBox(height: 14),
             _SearchTap(onTap: () => context.push('/search')),
             const SizedBox(height: 18),
+            StoryBanner(
+              stories: activeStories(
+                StoryPlacement.homeBanner,
+                DateTime.now(),
+                source: backend.store.promotions,
+              ),
+            ),
+            StoryClipRail(
+              stories: activeStories(
+                StoryPlacement.homeClip,
+                DateTime.now(),
+                source: backend.store.promotions,
+              ),
+            ),
             _IconGrid(categories: backend.categories),
             const SizedBox(height: 8),
             _RowSection(
@@ -101,7 +152,6 @@ class HomeScreen extends ConsumerWidget {
             ),
             _RowSection(
               title: 'Regional flowers',
-              accent: true,
               onSeeAll: () => context.go('/categories/flowers'),
               products: _pick(forSale, regionalFlowerIds),
             ),
@@ -167,16 +217,17 @@ class _SearchTap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: BloomlyColors.card,
-      borderRadius: BorderRadius.circular(999),
-      elevation: 0,
-      shadowColor: BloomlyColors.ink.withValues(alpha: 0.08),
+      color: const Color(0xFFF3F3F3),
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BloomlyDecor.card(radius: 999),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3F3F3),
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: const Row(
             children: [
               Icon(Icons.search, color: BloomlyColors.muted),
@@ -247,16 +298,19 @@ class _IconGrid extends StatelessWidget {
                     _ => BloomlyColors.leafWash,
                   },
                   shape: BoxShape.circle,
-                  boxShadow: BloomlyDecor.shadow,
                 ),
-                child: Text(tile.emoji, style: const TextStyle(fontSize: 28)),
+                child: BloomEmoji(tile.emoji),
               ),
               const SizedBox(height: 6),
               Text(
                 tile.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: BloomlyColors.ink,
+                ),
               ),
             ],
           ),
@@ -271,19 +325,17 @@ class _RowSection extends StatelessWidget {
     required this.title,
     required this.products,
     required this.onSeeAll,
-    this.accent = false,
   });
 
   final String title;
   final List<Product> products;
   final VoidCallback onSeeAll;
-  final bool accent;
 
   @override
   Widget build(BuildContext context) {
     if (products.isEmpty) return const SizedBox.shrink();
-    final body = Padding(
-      padding: EdgeInsets.only(top: accent ? 0 : 18),
+    return Padding(
+      padding: const EdgeInsets.only(top: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -294,7 +346,11 @@ class _RowSection extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: BloomlyType.display(22),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: BloomlyColors.ink,
+                  ),
                 ),
               ),
               TextButton(onPressed: onSeeAll, child: const Text('See all')),
@@ -317,20 +373,6 @@ class _RowSection extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-    if (!accent) return body;
-    return Padding(
-      padding: const EdgeInsets.only(top: 18),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: BloomlyColors.peach,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-          child: body,
-        ),
       ),
     );
   }

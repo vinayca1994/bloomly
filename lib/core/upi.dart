@@ -18,12 +18,14 @@ String? upiPayUri({
   required String name,
   required int amountRupees,
   required String note,
+  String transactionRef = '',
 }) {
   final id = vpa.trim();
   if (!isUpiId(id) || amountRupees < 1) return null;
-  final payee = name.trim().isEmpty ? 'Bloomly' : name.trim();
+  final payee = name.trim().isEmpty ? 'Bloom' : name.trim();
   final trimmed = note.trim();
   final purpose = trimmed.length > 50 ? trimmed.substring(0, 50) : trimmed;
+  final ref = transactionRef.trim();
   return Uri(
     scheme: 'upi',
     host: 'pay',
@@ -33,6 +35,7 @@ String? upiPayUri({
       'am': amountRupees.toStringAsFixed(2),
       'cu': 'INR',
       if (purpose.isNotEmpty) 'tn': purpose,
+      if (ref.isNotEmpty) 'tr': ref,
     },
   ).toString();
 }

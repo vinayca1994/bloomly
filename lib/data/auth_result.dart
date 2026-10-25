@@ -1,3 +1,5 @@
+enum OtpChannel { sms, whatsapp }
+
 class PhoneLoginStart {
   const PhoneLoginStart({this.userId, this.error, this.isNew = false});
 

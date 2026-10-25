@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -10,10 +11,12 @@ import 'cart_controller.dart';
 import 'memory_backend.dart';
 import 'models.dart';
 import 'place_controller.dart';
+import 'unconfigured_backend.dart';
 
 final backendProvider = ChangeNotifierProvider<BloomlyBackend>((ref) {
   final config = AppConfig.fromEnvironment();
   if (config.hasAppwrite) return AppwriteBackend(config);
+  if (kReleaseMode) return UnconfiguredBackend();
   return MemoryBackend.seeded(upiId: config.upiId, upiName: config.upiName);
 });
 

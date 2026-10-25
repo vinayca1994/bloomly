@@ -52,7 +52,12 @@ String statusLabel(String status) {
 }
 
 String paymentLabel(OrderRecord order) {
-  if (order.paymentMethod == PaymentMethod.cod) return 'Cash on delivery';
+  if (order.paymentStatus == PaymentStatus.refundPending) return 'Refund pending';
+  if (order.paymentStatus == PaymentStatus.refunded) return 'Refunded';
+  if (order.paymentMethod == PaymentMethod.cod) {
+    if (order.paymentStatus == PaymentStatus.paid) return 'Cash collected';
+    return 'Cash on delivery';
+  }
   if (order.paymentStatus == PaymentStatus.paid) return 'Paid by UPI';
   if (order.paymentStatus == PaymentStatus.submitted) return 'UPI sent, waiting for the store';
   if (order.paymentStatus == PaymentStatus.failed) return 'UPI payment failed';

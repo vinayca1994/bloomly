@@ -5,7 +5,20 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../data/catalog_seed.dart';
+import 'bloom_emoji.dart';
 import 'theme.dart';
+
+/// Emoji must not inherit Plus Jakarta Sans. That font has no emoji, and on
+/// the web the missing glyph draws as a menu icon.
+class BloomEmoji extends StatelessWidget {
+  const BloomEmoji(this.emoji, {this.size = 28, super.key});
+
+  final String emoji;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => bloomEmoji(emoji, size);
+}
 
 class PhoneFrame extends StatelessWidget {
   const PhoneFrame({required this.child, super.key});
@@ -79,7 +92,7 @@ class ProductImage extends StatelessWidget {
     };
     return ColoredBox(
       color: color,
-      child: Center(child: Text(emoji, style: const TextStyle(fontSize: 42))),
+      child: Center(child: BloomEmoji(emoji, size: 42)),
     );
   }
 }
@@ -117,7 +130,7 @@ class QtyStepper extends StatelessWidget {
                 '$qty',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: BloomlyColors.ink,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -136,7 +149,7 @@ class QtyStepper extends StatelessWidget {
       child: SizedBox(
         width: 28,
         height: 32,
-        child: Icon(icon, size: 16, color: Colors.white),
+        child: Icon(icon, size: 16, color: BloomlyColors.ink),
       ),
     );
   }

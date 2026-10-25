@@ -1,6 +1,6 @@
 {
     "projectId": "6ad5903b00090bd47e4e",
-    "projectName": "Bloomly",
+    "projectName": "Bloom",
     "endpoint": "https://fra.cloud.appwrite.io/v1",
     "settings": {
         "services": {
@@ -20,21 +20,21 @@
             "methods": {
                 "jwt": true,
                 "phone": true,
-                "invites": true,
-                "anonymous": true,
-                "email-otp": true,
-                "magic-url": true,
+                "invites": false,
+                "anonymous": false,
+                "email-otp": false,
+                "magic-url": false,
                 "email-password": true
             },
             "security": {
                 "usersessions": 10,
-                "sessionalerts": false,
-                "passworddictionary": false,
+                "sessionalerts": true,
+                "passworddictionary": true,
                 "passwordhistory": 0,
                 "passwordsessions": false,
                 "personaldata": false,
-                "sessionlength": 31536000,
-                "duration": 31536000
+                "sessionlength": 2592000,
+                "duration": 2592000
             }
         }
     },
@@ -48,13 +48,16 @@
                 "any"
             ],
             "scopes": [
-                "users.read"
+                "users.read",
+                "users.write",
+                "rows.read",
+                "rows.write"
             ],
             "events": [],
             "schedule": "",
             "timeout": 15,
             "enabled": true,
-            "logging": true,
+            "logging": false,
             "entrypoint": "lib/main.dart",
             "commands": "dart pub get",
             "path": "functions/phone-login",
@@ -75,10 +78,10 @@
                 "users.write"
             ],
             "events": [],
-            "schedule": "",
+            "schedule": "*/15 * * * *",
             "timeout": 30,
             "enabled": true,
-            "logging": true,
+            "logging": false,
             "entrypoint": "lib/main.dart",
             "commands": "dart pub get",
             "path": "functions/payments",
@@ -89,7 +92,7 @@
                 },
                 {
                     "key": "BLOOMLY_UPI_NAME",
-                    "value": "Bloomly"
+                    "value": "Bloom"
                 }
             ]
         }

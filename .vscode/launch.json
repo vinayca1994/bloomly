@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Bloomly (Appwrite)",
+      "name": "Bloom (Appwrite)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
@@ -11,7 +11,7 @@
       ]
     },
     {
-      "name": "Bloomly (Appwrite · Chrome)",
+      "name": "Bloom (Appwrite · Chrome)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
@@ -21,7 +21,7 @@
       ]
     },
     {
-      "name": "Bloomly (Memory demo)",
+      "name": "Bloom (Memory demo)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart"

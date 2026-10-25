@@ -1,31 +1,49 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class BloomlyColors {
-  static const green = Color(0xFF0E7C66);
-  static const greenDark = Color(0xFF0A5C4C);
+  /// Gold from the line under the bloom wordmark. Fills use this.
+  static const gold = Color(0xFFF0C14A);
+
+  /// Deeper amber for icons, links, and selected labels on white.
+  static const amber = Color(0xFF8A5A00);
+
+  static const green = gold;
+  static const greenDark = amber;
   static const marigold = Color(0xFFE4572E);
-  static const paper = Color(0xFFF3F6F8);
+  static const paper = Color(0xFFF7F4EC);
   static const background = paper;
   static const ink = Color(0xFF172026);
   static const muted = Color(0xFF5E6B73);
-  static const line = Color(0xFFD7E0E6);
-  static const canvas = Color(0xFFE6EEF2);
+  static const line = Color(0xFFE4DDD0);
+  static const canvas = Color(0xFFF7F4EC);
   static const danger = Color(0xFFB42318);
   static const card = Color(0xFFFFFFFF);
   static const peach = Color(0xFFFDE7EF);
-  static const leafWash = Color(0xFFE5F4F1);
+  static const leafWash = Color(0xFFFFF6D8);
   static const fruitWash = Color(0xFFFFF0E8);
 }
 
 class BloomlyType {
+  /// Plus Jakarta is a variable font. A weight on its own does not select a
+  /// face on web, so labels that must stay bold name the family themselves.
+  static const TextStyle label = TextStyle(
+    inherit: false,
+    fontFamily: 'PlusJakartaSans',
+    fontWeight: FontWeight.w800,
+    fontVariations: [FontVariation.weight(700)],
+    fontSize: 16,
+    height: 1.2,
+    color: BloomlyColors.ink,
+  );
+
   static TextStyle display(
     double size, {
     FontWeight weight = FontWeight.w600,
     Color? color,
     double height = 1.05,
   }) {
-    return GoogleFonts.fraunces(
+    return TextStyle(
+      fontFamily: 'Fraunces',
       fontSize: size,
       fontWeight: weight,
       color: color ?? BloomlyColors.ink,
@@ -88,11 +106,11 @@ class BloomlyTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: BloomlyColors.green,
-          foregroundColor: Colors.white,
+          backgroundColor: BloomlyColors.gold,
+          foregroundColor: BloomlyColors.ink,
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(borderRadius: radius),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+          textStyle: BloomlyType.label.copyWith(color: BloomlyColors.ink),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -101,20 +119,23 @@ class BloomlyTheme {
           minimumSize: const Size.fromHeight(48),
           side: const BorderSide(color: BloomlyColors.line),
           shape: RoundedRectangleBorder(borderRadius: radius),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          textStyle: BloomlyType.label,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: BloomlyColors.greenDark,
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          foregroundColor: BloomlyColors.amber,
+          textStyle: BloomlyType.label.copyWith(color: BloomlyColors.amber),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: BloomlyColors.card,
         selectedColor: BloomlyColors.ink,
-        labelStyle: const TextStyle(color: BloomlyColors.ink, fontWeight: FontWeight.w600),
-        secondaryLabelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        labelStyle: BloomlyType.label.copyWith(fontSize: 14),
+        secondaryLabelStyle: BloomlyType.label.copyWith(
+          color: Colors.white,
+          fontSize: 14,
+        ),
         side: const BorderSide(color: BloomlyColors.line),
         shape: RoundedRectangleBorder(borderRadius: radius),
       ),
@@ -127,7 +148,10 @@ class BloomlyTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: BloomlyColors.card,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(color: BloomlyColors.line),

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../orders/review_panel.dart';
 
 class OwnerOrdersScreen extends ConsumerWidget {
   const OwnerOrdersScreen({super.key});
@@ -57,23 +59,51 @@ class OwnerOrdersScreen extends ConsumerWidget {
                 Text(order.items.map((item) => '${item.name} × ${item.qty}').join(', ')),
                 const SizedBox(height: 4),
                 Text(paymentLabel(order), style: const TextStyle(color: BloomlyColors.muted)),
+                if (order.riderName.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text('Rider · ${order.riderName}'),
+                ],
+                if (backend.reviewFor(order.id) != null) ...[
+                  const SizedBox(height: 8),
+                  ReviewPanel(order: order),
+                ],
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   children: [
+                    if (order.gatewayPaymentId.isNotEmpty)
+                      Text(
+                        'UPI reference ${order.gatewayPaymentId} · ${money(order.total)}',
+                        style: const TextStyle(color: BloomlyColors.muted),
+                      ),
                     if (order.paymentMethod == PaymentMethod.upi && order.awaitingPayment)
                       FilledButton(
-                        onPressed: () => backend.confirmUpiPayment(order.id),
-                        child: const Text('Payment received'),
+                        onPressed: () => _run(context, backend.confirmUpiPayment(order.id)),
+                        child: Text('Payment received · ${money(order.total)}'),
                       ),
-                    if (next != null)
+                    if (next == OrderStatus.outForDelivery)
                       FilledButton(
-                        onPressed: () => backend.updateOrderStatus(order.id, next),
+                        onPressed: () => _sendWithRider(context, ref, order),
+                        child: Text(order.riderId.isEmpty ? 'Out for delivery' : 'Change rider'),
+                      )
+                    else if (next != null)
+                      FilledButton(
+                        onPressed: () => _run(context, backend.updateOrderStatus(order.id, next)),
                         child: Text(nextStatusAction(order.status)),
+                      ),
+                    if (order.status == OrderStatus.outForDelivery)
+                      OutlinedButton(
+                        onPressed: () => _sendWithRider(context, ref, order),
+                        child: const Text('Change rider'),
+                      ),
+                    if (order.paymentStatus == PaymentStatus.refundPending)
+                      OutlinedButton(
+                        onPressed: () => _run(context, backend.markRefunded(order.id)),
+                        child: const Text('Refund sent'),
                       ),
                     if (OrderStatus.canCancel(order.status))
                       OutlinedButton(
-                        onPressed: () => backend.cancelOrder(order.id),
+                        onPressed: () => _run(context, backend.cancelOrder(order.id)),
                         child: const Text('Cancel'),
                       ),
                   ],
@@ -84,5 +114,46 @@ class OwnerOrdersScreen extends ConsumerWidget {
         );
       },
     );
+  }
+}
+
+Future<void> _run(BuildContext context, Future<String?> action) async {
+  final error = await action;
+  if (error != null && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+  }
+}
+
+Future<void> _sendWithRider(BuildContext context, WidgetRef ref, OrderRecord order) async {
+  final backend = ref.read(backendProvider);
+  final riders = backend.riders;
+  if (riders.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Add a rider before sending the order out.')),
+    );
+    context.go('/owner/riders');
+    return;
+  }
+  final picked = await showModalBottomSheet<String>(
+    context: context,
+    builder: (context) => SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          const ListTile(title: Text('Choose a rider')),
+          for (final rider in riders)
+            ListTile(
+              title: Text(rider.name),
+              subtitle: Text(rider.email.isEmpty ? 'Rider' : rider.email),
+              onTap: () => Navigator.pop(context, rider.id),
+            ),
+        ],
+      ),
+    ),
+  );
+  if (picked == null || !context.mounted) return;
+  final error = await backend.assignRider(orderId: order.id, riderId: picked);
+  if (error != null && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
   }
 }

@@ -18,6 +18,7 @@ class OnlinePayment {
     vpa: upiId,
     name: upiName,
     amountRupees: amountRupees,
-    note: 'Bloomly ${order.id}',
+    note: 'Bloom ${order.id}',
+    transactionRef: order.upiTxnRef,
   );
 }

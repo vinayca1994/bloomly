@@ -119,7 +119,7 @@ class _LockScreenState extends ConsumerState<_LockScreen> {
                 child: CustomPaint(painter: _LockMarkPainter()),
               ),
               const SizedBox(height: 12),
-              Text('bloomly', style: BloomlyType.display(32)),
+              Text('bloom', style: BloomlyType.display(32)),
               const SizedBox(height: 6),
               Text(
                 'Unlock with ${lock.label}',

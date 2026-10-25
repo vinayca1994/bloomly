@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../data/auth_result.dart';
+import '../../data/cart_controller.dart';
+import '../../data/models.dart';
 import '../../data/providers.dart';
 
 class AccountScreen extends ConsumerWidget {
@@ -31,7 +34,7 @@ class AccountScreen extends ConsumerWidget {
                           ? 'B'
                           : user.name[0].toUpperCase(),
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: BloomlyColors.ink,
                         fontWeight: FontWeight.w800,
                         fontSize: 22,
                       ),
@@ -45,7 +48,9 @@ class AccountScreen extends ConsumerWidget {
                         Text(
                           user == null
                               ? 'Guest'
-                              : (user.name.trim().isEmpty ? 'Bloomly customer' : user.name),
+                              : (user.name.trim().isEmpty
+                                    ? 'Bloom customer'
+                                    : user.name),
                           style: BloomlyType.display(24),
                         ),
                         const SizedBox(height: 2),
@@ -66,7 +71,10 @@ class AccountScreen extends ConsumerWidget {
           if (user == null)
             FilledButton(
               onPressed: () => context.push('/login'),
-              child: const Text('Sign in'),
+              child: Text(
+                'Sign in',
+                style: BloomlyType.label.copyWith(color: BloomlyColors.ink),
+              ),
             )
           else ...[
             _tile(
@@ -85,7 +93,9 @@ class AccountScreen extends ConsumerWidget {
                 child: DecoratedBox(
                   decoration: BloomlyDecor.card(),
                   child: SwitchListTile(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     title: Text(
                       'Unlock with ${ref.watch(appLockProvider).label}',
                       style: const TextStyle(fontWeight: FontWeight.w700),
@@ -96,9 +106,12 @@ class AccountScreen extends ConsumerWidget {
                     value: ref.watch(appLockProvider).enabled,
                     activeThumbColor: BloomlyColors.green,
                     onChanged: (value) async {
-                      final error = await ref.read(appLockProvider).setEnabled(value);
+                      final error = await ref
+                          .read(appLockProvider)
+                          .setEnabled(value);
                       if (error != null && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text(error)));
                       }
                     },
                   ),
@@ -110,12 +123,26 @@ class AccountScreen extends ConsumerWidget {
                 title: 'Open store console',
                 onTap: () => context.go('/owner'),
               ),
+            if (user.isRider)
+              _tile(
+                icon: Icons.delivery_dining_outlined,
+                title: 'Open deliveries',
+                onTap: () => context.go('/rider'),
+              ),
             const SizedBox(height: 12),
             OutlinedButton(
-              onPressed: () => backend.signOut(),
+              onPressed: () async {
+                final error = await backend.signOut();
+                if (error == null) {
+                  ref.read(cartProvider.notifier).clear();
+                } else if (context.mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(error)));
+                }
+              },
               child: const Text('Log out'),
             ),
-            if (!user.isOwner) ...[
+            if (!user.isOwner && !user.isRider) ...[
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () => _delete(context, ref),
@@ -127,6 +154,11 @@ class AccountScreen extends ConsumerWidget {
             ],
           ],
           const SizedBox(height: 16),
+          _tile(
+            icon: Icons.local_florist_outlined,
+            title: 'About Bloom',
+            onTap: () => context.push('/account/about'),
+          ),
           _tile(
             icon: Icons.privacy_tip_outlined,
             title: 'Privacy',
@@ -141,7 +173,9 @@ class AccountScreen extends ConsumerWidget {
               } else if (user != null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('The store console is for the owner account.'),
+                    content: Text(
+                      'The store console is for the owner account.',
+                    ),
                   ),
                 );
               } else {
@@ -155,23 +189,19 @@ class AccountScreen extends ConsumerWidget {
   }
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
+    final user = ref.read(backendProvider).currentUser;
+    if (user == null) return;
+    final secret = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete account'),
-        content: const Text(
-          'This deletes your Bloomly sign-in, saved addresses, and orders.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-        ],
-      ),
+      builder: (context) => _DeleteAccountDialog(user: user),
     );
-    if (confirmed != true || !context.mounted) return;
-    final error = await ref.read(backendProvider).deleteAccount();
+    if (secret == null || !context.mounted) return;
+    final error = await ref
+        .read(backendProvider)
+        .deleteAccount(password: user.email.isEmpty ? null : secret);
     if (error != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error)));
     }
   }
 
@@ -204,7 +234,10 @@ class AccountScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    child: Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                   const Icon(Icons.chevron_right, color: BloomlyColors.muted),
                 ],
@@ -214,5 +247,130 @@ class AccountScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+class _DeleteAccountDialog extends ConsumerStatefulWidget {
+  const _DeleteAccountDialog({required this.user});
+
+  final Profile user;
+
+  @override
+  ConsumerState<_DeleteAccountDialog> createState() =>
+      _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
+  final _secret = TextEditingController();
+  String? _error;
+  bool _busy = false;
+  bool _codeSent = false;
+
+  @override
+  void dispose() {
+    _secret.dispose();
+    super.dispose();
+  }
+
+  bool get _email => widget.user.email.isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Delete account'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'This deletes your Bloom sign-in, saved addresses, and orders.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _secret,
+            obscureText: _email,
+            keyboardType: _email
+                ? TextInputType.visiblePassword
+                : TextInputType.number,
+            decoration: InputDecoration(
+              labelText: _email ? 'Password' : 'Login code',
+            ),
+          ),
+          if (!_email) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _busy ? null : _sendCode,
+              child: Text(_codeSent ? 'Send the code again' : 'Send a code'),
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(color: BloomlyColors.danger)),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Keep'),
+        ),
+        FilledButton(
+          onPressed: _busy ? null : _confirm,
+          child: const Text('Delete'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _sendCode() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final started = await ref
+        .read(backendProvider)
+        .startPhoneLogin(widget.user.phone, channel: OtpChannel.sms);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _codeSent = started.ok;
+      _error = started.ok ? null : started.error;
+    });
+  }
+
+  Future<void> _confirm() async {
+    final secret = _secret.text.trim();
+    if (_email) {
+      if (secret.length < 8) {
+        setState(() => _error = 'Enter your password to delete the account.');
+        return;
+      }
+      Navigator.pop(context, secret);
+      return;
+    }
+    if (!_codeSent) {
+      setState(() => _error = 'Send a code first.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final error = await ref
+        .read(backendProvider)
+        .verifyPhoneOtp(
+          userId: widget.user.id,
+          code: secret,
+          channel: OtpChannel.sms,
+        );
+    if (!mounted) return;
+    if (error != null) {
+      setState(() {
+        _busy = false;
+        _error = error;
+      });
+      return;
+    }
+    Navigator.pop(context, secret);
   }
 }

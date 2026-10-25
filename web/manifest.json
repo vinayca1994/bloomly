@@ -1,11 +1,11 @@
 {
-    "name": "Bloomly",
-    "short_name": "Bloomly",
+    "name": "Bloom",
+    "short_name": "Bloom",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#128A3E",
     "theme_color": "#128A3E",
-    "description": "Bloomly — vegetables, fruit, and regional flowers in minutes.",
+    "description": "Bloom — vegetables, fruit, and regional flowers in minutes.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

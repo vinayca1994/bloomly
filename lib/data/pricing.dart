@@ -26,7 +26,7 @@ CartPrice priceLines({
 }) {
   if (lines.isEmpty) throw BloomlyException('Your cart is empty.');
   if (address.city.trim().toLowerCase() != backend.store.city.trim().toLowerCase()) {
-    throw BloomlyException('Bloomly delivers in ${backend.store.city} only.');
+    throw BloomlyException('Bloom delivers in ${backend.store.city} only.');
   }
   final items = <OrderItem>[];
   var subtotal = 0;

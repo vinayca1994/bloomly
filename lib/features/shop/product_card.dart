@@ -28,11 +28,15 @@ class ProductCard extends ConsumerWidget {
     final multiple = product.variants.length > 1;
 
     return DecoratedBox(
-      decoration: BloomlyDecor.card(),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: BloomlyColors.line),
+      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           onTap: () => _add(context, ref),
           child: Padding(
             padding: const EdgeInsets.all(8),
@@ -124,7 +128,10 @@ class ProductCard extends ConsumerWidget {
                         multiple ? '${lead.label} +' : lead.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: BloomlyColors.muted, fontSize: 12),
+                        style: const TextStyle(
+                          color: BloomlyColors.muted,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -153,7 +160,7 @@ class ProductCard extends ConsumerWidget {
             child: const Text(
               'ADD',
               style: TextStyle(
-                color: Colors.white,
+                color: BloomlyColors.ink,
                 fontWeight: FontWeight.w800,
                 fontSize: 13,
               ),
@@ -174,12 +181,11 @@ class ProductCard extends ConsumerWidget {
     final variant = product.variants.first;
     return QtyStepper(
       qty: qty,
-      onMinus: () => ref.read(cartProvider.notifier).setQty(
-        product.id,
-        variant.id,
-        qty - 1,
-      ),
-      onPlus: () => ref.read(cartProvider.notifier).addOne(product.id, variant.id),
+      onMinus: () => ref
+          .read(cartProvider.notifier)
+          .setQty(product.id, variant.id, qty - 1),
+      onPlus: () =>
+          ref.read(cartProvider.notifier).addOne(product.id, variant.id),
     );
   }
 
@@ -188,6 +194,8 @@ class ProductCard extends ConsumerWidget {
       showVariantSheet(context, product);
       return;
     }
-    ref.read(cartProvider.notifier).addOne(product.id, product.variants.first.id);
+    ref
+        .read(cartProvider.notifier)
+        .addOne(product.id, product.variants.first.id);
   }
 }

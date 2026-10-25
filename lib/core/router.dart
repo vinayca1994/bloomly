@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/providers.dart';
+import '../data/stories.dart';
 import '../features/account/account_screen.dart';
 import '../features/account/addresses_screen.dart';
 import '../features/account/login_screen.dart';
 import '../features/account/privacy_screen.dart';
+import '../features/brand/about_screen.dart';
 import '../features/cart/cart_screen.dart';
 import '../features/cart/checkout_screen.dart';
 import '../features/orders/orders_screen.dart';
@@ -15,7 +17,10 @@ import '../features/owner/catalog_screen.dart';
 import '../features/owner/owner_orders_screen.dart';
 import '../features/owner/owner_shell.dart';
 import '../features/owner/product_editor.dart';
+import '../features/owner/promotions_screen.dart';
+import '../features/owner/riders_screen.dart';
 import '../features/owner/today_screen.dart';
+import '../features/rider/rider_screen.dart';
 import '../features/shop/category_screen.dart';
 import '../features/shop/home_screen.dart';
 import '../features/shop/search_screen.dart';
@@ -31,8 +36,20 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: backend,
     redirect: (context, state) {
       final path = state.uri.path;
-      if (!path.startsWith('/owner')) return null;
       final user = backend.currentUser;
+      if (path.startsWith('/rider')) {
+        if (user == null) {
+          return '/login?next=${Uri.encodeComponent(path)}';
+        }
+        if (!user.isRider) return user.isOwner ? '/owner' : '/account';
+        return null;
+      }
+      if (user?.isRider == true &&
+          path != '/login' &&
+          !path.startsWith('/account')) {
+        return '/rider';
+      }
+      if (!path.startsWith('/owner')) return null;
       if (user == null) {
         return '/login?next=${Uri.encodeComponent(path)}';
       }
@@ -45,7 +62,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         branches: [
           StatefulShellBranch(
             routes: [
-              GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+              GoRoute(
+                path: '/',
+                builder: (context, state) => const HomeScreen(),
+              ),
             ],
           ),
           StatefulShellBranch(
@@ -73,7 +93,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: ':id',
                     parentNavigatorKey: rootKey,
                     builder: (context, state) => PhoneFrame(
-                      child: TrackingScreen(orderId: state.pathParameters['id']!),
+                      child: TrackingScreen(
+                        orderId: state.pathParameters['id']!,
+                      ),
                     ),
                   ),
                 ],
@@ -95,7 +117,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'privacy',
                     parentNavigatorKey: rootKey,
-                    builder: (context, state) => const PhoneFrame(child: PrivacyScreen()),
+                    builder: (context, state) =>
+                        const PhoneFrame(child: PrivacyScreen()),
+                  ),
+                  GoRoute(
+                    path: 'about',
+                    parentNavigatorKey: rootKey,
+                    builder: (context, state) =>
+                        const PhoneFrame(child: AboutScreen()),
                   ),
                 ],
               ),
@@ -119,13 +148,37 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (context, state) => const PhoneFrame(child: LoginScreen()),
       ),
+      GoRoute(
+        path: '/rider',
+        builder: (context, state) => const PhoneFrame(child: RiderScreen()),
+      ),
       ShellRoute(
         builder: (context, state, child) => OwnerShell(child: child),
         routes: [
-          GoRoute(path: '/owner', builder: (context, state) => const TodayScreen()),
+          GoRoute(
+            path: '/owner',
+            builder: (context, state) => const TodayScreen(),
+          ),
           GoRoute(
             path: '/owner/orders',
             builder: (context, state) => const OwnerOrdersScreen(),
+          ),
+          GoRoute(
+            path: '/owner/promotions',
+            builder: (context, state) => const PromotionsScreen(),
+            routes: [
+              GoRoute(
+                path: 'edit',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) => PromotionEditor(
+                  draft: state.extra is Story ? state.extra as Story : null,
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/owner/riders',
+            builder: (context, state) => const RidersScreen(),
           ),
           GoRoute(
             path: '/owner/catalog',

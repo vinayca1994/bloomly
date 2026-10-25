@@ -197,7 +197,7 @@ class _PriceEditorState extends State<_PriceEditor> {
               onSubmitted: (_) => _save(),
             ),
           ),
-          IconButton(onPressed: _save, icon: const Icon(Icons.check, color: BloomlyColors.green)),
+          IconButton(onPressed: _save, icon: const Icon(Icons.check, color: BloomlyColors.amber)),
           Text(
             money(widget.variant.mrp),
             style: const TextStyle(

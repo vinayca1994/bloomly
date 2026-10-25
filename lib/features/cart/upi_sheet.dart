@@ -67,7 +67,7 @@ class _UpiSheetState extends State<_UpiSheet> {
             Text('Pay ${money(widget.payment.amountRupees)}', style: BloomlyType.display(28)),
             const SizedBox(height: 6),
             Text(
-              'Opens BHIM, GPay, PhonePe, or Paytm. Bloomly never sees your UPI PIN.',
+              'Opens BHIM, GPay, PhonePe, or Paytm. Bloom never sees your UPI PIN.',
               style: const TextStyle(color: BloomlyColors.muted),
             ),
             const SizedBox(height: 16),

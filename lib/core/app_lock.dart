@@ -104,7 +104,7 @@ class AppLockController extends ChangeNotifier {
   Future<bool> _authenticate() async {
     try {
       return await _auth.authenticate(
-        localizedReason: 'Unlock Bloomly',
+        localizedReason: 'Unlock Bloom',
         options: const AuthenticationOptions(biometricOnly: false, stickyAuth: true),
       );
     } catch (_) {

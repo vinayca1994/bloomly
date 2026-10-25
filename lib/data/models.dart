@@ -1,3 +1,5 @@
+import 'stories.dart';
+
 class StoreSettings {
   const StoreSettings({
     required this.city,
@@ -5,8 +7,9 @@ class StoreSettings {
     required this.deliveryFee,
     required this.freeDeliveryAbove,
     this.upiId = '',
-    this.upiName = 'Bloomly',
+    this.upiName = 'Bloom',
     this.storePhone = '',
+    this.promotions = const [],
   });
 
   final String city;
@@ -18,6 +21,9 @@ class StoreSettings {
 
   /// Indian mobile for call / WhatsApp (10 digits or +91…).
   final String storePhone;
+
+  /// Banners the owner has saved. Hidden and out-of-date rows stay here.
+  final List<Story> promotions;
 
   static const fallback = StoreSettings(
     city: 'Bengaluru',
@@ -34,6 +40,7 @@ class StoreSettings {
     String? upiId,
     String? upiName,
     String? storePhone,
+    List<Story>? promotions,
   }) {
     return StoreSettings(
       city: city ?? this.city,
@@ -43,6 +50,7 @@ class StoreSettings {
       upiId: upiId ?? this.upiId,
       upiName: upiName ?? this.upiName,
       storePhone: storePhone ?? this.storePhone,
+      promotions: promotions ?? this.promotions,
     );
   }
 
@@ -54,6 +62,7 @@ class StoreSettings {
     'upiId': upiId,
     'upiName': upiName,
     'storePhone': storePhone,
+    'promotions': encodePromotions(promotions),
   };
 }
 
@@ -196,6 +205,8 @@ class PaymentStatus {
   static const submitted = 'submitted';
   static const paid = 'paid';
   static const failed = 'failed';
+  static const refundPending = 'refund_pending';
+  static const refunded = 'refunded';
 }
 
 class Profile {
@@ -214,6 +225,8 @@ class Profile {
   final String role;
 
   bool get isOwner => role == 'owner';
+
+  bool get isRider => role == 'rider';
 
   String get contact => email.isNotEmpty ? email : phone;
 }
@@ -327,6 +340,11 @@ class OrderStatus {
   static bool customerCanCancel(String status) {
     return status == placed || status == paymentPending;
   }
+
+  /// Owner sends a packed order out, or changes the rider while it is out.
+  static bool canAssign(String status) {
+    return status == packing || status == outForDelivery;
+  }
 }
 
 class OrderItem {
@@ -375,6 +393,11 @@ class OrderRecord {
     this.paymentStatus = PaymentStatus.pending,
     this.gatewayOrderId = '',
     this.gatewayPaymentId = '',
+    this.upiTxnRef = '',
+    this.riderId = '',
+    this.riderName = '',
+    this.destLatitude,
+    this.destLongitude,
   });
 
   final String id;
@@ -388,6 +411,11 @@ class OrderRecord {
   final String paymentStatus;
   final String gatewayOrderId;
   final String gatewayPaymentId;
+  final String upiTxnRef;
+  final String riderId;
+  final String riderName;
+  final double? destLatitude;
+  final double? destLongitude;
   final DateTime placedAt;
   final List<OrderItem> items;
 
@@ -400,12 +428,32 @@ class OrderRecord {
       paymentMethod == PaymentMethod.upi &&
       DateTime.now().difference(placedAt) >= upiPaymentTimeout;
 
+  /// Collected money for today: UPI marked paid, or cash marked paid on delivery.
+  bool countsAsRevenue(DateTime now) {
+    final placed = placedAt.toLocal();
+    final day = now.toLocal();
+    if (placed.year != day.year ||
+        placed.month != day.month ||
+        placed.day != day.day) {
+      return false;
+    }
+    if (status == OrderStatus.cancelled || status == OrderStatus.paymentPending)
+      return false;
+    if (paymentStatus != PaymentStatus.paid) return false;
+    return true;
+  }
+
   OrderRecord copyWith({
     String? status,
     List<OrderItem>? items,
     String? paymentStatus,
     String? gatewayOrderId,
     String? gatewayPaymentId,
+    String? upiTxnRef,
+    String? riderId,
+    String? riderName,
+    double? destLatitude,
+    double? destLongitude,
   }) {
     return OrderRecord(
       id: id,
@@ -419,6 +467,11 @@ class OrderRecord {
       paymentStatus: paymentStatus ?? this.paymentStatus,
       gatewayOrderId: gatewayOrderId ?? this.gatewayOrderId,
       gatewayPaymentId: gatewayPaymentId ?? this.gatewayPaymentId,
+      upiTxnRef: upiTxnRef ?? this.upiTxnRef,
+      riderId: riderId ?? this.riderId,
+      riderName: riderName ?? this.riderName,
+      destLatitude: destLatitude ?? this.destLatitude,
+      destLongitude: destLongitude ?? this.destLongitude,
       placedAt: placedAt,
       items: items ?? this.items,
     );
@@ -435,7 +488,90 @@ class OrderRecord {
     'paymentStatus': paymentStatus,
     'gatewayOrderId': gatewayOrderId,
     'gatewayPaymentId': gatewayPaymentId,
+    'upiTxnRef': upiTxnRef,
+    'riderId': riderId,
+    'riderName': riderName,
+    'destLatitude': destLatitude?.toString() ?? '',
+    'destLongitude': destLongitude?.toString() ?? '',
     'placedAt': placedAt.toIso8601String(),
+  };
+}
+
+/// Latest pin for one delivery. The rider updates this row only.
+class RiderLocation {
+  const RiderLocation({
+    required this.orderId,
+    required this.latitude,
+    required this.longitude,
+    required this.updatedAt,
+  });
+
+  final String orderId;
+  final double latitude;
+  final double longitude;
+  final DateTime updatedAt;
+}
+
+/// One review for a delivered order. Scores are 1 to 5 and stay as sent.
+class DeliveryReview {
+  const DeliveryReview({
+    required this.orderId,
+    required this.userId,
+    required this.riderId,
+    required this.freshness,
+    required this.rightItems,
+    required this.packing,
+    required this.onTime,
+    required this.polite,
+    required this.careful,
+    required this.createdAt,
+    this.note = '',
+  });
+
+  static const minScore = 1;
+  static const maxScore = 5;
+
+  final String orderId;
+  final String userId;
+  final String riderId;
+  final int freshness;
+  final int rightItems;
+  final int packing;
+  final int onTime;
+  final int polite;
+  final int careful;
+  final String note;
+  final DateTime createdAt;
+
+  static bool validScore(int score) => score >= minScore && score <= maxScore;
+
+  static String? rejectScores({
+    required int freshness,
+    required int rightItems,
+    required int packing,
+    required int onTime,
+    required int polite,
+    required int careful,
+    String note = '',
+  }) {
+    final scores = [freshness, rightItems, packing, onTime, polite, careful];
+    if (!scores.every(validScore)) return 'Choose 1 to 5 stars for each part.';
+    if (note.trim().length > 280) return 'Keep the note under 280 characters.';
+    return null;
+  }
+
+  Map<String, dynamic> toMap() => {
+    'orderId': orderId,
+    'userId': userId,
+    'riderId': riderId,
+    'freshness': freshness,
+    'rightItems': rightItems,
+    'packing': packing,
+    'onTime': onTime,
+    'polite': polite,
+    'careful': careful,
+    'note': note.trim(),
+    'createdAt': createdAt.toIso8601String(),
   };
 }
 

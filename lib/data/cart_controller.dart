@@ -56,7 +56,10 @@ class CartController extends Notifier<List<CartLine>> {
     return total;
   }
 
+  static const maxQty = 99;
+
   void setQty(String productId, String variantId, int qty) {
+    if (qty > maxQty) qty = maxQty;
     if (qty <= 0) {
       state = [
         for (final line in state)

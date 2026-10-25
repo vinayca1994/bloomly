@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../core/widgets.dart';
 import '../../data/providers.dart';
+import '../../data/stories.dart';
 import 'product_card.dart';
+import 'promo_card.dart';
 
 class CategoryScreen extends ConsumerStatefulWidget {
   const CategoryScreen({this.group, super.key});
@@ -45,11 +48,11 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   Widget build(BuildContext context) {
     final backend = ref.watch(backendProvider);
     final groups = backend.categories.where((item) => item.isGroup).toList();
-    final subs = backend.categories
-        .where((item) => item.parentSlug == _group)
-        .toList()
-      ..sort((a, b) => a.sort.compareTo(b.sort));
-    final title = groups.where((item) => item.slug == _group).firstOrNull?.name ??
+    final subs =
+        backend.categories.where((item) => item.parentSlug == _group).toList()
+          ..sort((a, b) => a.sort.compareTo(b.sort));
+    final title =
+        groups.where((item) => item.slug == _group).firstOrNull?.name ??
         'Categories';
     final products = backend.products.where((product) {
       final category = backend.categories
@@ -59,19 +62,38 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
       final inGroup = category.slug == _group || category.parentSlug == _group;
       if (!inGroup) return false;
       if (_sub.isNotEmpty && product.categorySlug != _sub) return false;
-      if (_group == 'flowers' && _region != 'All' && product.region != _region) {
+      if (_group == 'flowers' &&
+          _region != 'All' &&
+          product.region != _region) {
         return false;
       }
       return true;
     }).toList()..sort((a, b) => a.sort.compareTo(b.sort));
 
+    final promos =
+        activeStories(
+          StoryPlacement.category,
+          DateTime.now(),
+          source: backend.store.promotions,
+        ).where((story) {
+          final route = story.route ?? '';
+          return route.isEmpty || route.contains('/categories/$_group');
+        }).toList();
+
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(title),
-      ),
+      backgroundColor: Colors.white,
+      appBar: AppBar(automaticallyImplyLeading: false, title: Text(title)),
       body: Column(
         children: [
+          if (promos.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              child: SizedBox(
+                height: 112,
+                width: double.infinity,
+                child: PromoCard(story: promos.first, dense: true),
+              ),
+            ),
           SizedBox(
             height: 46,
             child: ListView(
@@ -82,12 +104,21 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(
-                        '${group.emoji} ${group.name}',
-                        style: TextStyle(
-                          color: group.slug == _group ? Colors.white : BloomlyColors.ink,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          BloomEmoji(group.emoji, size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            group.name,
+                            style: BloomlyType.label.copyWith(
+                              color: group.slug == _group
+                                  ? Colors.white
+                                  : BloomlyColors.ink,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
                       selected: group.slug == _group,
                       selectedColor: BloomlyColors.ink,
@@ -107,14 +138,17 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                 borderRadius: BorderRadius.circular(999),
                 onTap: () => context.push('/search'),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   decoration: BloomlyDecor.card(radius: 999),
                   child: const Row(
                     children: [
                       Icon(Icons.search, color: BloomlyColors.muted, size: 20),
                       SizedBox(width: 8),
                       Text(
-                        'Search in Bloomly',
+                        'Search in Bloom',
                         style: TextStyle(color: BloomlyColors.muted),
                       ),
                     ],

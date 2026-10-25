@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run Bloomly against the Appwrite project in .env (never passes APPWRITE_API_KEY).
+# Run Bloom against the Appwrite project in .env (never passes APPWRITE_API_KEY).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -24,5 +24,5 @@ exec flutter run -d "$DEVICE" \
   --dart-define=APPWRITE_ENDPOINT="$APPWRITE_ENDPOINT" \
   --dart-define=APPWRITE_PROJECT_ID="$APPWRITE_PROJECT_ID" \
   --dart-define=BLOOMLY_UPI_ID="${BLOOMLY_UPI_ID:-}" \
-  --dart-define=BLOOMLY_UPI_NAME="${BLOOMLY_UPI_NAME:-Bloomly}" \
+  --dart-define=BLOOMLY_UPI_NAME="${BLOOMLY_UPI_NAME:-Bloom}" \
   "$@"

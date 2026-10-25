@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/phone.dart';
 import '../core/upi.dart';
@@ -20,13 +22,18 @@ class _Account {
 }
 
 class MemoryBackend extends BloomlyBackend {
-  MemoryBackend.seeded({String upiId = '', String upiName = 'Bloomly'}) {
-    store = seedStore.copyWith(upiId: upiId.trim(), upiName: upiName.trim().isEmpty ? 'Bloomly' : upiName.trim());
+  MemoryBackend.seeded({String upiId = '', String upiName = 'Bloom'}) {
+    store = seedStore.copyWith(
+      upiId: upiId.trim(),
+      upiName: upiName.trim().isEmpty ? 'Bloom' : upiName.trim(),
+    );
     categories = List<ShopCategory>.of(seedCategories);
     products = seedProducts
         .map(
           (product) => product.copyWith(
-            variants: product.variants.map((variant) => variant.copyWith()).toList(),
+            variants: product.variants
+                .map((variant) => variant.copyWith())
+                .toList(),
           ),
         )
         .toList();
@@ -49,6 +56,15 @@ class MemoryBackend extends BloomlyBackend {
           role: 'customer',
         ),
       ),
+      _riderEmail: _Account(
+        password: _demoPassword,
+        profile: const Profile(
+          id: 'rider-demo',
+          name: 'Ravi',
+          email: _riderEmail,
+          role: 'rider',
+        ),
+      ),
     };
     _addresses = [
       const Address(
@@ -60,16 +76,23 @@ class MemoryBackend extends BloomlyBackend {
         city: 'Bengaluru',
         pincode: '560034',
         isDefault: true,
+        latitude: 12.9352,
+        longitude: 77.6245,
       ),
     ];
+    unawaited(_restoreSession());
   }
+
+  static const _sessionKey = 'bloomly.session';
 
   static const ownerEmail = _ownerEmail;
   static const customerEmail = _customerEmail;
+  static const riderEmail = _riderEmail;
   static const demoPassword = _demoPassword;
   static const demoOtp = _demoOtp;
   static const _ownerEmail = 'owner@bloomly.app';
   static const _customerEmail = 'customer@bloomly.app';
+  static const _riderEmail = 'rider@bloomly.app';
   static const _demoPassword = 'bloomly123';
   static const _demoOtp = '123456';
 
@@ -155,12 +178,23 @@ class MemoryBackend extends BloomlyBackend {
   }
 
   @override
+  Future<String?> signInDemo(String role) {
+    final email = switch (role) {
+      'owner' => ownerEmail,
+      'rider' => riderEmail,
+      _ => customerEmail,
+    };
+    return signIn(email, demoPassword);
+  }
+
+  @override
   Future<String?> signIn(String email, String password) async {
     final account = _accounts[email.trim().toLowerCase()];
     if (account == null || account.password != password) {
       return 'That email and password do not match.';
     }
     currentUser = account.profile;
+    unawaited(_remember());
     notifyListeners();
     return null;
   }
@@ -182,15 +216,21 @@ class MemoryBackend extends BloomlyBackend {
     );
     _accounts[key] = _Account(password: password, profile: profile);
     currentUser = profile;
+    unawaited(_remember());
     notifyListeners();
     return null;
   }
 
   @override
-  Future<PhoneLoginStart> startPhoneLogin(String phone) async {
+  Future<PhoneLoginStart> startPhoneLogin(
+    String phone, {
+    required OtpChannel channel,
+  }) async {
     final normalized = PhoneNumber.normalizeIndia(phone);
     if (normalized == null) {
-      return const PhoneLoginStart.failure('Enter a valid 10-digit mobile number.');
+      return const PhoneLoginStart.failure(
+        'Enter a valid 10-digit mobile number.',
+      );
     }
     final existing = _accounts.values
         .where((account) => account.profile.phone == normalized)
@@ -207,7 +247,11 @@ class MemoryBackend extends BloomlyBackend {
   }
 
   @override
-  Future<String?> verifyPhoneOtp({required String userId, required String code}) async {
+  Future<String?> verifyPhoneOtp({
+    required String userId,
+    required String code,
+    required OtpChannel channel,
+  }) async {
     if (code.trim() != _demoOtp) return 'That code is wrong.';
     if (userId != _pendingUserId || _pendingPhone == null) {
       return 'Request a new code.';
@@ -229,6 +273,7 @@ class MemoryBackend extends BloomlyBackend {
       currentUser = _accountById(userId)?.profile;
     }
     _pendingPhone = null;
+    if (currentUser != null) unawaited(_remember());
     notifyListeners();
     return currentUser == null ? 'Request a new code.' : null;
   }
@@ -249,6 +294,7 @@ class MemoryBackend extends BloomlyBackend {
       role: user.role,
     );
     currentUser = account.profile;
+    unawaited(_remember());
     notifyListeners();
     return null;
   }
@@ -257,7 +303,9 @@ class MemoryBackend extends BloomlyBackend {
   Future<RecoveryStart> sendPasswordReset(String email) async {
     final account = _accounts[email.trim().toLowerCase()];
     if (account == null || account.password.isEmpty) {
-      return const RecoveryStart.failure('No password account uses that email.');
+      return const RecoveryStart.failure(
+        'No password account uses that email.',
+      );
     }
     _resetUserId = account.profile.id;
     return RecoveryStart(userId: account.profile.id);
@@ -281,22 +329,86 @@ class MemoryBackend extends BloomlyBackend {
   }
 
   @override
-  Future<void> signOut() async {
+  Future<String?> signOut() async {
     currentUser = null;
+    unawaited(_remember());
     notifyListeners();
+    return null;
   }
 
   @override
-  Future<String?> deleteAccount() async {
+  Future<String?> deleteAccount({String? password}) async {
     final user = currentUser;
     if (user == null) return 'Sign in first.';
     if (user.isOwner) return 'The store owner account stays signed in here.';
+    if (user.isRider) return 'A rider account stays signed in here.';
+    if (user.email.isNotEmpty) {
+      final account = _accountById(user.id);
+      if (account == null || password != account.password) {
+        return 'Enter your password to delete the account.';
+      }
+    } else if (password != _demoOtp) {
+      return 'Enter a fresh login code, then delete the account.';
+    }
     _accounts.removeWhere((_, account) => account.profile.id == user.id);
-    _addresses = _addresses.where((address) => address.userId != user.id).toList();
+    _addresses = _addresses
+        .where((address) => address.userId != user.id)
+        .toList();
     orders = orders.where((order) => order.userId != user.id).toList();
     currentUser = null;
+    unawaited(_remember());
     notifyListeners();
     return null;
+  }
+
+  Future<void> _remember() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final user = currentUser;
+      if (user == null) {
+        await prefs.remove(_sessionKey);
+        return;
+      }
+      await prefs.setString(
+        _sessionKey,
+        jsonEncode({
+          'id': user.id,
+          'name': user.name,
+          'email': user.email,
+          'phone': user.phone,
+          'role': user.role,
+        }),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _restoreSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_sessionKey);
+      if (raw == null || currentUser != null) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final id = '${decoded['id'] ?? ''}';
+      if (id.isEmpty) return;
+      var account = _accountById(id);
+      if (account == null) {
+        account = _Account(
+          password: '',
+          profile: Profile(
+            id: id,
+            name: '${decoded['name'] ?? ''}',
+            email: '${decoded['email'] ?? ''}',
+            phone: '${decoded['phone'] ?? ''}',
+            role: '${decoded['role'] ?? 'customer'}',
+          ),
+        );
+        _accounts['restored:$id'] = account;
+      }
+      if (currentUser != null) return;
+      currentUser = account.profile;
+      notifyListeners();
+    } catch (_) {}
   }
 
   _Account? _accountById(String id) {
@@ -342,6 +454,7 @@ class MemoryBackend extends BloomlyBackend {
     required String userId,
     required Address address,
     required List<CartLine> lines,
+    String? idempotencyKey,
   }) async {
     final orderId = _nextId('ord');
     final price = priceLines(
@@ -362,6 +475,8 @@ class MemoryBackend extends BloomlyBackend {
       paymentMethod: PaymentMethod.cod,
       paymentStatus: PaymentStatus.pending,
       placedAt: DateTime.now(),
+      destLatitude: address.latitude,
+      destLongitude: address.longitude,
       items: price.items,
     );
     orders = [order, ...orders];
@@ -375,6 +490,7 @@ class MemoryBackend extends BloomlyBackend {
     required String userId,
     required Address address,
     required List<CartLine> lines,
+    String? idempotencyKey,
   }) async {
     final orderId = _nextId('ord');
     final price = priceLines(
@@ -395,7 +511,10 @@ class MemoryBackend extends BloomlyBackend {
       paymentMethod: PaymentMethod.upi,
       paymentStatus: PaymentStatus.pending,
       gatewayOrderId: store.upiId.trim(),
+      upiTxnRef: orderId.replaceAll(RegExp(r'[^A-Za-z0-9]'), ''),
       placedAt: DateTime.now(),
+      destLatitude: address.latitude,
+      destLongitude: address.longitude,
       items: price.items,
     );
     orders = [order, ...orders];
@@ -404,7 +523,7 @@ class MemoryBackend extends BloomlyBackend {
     return OnlinePayment(
       order: order,
       upiId: store.upiId.trim(),
-      upiName: store.upiName.trim().isEmpty ? 'Bloomly' : store.upiName.trim(),
+      upiName: store.upiName.trim().isEmpty ? 'Bloom' : store.upiName.trim(),
       amountRupees: price.total,
     );
   }
@@ -425,7 +544,9 @@ class MemoryBackend extends BloomlyBackend {
       return 'This order is not awaiting a UPI payment.';
     }
     final cleaned = normalizeUpiReference(reference);
-    if (cleaned == null) return 'Enter the UPI reference as letters and numbers only.';
+    if (cleaned == null || cleaned.isEmpty) {
+      return 'Enter the UPI reference as letters and numbers only.';
+    }
     _replaceOrder(
       order.copyWith(
         paymentStatus: PaymentStatus.submitted,
@@ -439,12 +560,19 @@ class MemoryBackend extends BloomlyBackend {
   Future<String?> confirmUpiPayment(String orderId) async {
     final order = orderById(orderId);
     if (order == null) return 'Order not found.';
-    if (currentUser?.isOwner != true) return 'Only the store can confirm a UPI payment.';
-    if (order.paymentMethod != PaymentMethod.upi) return 'This order was not paid by UPI.';
-    if (order.paymentStatus == PaymentStatus.paid && order.status == OrderStatus.placed) {
-      return null;
+    if (currentUser?.isOwner != true) {
+      return 'Only the store can confirm a UPI payment.';
     }
-    if (!order.awaitingPayment) return 'This order is not awaiting a UPI payment.';
+    if (order.paymentMethod != PaymentMethod.upi) {
+      return 'This order was not paid by UPI.';
+    }
+    if (!order.awaitingPayment) {
+      return 'This order is not awaiting a UPI payment.';
+    }
+    if (order.paymentStatus != PaymentStatus.submitted ||
+        order.gatewayPaymentId.isEmpty) {
+      return 'Wait for the customer’s UPI reference before confirming.';
+    }
     _replaceOrder(
       order.copyWith(
         status: OrderStatus.placed,
@@ -481,18 +609,223 @@ class MemoryBackend extends BloomlyBackend {
     notifyListeners();
   }
 
+  final Map<String, RiderLocation> _locations = {};
+  final Map<String, DeliveryReview> _reviews = {};
+
   @override
-  Future<void> updateOrderStatus(String orderId, String status) async {
-    OrderRecord? updated;
-    orders = [
-      for (final order in orders)
-        if (order.id == orderId)
-          (updated = order.copyWith(status: status))
-        else
-          order,
+  List<Profile> get riders {
+    final list = [
+      for (final account in _accounts.values)
+        if (account.profile.isRider) account.profile,
     ];
-    if (updated != null) _emit(updated);
+    list.sort((a, b) => a.name.compareTo(b.name));
+    return list;
+  }
+
+  @override
+  RiderLocation? locationFor(String orderId) => _locations[orderId];
+
+  @override
+  DeliveryReview? reviewFor(String orderId) => _reviews[orderId];
+
+  @override
+  Future<String?> updateOrderStatus(String orderId, String status) async {
+    if (currentUser?.isOwner != true)
+      return 'Only the store can update an order.';
+    final current = orderById(orderId);
+    if (current == null) return 'Order not found.';
+    final allowed =
+        (current.status == OrderStatus.placed &&
+            status == OrderStatus.packing) ||
+        (current.status == OrderStatus.outForDelivery &&
+            status == OrderStatus.delivered);
+    if (!allowed) return 'This order cannot move to that step.';
+    _replaceOrder(
+      current.copyWith(
+        status: status,
+        paymentStatus:
+            status == OrderStatus.delivered &&
+                current.paymentMethod == PaymentMethod.cod &&
+                current.paymentStatus == PaymentStatus.pending
+            ? PaymentStatus.paid
+            : current.paymentStatus,
+      ),
+    );
+    return null;
+  }
+
+  @override
+  Future<String?> markRefunded(String orderId) async {
+    if (currentUser?.isOwner != true)
+      return 'Only the store can mark a refund.';
+    final order = orderById(orderId);
+    if (order == null) return 'Order not found.';
+    if (order.paymentStatus != PaymentStatus.refundPending) {
+      return 'This order is not waiting for a refund.';
+    }
+    _replaceOrder(order.copyWith(paymentStatus: PaymentStatus.refunded));
+    return null;
+  }
+
+  @override
+  Future<String?> createRider({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    if (currentUser?.isOwner != true) return 'Only the store can add a rider.';
+    final trimmed = name.trim();
+    final key = email.trim().toLowerCase();
+    if (trimmed.isEmpty) return 'Enter the rider’s name.';
+    if (!key.contains('@') || key.length < 5) return 'Enter the rider’s email.';
+    if (_accounts.containsKey(key)) {
+      return 'An account with this email already exists.';
+    }
+    if (password.length < 8) return 'Use at least 8 characters.';
+    _accounts[key] = _Account(
+      password: password,
+      profile: Profile(
+        id: _nextId('rider'),
+        name: trimmed,
+        email: key,
+        role: 'rider',
+      ),
+    );
     notifyListeners();
+    return null;
+  }
+
+  @override
+  Future<String?> assignRider({
+    required String orderId,
+    required String riderId,
+  }) async {
+    if (currentUser?.isOwner != true) {
+      return 'Only the store can assign a rider.';
+    }
+    final order = orderById(orderId);
+    if (order == null) return 'Order not found.';
+    if (!OrderStatus.canAssign(order.status)) {
+      return 'Pack the order before sending it out.';
+    }
+    Profile? rider;
+    for (final account in _accounts.values) {
+      if (account.profile.id == riderId && account.profile.isRider) {
+        rider = account.profile;
+      }
+    }
+    if (rider == null) return 'Choose a rider.';
+    _replaceOrder(
+      order.copyWith(
+        status: OrderStatus.outForDelivery,
+        riderId: rider.id,
+        riderName: rider.name,
+      ),
+    );
+    return null;
+  }
+
+  @override
+  Future<String?> updateRiderLocation({
+    required String orderId,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final order = orderById(orderId);
+    final user = currentUser;
+    if (order == null || user == null) return 'Order not found.';
+    if (!user.isRider || user.id != order.riderId) {
+      return 'This delivery is assigned to someone else.';
+    }
+    if (order.status != OrderStatus.outForDelivery) {
+      return 'This delivery is not on the way.';
+    }
+    if (!latitude.isFinite || !longitude.isFinite) {
+      return 'Location is not available.';
+    }
+    _locations[orderId] = RiderLocation(
+      orderId: orderId,
+      latitude: latitude,
+      longitude: longitude,
+      updatedAt: DateTime.now(),
+    );
+    _emit(order);
+    notifyListeners();
+    return null;
+  }
+
+  @override
+  Future<String?> markDelivered(String orderId) async {
+    final order = orderById(orderId);
+    final user = currentUser;
+    if (order == null || user == null) return 'Order not found.';
+    final allowed = user.isOwner || (user.isRider && user.id == order.riderId);
+    if (!allowed) return 'This delivery is assigned to someone else.';
+    if (order.status != OrderStatus.outForDelivery) {
+      return 'This order is not out for delivery.';
+    }
+    _replaceOrder(
+      order.copyWith(
+        status: OrderStatus.delivered,
+        paymentStatus:
+            order.paymentMethod == PaymentMethod.cod &&
+                order.paymentStatus == PaymentStatus.pending
+            ? PaymentStatus.paid
+            : order.paymentStatus,
+      ),
+    );
+    return null;
+  }
+
+  @override
+  Future<String?> submitReview({
+    required String orderId,
+    required int freshness,
+    required int rightItems,
+    required int packing,
+    required int onTime,
+    required int polite,
+    required int careful,
+    String note = '',
+  }) async {
+    final order = orderById(orderId);
+    final user = currentUser;
+    if (order == null || user == null) return 'Order not found.';
+    if (user.id != order.userId || user.isOwner || user.isRider) {
+      return 'Only the customer can review this order.';
+    }
+    if (order.status != OrderStatus.delivered) {
+      return 'Review the order after it is delivered.';
+    }
+    if (_reviews.containsKey(orderId)) {
+      return 'This order already has a review.';
+    }
+    final rejected = DeliveryReview.rejectScores(
+      freshness: freshness,
+      rightItems: rightItems,
+      packing: packing,
+      onTime: onTime,
+      polite: polite,
+      careful: careful,
+      note: note,
+    );
+    if (rejected != null) return rejected;
+    _reviews[orderId] = DeliveryReview(
+      orderId: orderId,
+      userId: user.id,
+      riderId: order.riderId,
+      freshness: freshness,
+      rightItems: rightItems,
+      packing: packing,
+      onTime: onTime,
+      polite: polite,
+      careful: careful,
+      note: note.trim(),
+      createdAt: DateTime.now(),
+    );
+    _emit(order);
+    notifyListeners();
+    return null;
   }
 
   @override
@@ -509,11 +842,14 @@ class MemoryBackend extends BloomlyBackend {
     if (!asOwner && !OrderStatus.customerCanCancel(order.status)) {
       return 'You can cancel only before the store starts packing.';
     }
+    final nextPayment = order.awaitingPayment
+        ? PaymentStatus.failed
+        : order.paymentMethod == PaymentMethod.upi &&
+              order.paymentStatus == PaymentStatus.paid
+        ? PaymentStatus.refundPending
+        : order.paymentStatus;
     _replaceOrder(
-      order.copyWith(
-        status: OrderStatus.cancelled,
-        paymentStatus: order.awaitingPayment ? PaymentStatus.failed : order.paymentStatus,
-      ),
+      order.copyWith(status: OrderStatus.cancelled, paymentStatus: nextPayment),
     );
     return null;
   }

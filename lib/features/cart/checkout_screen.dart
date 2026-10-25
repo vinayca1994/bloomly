@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,6 +23,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _payment = PaymentMethod.cod;
   bool _busy = false;
   String? _error;
+  String? _checkoutKey;
+  String? _checkoutFingerprint;
 
   @override
   Widget build(BuildContext context) {
@@ -208,10 +212,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     });
     try {
       final backend = ref.read(backendProvider);
+      final lines = ref.read(cartProvider);
       final payment = await backend.startOnlinePayment(
         userId: user.id,
         address: address,
-        lines: ref.read(cartProvider),
+        lines: lines,
+        idempotencyKey: _idempotency(address, lines),
       );
       if (!mounted) return;
       if (backend.usesTestCheckout) {
@@ -267,6 +273,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
+  String _idempotency(Address address, List<CartLine> lines) {
+    final fingerprint = '${address.id}|$_payment|${[
+      for (final line in lines) '${line.productId}:${line.variantId}:${line.qty}',
+    ].join(',')}';
+    if (_checkoutFingerprint != fingerprint || _checkoutKey == null) {
+      _checkoutFingerprint = fingerprint;
+      final micros = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+      final salt = Random().nextInt(0x7fffffff).toRadixString(36);
+      final key = 'c$micros$salt';
+      _checkoutKey = key.length <= 36 ? key : key.substring(0, 36);
+    }
+    return _checkoutKey!;
+  }
+
   void _finish(String orderId) {
     ref.read(cartProvider.notifier).clear();
     if (!mounted) return;
@@ -292,6 +312,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         userId: user.id,
         address: address,
         lines: lines,
+        idempotencyKey: _idempotency(address, lines),
       );
       _finish(order.id);
     } on BloomlyException catch (error) {

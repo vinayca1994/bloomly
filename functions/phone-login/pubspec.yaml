@@ -1,7 +1,10 @@
 name: phone_login
-description: Looks up a Bloomly customer by phone before the OTP is sent.
+description: Looks up a Bloom customer by phone and sends a WhatsApp login code.
 publish_to: none
 environment:
   sdk: '>=3.5.0 <4.0.0'
 dependencies:
+  crypto: ^3.0.6
   dart_appwrite: ^30.0.0
+dev_dependencies:
+  test: ^1.25.0

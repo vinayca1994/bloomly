@@ -76,14 +76,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         )
         .length;
     final revenue = backend.orders
-        .where(
-          (order) =>
-              OrderStatus.visibleToStore(order.status) &&
-              order.status != OrderStatus.cancelled &&
-              sameDay(order.placedAt, now),
-        )
+        .where((order) => order.countsAsRevenue(now))
         .fold<int>(0, (sum, order) => sum + order.total);
-    final unavailable = backend.products.where((product) => !product.isAvailable).length;
+    final unavailable = backend.products
+        .where((product) => !product.isAvailable)
+        .length;
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -108,9 +105,15 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 8),
-        TextField(controller: _city, decoration: const InputDecoration(labelText: 'City')),
+        TextField(
+          controller: _city,
+          decoration: const InputDecoration(labelText: 'City'),
+        ),
         const SizedBox(height: 8),
-        TextField(controller: _eta, decoration: const InputDecoration(labelText: 'ETA label')),
+        TextField(
+          controller: _eta,
+          decoration: const InputDecoration(labelText: 'ETA label'),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: _fee,
@@ -121,20 +124,24 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         TextField(
           controller: _free,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Free delivery above (₹)'),
+          decoration: const InputDecoration(
+            labelText: 'Free delivery above (₹)',
+          ),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: _upiId,
           decoration: const InputDecoration(
             labelText: 'UPI ID',
-            hintText: 'bloomly@oksbi',
+            hintText: 'bloom@oksbi',
           ),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: _upiName,
-          decoration: const InputDecoration(labelText: 'Name on the UPI account'),
+          decoration: const InputDecoration(
+            labelText: 'Name on the UPI account',
+          ),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -150,7 +157,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           Text(
             _message!,
             style: TextStyle(
-              color: _messageIsError ? BloomlyColors.danger : BloomlyColors.greenDark,
+              color: _messageIsError
+                  ? BloomlyColors.danger
+                  : BloomlyColors.greenDark,
             ),
           ),
         ],
@@ -162,7 +171,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               final fee = int.tryParse(_fee.text.trim());
               final free = int.tryParse(_free.text.trim());
               final upiId = _upiId.text.trim();
-              if (_city.text.trim().isEmpty || fee == null || free == null || fee < 0 || free < 0) {
+              if (_city.text.trim().isEmpty ||
+                  fee == null ||
+                  free == null ||
+                  fee < 0 ||
+                  free < 0) {
                 setState(() {
                   _message = 'Check the city and the two amounts.';
                   _messageIsError = true;
@@ -171,15 +184,17 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               }
               if (upiId.isNotEmpty && !isUpiId(upiId)) {
                 setState(() {
-                  _message = 'Use a UPI ID like bloomly@oksbi.';
+                  _message = 'Use a UPI ID like bloom@oksbi.';
                   _messageIsError = true;
                 });
                 return;
               }
               final phoneRaw = _storePhone.text.trim();
-              if (phoneRaw.isNotEmpty && PhoneNumber.normalizeIndia(phoneRaw) == null) {
+              if (phoneRaw.isNotEmpty &&
+                  PhoneNumber.normalizeIndia(phoneRaw) == null) {
                 setState(() {
-                  _message = 'Use a valid 10-digit Indian mobile for the store phone.';
+                  _message =
+                      'Use a valid 10-digit Indian mobile for the store phone.';
                   _messageIsError = true;
                 });
                 return;
@@ -187,12 +202,19 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               await backend.updateStore(
                 StoreSettings(
                   city: _city.text.trim(),
-                  etaLabel: _eta.text.trim().isEmpty ? '15–30 min' : _eta.text.trim(),
+                  etaLabel: _eta.text.trim().isEmpty
+                      ? '15–30 min'
+                      : _eta.text.trim(),
                   deliveryFee: fee,
                   freeDeliveryAbove: free,
                   upiId: upiId,
-                  upiName: _upiName.text.trim().isEmpty ? 'Bloomly' : _upiName.text.trim(),
-                  storePhone: phoneRaw.isEmpty ? '' : PhoneNumber.normalizeIndia(phoneRaw)!,
+                  upiName: _upiName.text.trim().isEmpty
+                      ? 'Bloom'
+                      : _upiName.text.trim(),
+                  storePhone: phoneRaw.isEmpty
+                      ? ''
+                      : PhoneNumber.normalizeIndia(phoneRaw)!,
+                  promotions: backend.store.promotions,
                 ),
               );
               if (mounted) {
@@ -222,7 +244,13 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             children: [
               Text(label, style: const TextStyle(color: BloomlyColors.muted)),
               const SizedBox(height: 6),
-              Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ],
           ),
         ),

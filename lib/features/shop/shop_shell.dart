@@ -26,16 +26,21 @@ class CustomerShell extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: ColoredBox(
-            color: BloomlyColors.paper,
-            child: Column(
-              children: [
-                Expanded(child: shell),
-                if (showCart) const CartBar(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                  child: _CompactNav(shell: shell),
-                ),
-              ],
+            color: Colors.white,
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                scaffoldBackgroundColor: Colors.white,
+                appBarTheme: Theme.of(context).appBarTheme
+                    .copyWith(backgroundColor: Colors.white),
+              ),
+              child: Column(
+                children: [
+                  Expanded(child: shell),
+                  if (showCart) const CartBar(),
+                  const Divider(height: 1),
+                  _CompactNav(shell: shell),
+                ],
+              ),
             ),
           ),
         ),
@@ -51,34 +56,30 @@ class _CompactNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: BloomlyDecor.shadow,
-      ),
-      child: Material(
-        color: BloomlyColors.card,
-        borderRadius: BorderRadius.circular(18),
-        clipBehavior: Clip.antiAlias,
-        child: SizedBox(
-          height: 48,
-          child: Row(
-            children: [
-              for (var index = 0; index < CustomerShell.destinations.length; index++)
-                Expanded(
-                  child: _NavItem(
-                    selected: shell.currentIndex == index,
-                    icon: CustomerShell.destinations[index].$1,
-                    selectedIcon: CustomerShell.destinations[index].$2,
-                    label: CustomerShell.destinations[index].$3,
-                    onTap: () => shell.goBranch(
-                      index,
-                      initialLocation: index == shell.currentIndex,
-                    ),
+    return Material(
+      color: Colors.white,
+      child: SizedBox(
+        height: 56,
+        child: Row(
+          children: [
+            for (
+              var index = 0;
+              index < CustomerShell.destinations.length;
+              index++
+            )
+              Expanded(
+                child: _NavItem(
+                  selected: shell.currentIndex == index,
+                  icon: CustomerShell.destinations[index].$1,
+                  selectedIcon: CustomerShell.destinations[index].$2,
+                  label: CustomerShell.destinations[index].$3,
+                  onTap: () => shell.goBranch(
+                    index,
+                    initialLocation: index == shell.currentIndex,
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
@@ -102,7 +103,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? BloomlyColors.greenDark : BloomlyColors.muted;
+    final color = selected ? BloomlyColors.amber : BloomlyColors.muted;
     return Semantics(
       button: true,
       selected: selected ? true : null,
@@ -119,9 +120,11 @@ class _NavItem extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 10,
+                inherit: false,
+                fontFamily: 'PlusJakartaSans',
+                fontSize: 11,
                 height: 1.1,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: FontWeight.w800,
                 color: color,
               ),
             ),

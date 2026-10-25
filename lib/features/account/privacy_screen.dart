@@ -12,22 +12,22 @@ class PrivacyScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('What Bloomly keeps', style: BloomlyType.display(28)),
+          Text('What Bloom keeps', style: BloomlyType.display(28)),
           const SizedBox(height: 12),
           Text(
             'Your mobile number or email is used to sign in. A one-time code is sent when you choose phone sign-in. Passwords are stored by the account service, not on this phone for Face ID.',
           ),
           SizedBox(height: 12),
           Text(
-            'Location is used only while the app is open, to check that we deliver in your city and to fill the area, city, and pincode. You can type an address instead. Bloomly does not track a rider on a map.',
+            'Location is used while the app is open, to check that Bloom delivers in your city and to fill an address. A rider’s phone shares its location only during an active delivery. That pin is shown to the customer on that order and to the store. You can type an address instead.',
           ),
           SizedBox(height: 12),
           Text(
-            'UPI opens in BHIM, GPay, PhonePe, or Paytm. Bloomly stores the payment status and an optional reference number, not your UPI PIN. The store confirms the money arrived before packing. Cash on delivery stays unpaid until the order arrives.',
+            'UPI opens in BHIM, GPay, PhonePe, or Paytm. Bloom stores the payment status and an optional reference number, not your UPI PIN. The store confirms the money arrived before packing. Cash on delivery stays unpaid until the order arrives.',
           ),
           SizedBox(height: 12),
           Text(
-            'Face ID or fingerprint only unlocks this phone. It is not a separate Bloomly account. You can turn it off in Account.',
+            'Face ID or fingerprint only unlocks this phone. It is not a separate Bloom account. You can turn it off in Account.',
           ),
           SizedBox(height: 12),
           Text(

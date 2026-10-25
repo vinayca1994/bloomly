@@ -18,7 +18,10 @@ class OwnerShell extends StatelessWidget {
         backgroundColor: BloomlyColors.background,
         body: Row(
           children: [
-            SizedBox(width: 240, child: Material(color: Colors.white, child: nav)),
+            SizedBox(
+              width: 240,
+              child: Material(color: Colors.white, child: nav),
+            ),
             const VerticalDivider(width: 1),
             Expanded(child: child),
           ],
@@ -34,7 +37,9 @@ class OwnerShell extends StatelessWidget {
 
   String _title(String path) {
     if (path.startsWith('/owner/catalog')) return 'Catalog';
+    if (path.startsWith('/owner/promotions')) return 'Promotions';
     if (path.startsWith('/owner/orders')) return 'Orders';
+    if (path.startsWith('/owner/riders')) return 'Riders';
     return 'Today';
   }
 }
@@ -53,28 +58,53 @@ class _Nav extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: Text(
-            'bloomly',
+            'bloom',
             style: TextStyle(
-              color: BloomlyColors.green,
+              color: BloomlyColors.amber,
               fontSize: 22,
               fontWeight: FontWeight.w800,
             ),
           ),
         ),
         _item(context, '/owner', 'Today', Icons.today_outlined),
+        _item(
+          context,
+          '/owner/promotions',
+          'Promotions',
+          Icons.campaign_outlined,
+        ),
         _item(context, '/owner/orders', 'Orders', Icons.receipt_long_outlined),
+        _item(
+          context,
+          '/owner/riders',
+          'Riders',
+          Icons.delivery_dining_outlined,
+        ),
         _item(context, '/owner/catalog', 'Catalog', Icons.inventory_2_outlined),
         const Divider(),
         ListTile(
           leading: const Icon(Icons.storefront_outlined),
           title: const Text('Back to shop'),
-          onTap: () => onSelect('/'),
+          onTap: () => _go(context, '/'),
         ),
       ],
     );
   }
 
-  Widget _item(BuildContext context, String route, String label, IconData icon) {
+  void _go(BuildContext context, String route) {
+    final scaffold = Scaffold.maybeOf(context);
+    if (scaffold?.isDrawerOpen ?? false) {
+      Navigator.of(context).pop();
+    }
+    onSelect(route);
+  }
+
+  Widget _item(
+    BuildContext context,
+    String route,
+    String label,
+    IconData icon,
+  ) {
     final selected = route == '/owner'
         ? path == '/owner'
         : path.startsWith(route);
@@ -83,7 +113,7 @@ class _Nav extends StatelessWidget {
       selectedColor: BloomlyColors.greenDark,
       leading: Icon(icon),
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
-      onTap: () => onSelect(route),
+      onTap: () => _go(context, route),
     );
   }
 }

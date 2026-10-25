@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Bloomly</string>
+	<string>Bloom</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>bloomly</string>
+	<string>bloom</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -26,10 +26,14 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Bloomly uses Face ID to unlock the app on this phone.</string>
+	<string>Bloom uses Face ID to unlock the app on this phone.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Bloom uses photos you choose for product pictures in the store console.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Bloomly uses your location to check if we deliver to you and to fill in your address.</string>
+	<string>Bloom uses your location to check the delivery area, fill an address, and share a rider’s pin during an active delivery.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>tez</string>

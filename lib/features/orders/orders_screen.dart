@@ -33,7 +33,8 @@ class OrdersScreen extends ConsumerWidget {
           ? const _Empty(
               icon: Icons.shopping_basket_outlined,
               title: 'No orders yet',
-              body: 'Vegetables, fruit, and flowers you order will show up here.',
+              body:
+                  'Vegetables, fruit, and flowers you order will show up here.',
             )
           : ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -57,7 +58,10 @@ class OrdersScreen extends ConsumerWidget {
                             Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: _statusColor(order),
                                     borderRadius: BorderRadius.circular(999),
@@ -65,27 +69,40 @@ class OrdersScreen extends ConsumerWidget {
                                   child: Text(
                                     customerStatusLabel(order),
                                     style: TextStyle(
-                                      color: wash ? BloomlyColors.ink : Colors.white,
+                                      color: wash
+                                          ? BloomlyColors.ink
+                                          : Colors.white,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ),
                                 const Spacer(),
-                                Text(money(order.total), style: BloomlyType.display(26)),
+                                Text(
+                                  money(order.total),
+                                  style: BloomlyType.display(26),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 10),
                             Text(
                               formatWhen(order.placedAt),
-                              style: const TextStyle(color: BloomlyColors.muted, fontSize: 12),
+                              style: const TextStyle(
+                                color: BloomlyColors.muted,
+                                fontSize: 12,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              order.items.map((item) => '${item.name} × ${item.qty}').join(', '),
+                              order.items
+                                  .map((item) => '${item.name} × ${item.qty}')
+                                  .join(', '),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: BloomlyColors.ink, height: 1.3),
+                              style: const TextStyle(
+                                color: BloomlyColors.ink,
+                                height: 1.3,
+                              ),
                             ),
                             Align(
                               alignment: Alignment.centerRight,
@@ -111,9 +128,10 @@ class OrdersScreen extends ConsumerWidget {
   }
 
   Color _statusColor(OrderRecord order) {
-    if (order.paymentStatus == PaymentStatus.submitted) return BloomlyColors.fruitWash;
+    if (order.paymentStatus == PaymentStatus.submitted)
+      return BloomlyColors.fruitWash;
     return switch (order.status) {
-      OrderStatus.delivered => BloomlyColors.green,
+      OrderStatus.delivered => BloomlyColors.amber,
       OrderStatus.cancelled => BloomlyColors.danger,
       OrderStatus.paymentPending => BloomlyColors.fruitWash,
       _ => BloomlyColors.marigold,
@@ -169,7 +187,11 @@ class _Empty extends StatelessWidget {
               child: Icon(icon, color: BloomlyColors.greenDark),
             ),
             const SizedBox(height: 16),
-            Text(title, textAlign: TextAlign.center, style: BloomlyType.display(26)),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: BloomlyType.display(26),
+            ),
             const SizedBox(height: 8),
             Text(
               body,
@@ -178,7 +200,13 @@ class _Empty extends StatelessWidget {
             ),
             if (action != null) ...[
               const SizedBox(height: 18),
-              FilledButton(onPressed: onPressed, child: Text(action!)),
+              FilledButton(
+                onPressed: onPressed,
+                child: Text(
+                  action!,
+                  style: BloomlyType.label.copyWith(color: BloomlyColors.ink),
+                ),
+              ),
             ],
           ],
         ),

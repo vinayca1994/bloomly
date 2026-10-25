@@ -45,10 +45,20 @@ abstract class BloomlyBackend extends ChangeNotifier {
   /// True when no store UPI ID is set, so pay confirms in a demo dialog.
   bool get usesTestCheckout => false;
 
+  /// Debug one-tap sign-in for customer, owner, or rider.
+  Future<String?> signInDemo(String role) async => 'Demo sign-in is off.';
+
   Future<String?> signIn(String email, String password);
   Future<String?> signUp(String name, String email, String password);
-  Future<PhoneLoginStart> startPhoneLogin(String phone);
-  Future<String?> verifyPhoneOtp({required String userId, required String code});
+  Future<PhoneLoginStart> startPhoneLogin(
+    String phone, {
+    required OtpChannel channel,
+  });
+  Future<String?> verifyPhoneOtp({
+    required String userId,
+    required String code,
+    required OtpChannel channel,
+  });
   Future<String?> updateDisplayName(String name);
   Future<RecoveryStart> sendPasswordReset(String email);
   Future<String?> completePasswordReset({
@@ -56,8 +66,11 @@ abstract class BloomlyBackend extends ChangeNotifier {
     required String code,
     required String password,
   });
-  Future<void> signOut();
-  Future<String?> deleteAccount();
+  Future<String?> signOut();
+  Future<String?> deleteAccount({String? password});
+
+  /// Called when the app returns to the foreground. Live shops resubscribe.
+  Future<void> onForeground() async {}
 
   Future<void> saveAddress(Address address);
   Future<void> deleteAddress(String id);
@@ -66,16 +79,21 @@ abstract class BloomlyBackend extends ChangeNotifier {
     required String userId,
     required Address address,
     required List<CartLine> lines,
+    String? idempotencyKey,
   });
 
   Future<OnlinePayment> startOnlinePayment({
     required String userId,
     required Address address,
     required List<CartLine> lines,
+    String? idempotencyKey,
   });
 
   /// Customer says the UPI app accepted the payment. This does not mark it paid.
-  Future<String?> noteUpiPayment({required String orderId, required String reference});
+  Future<String?> noteUpiPayment({
+    required String orderId,
+    required String reference,
+  });
 
   /// Store confirms the money arrived in the UPI app.
   Future<String?> confirmUpiPayment(String orderId);
@@ -83,7 +101,51 @@ abstract class BloomlyBackend extends ChangeNotifier {
   /// Confirms the in-memory demo checkout. Live shops reject this.
   Future<String?> completeTestPayment(String orderId);
 
-  Future<void> updateOrderStatus(String orderId, String status);
+  Future<String?> updateOrderStatus(String orderId, String status);
+
+  /// Owner records that a cancelled UPI payment was refunded.
+  Future<String?> markRefunded(String orderId);
+
+  List<Profile> get riders;
+
+  RiderLocation? locationFor(String orderId);
+
+  DeliveryReview? reviewFor(String orderId);
+
+  /// Owner adds an email login with the `rider` role.
+  Future<String?> createRider({
+    required String name,
+    required String email,
+    required String password,
+  });
+
+  /// Owner sends the order out for delivery with this rider.
+  Future<String?> assignRider({
+    required String orderId,
+    required String riderId,
+  });
+
+  /// Assigned rider publishes the current pin. This does not change the bill.
+  Future<String?> updateRiderLocation({
+    required String orderId,
+    required double latitude,
+    required double longitude,
+  });
+
+  /// Assigned rider, or the owner, marks an out-for-delivery order delivered.
+  Future<String?> markDelivered(String orderId);
+
+  /// Customer reviews a delivered order once.
+  Future<String?> submitReview({
+    required String orderId,
+    required int freshness,
+    required int rightItems,
+    required int packing,
+    required int onTime,
+    required int polite,
+    required int careful,
+    String note = '',
+  });
 
   /// Customer or owner cancels when [OrderStatus.customerCanCancel] / owner rules allow.
   Future<String?> cancelOrder(String orderId);

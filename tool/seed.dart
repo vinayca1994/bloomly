@@ -3,25 +3,33 @@ import 'dart:io';
 import 'package:bloomly/data/catalog_seed.dart';
 import 'package:bloomly/data/ids.dart';
 import 'package:dart_appwrite/dart_appwrite.dart';
+import 'package:dart_appwrite/enums.dart';
+import 'package:dart_appwrite/models.dart' as models;
 
-/// Creates the Bloomly database, bucket, owner, and catalog.
+/// Creates the Bloom database, bucket, owner, and catalog.
 ///
 /// Required environment:
 /// APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, APPWRITE_API_KEY
 ///
 /// Optional:
 /// APPWRITE_OWNER_EMAIL (default owner@bloomly.app)
-/// APPWRITE_OWNER_PASSWORD (default bloomly123)
+/// APPWRITE_OWNER_PASSWORD (required, at least 12 characters)
 Future<void> main() async {
   final fileEnv = _dotEnv();
   String env(String key) => Platform.environment[key] ?? fileEnv[key] ?? '';
   final endpoint = env('APPWRITE_ENDPOINT');
   final projectId = env('APPWRITE_PROJECT_ID');
   final apiKey = env('APPWRITE_API_KEY');
+  final ownerPassword = env('APPWRITE_OWNER_PASSWORD');
   if (endpoint.isEmpty || projectId.isEmpty || apiKey.isEmpty) {
     stderr.writeln(
       'Set APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, and APPWRITE_API_KEY.',
     );
+    exitCode = 64;
+    return;
+  }
+  if (ownerPassword.length < 12) {
+    stderr.writeln('Set APPWRITE_OWNER_PASSWORD to at least 12 characters.');
     exitCode = 64;
     return;
   }
@@ -34,64 +42,41 @@ Future<void> main() async {
   final storage = Storage(client);
   final users = Users(client);
 
-  await _ignore(() => tables.create(databaseId: Ids.database, name: 'Bloomly'));
-  await _table(
-    tables,
-    Ids.store,
-    'Store',
-    [
-      _varchar('city', 80),
-      _varchar('etaLabel', 40),
-      _intCol('deliveryFee'),
-      _intCol('freeDeliveryAbove'),
-      _varchar('upiId', 80, required: false),
-      _varchar('upiName', 80, required: false, fallback: 'Bloomly'),
-      _varchar('storePhone', 20, required: false, fallback: ''),
-    ],
-    guestRead: true,
-  );
-  await _table(
-    tables,
-    Ids.categories,
-    'Categories',
-    [
-      _varchar('name', 80),
-      _varchar('slug', 80),
-      _varchar('kind', 20),
-      _varchar('parentSlug', 80, required: false),
-      _intCol('sort'),
-      _varchar('emoji', 8),
-    ],
-    guestRead: true,
-  );
-  await _table(
-    tables,
-    Ids.products,
-    'Products',
-    [
-      _varchar('name', 120),
-      _varchar('categorySlug', 80),
-      _varchar('description', 500),
-      _varchar('imageUrl', 2000, required: false),
-      _boolCol('isAvailable'),
-      _varchar('region', 16, required: false),
-      _intCol('sort'),
-    ],
-    guestRead: true,
-  );
-  await _table(
-    tables,
-    Ids.variants,
-    'Variants',
-    [
-      _varchar('productId', 36),
-      _varchar('label', 40),
-      _intCol('price'),
-      _intCol('mrp'),
-      _boolCol('isAvailable'),
-    ],
-    guestRead: true,
-  );
+  await _ignore(() => tables.create(databaseId: Ids.database, name: 'Bloom'));
+  await _table(tables, Ids.store, 'Store', [
+    _varchar('city', 80),
+    _varchar('etaLabel', 40),
+    _intCol('deliveryFee'),
+    _intCol('freeDeliveryAbove'),
+    _varchar('upiId', 80, required: false),
+    _varchar('upiName', 80, required: false, fallback: 'Bloom'),
+    _varchar('storePhone', 20, required: false, fallback: ''),
+    _varchar('promotions', 8000, required: false, fallback: ''),
+  ], guestRead: true);
+  await _table(tables, Ids.categories, 'Categories', [
+    _varchar('name', 80),
+    _varchar('slug', 80),
+    _varchar('kind', 20),
+    _varchar('parentSlug', 80, required: false),
+    _intCol('sort'),
+    _varchar('emoji', 8),
+  ], guestRead: true);
+  await _table(tables, Ids.products, 'Products', [
+    _varchar('name', 120),
+    _varchar('categorySlug', 80),
+    _varchar('description', 500),
+    _varchar('imageUrl', 2000, required: false),
+    _boolCol('isAvailable'),
+    _varchar('region', 16, required: false),
+    _intCol('sort'),
+  ], guestRead: true);
+  await _table(tables, Ids.variants, 'Variants', [
+    _varchar('productId', 36),
+    _varchar('label', 40),
+    _intCol('price'),
+    _intCol('mrp'),
+    _boolCol('isAvailable'),
+  ], guestRead: true);
   await _table(
     tables,
     Ids.addresses,
@@ -109,12 +94,7 @@ Future<void> main() async {
       _varchar('longitude', 32, required: false, fallback: ''),
     ],
     rowSecurity: true,
-    permissions: [
-      Permission.create(Role.users()),
-      Permission.read(Role.label('owner')),
-      Permission.update(Role.label('owner')),
-      Permission.delete(Role.label('owner')),
-    ],
+    permissions: _addressGrants(),
   );
   await _table(
     tables,
@@ -132,14 +112,14 @@ Future<void> main() async {
       _varchar('gatewayOrderId', 64, required: false, fallback: ''),
       _varchar('gatewayPaymentId', 64, required: false, fallback: ''),
       _varchar('placedAt', 40),
+      _varchar('riderId', 36, required: false, fallback: ''),
+      _varchar('riderName', 80, required: false, fallback: ''),
+      _varchar('destLatitude', 32, required: false, fallback: ''),
+      _varchar('destLongitude', 32, required: false, fallback: ''),
+      _varchar('upiTxnRef', 40, required: false, fallback: ''),
     ],
     rowSecurity: true,
-    permissions: [
-      Permission.create(Role.users()),
-      Permission.read(Role.label('owner')),
-      Permission.update(Role.label('owner')),
-      Permission.delete(Role.label('owner')),
-    ],
+    permissions: _orderGrants(),
   );
   await _table(
     tables,
@@ -154,11 +134,40 @@ Future<void> main() async {
       _intCol('qty'),
     ],
     rowSecurity: true,
-    permissions: [
-      Permission.create(Role.users()),
-      Permission.read(Role.label('owner')),
-      Permission.update(Role.label('owner')),
+    permissions: _itemGrants(),
+  );
+  await _table(
+    tables,
+    Ids.riderLocations,
+    'Rider locations',
+    [
+      _varchar('orderId', 36),
+      _varchar('latitude', 32, required: false, fallback: ''),
+      _varchar('longitude', 32, required: false, fallback: ''),
+      _varchar('updatedAt', 40, required: false, fallback: ''),
     ],
+    rowSecurity: true,
+    permissions: _locationGrants(),
+  );
+  await _table(
+    tables,
+    Ids.reviews,
+    'Reviews',
+    [
+      _varchar('orderId', 36),
+      _varchar('userId', 36),
+      _varchar('riderId', 36, required: false, fallback: ''),
+      _score('freshness'),
+      _score('rightItems'),
+      _score('packing'),
+      _score('onTime'),
+      _score('polite'),
+      _score('careful'),
+      _varchar('note', 280, required: false, fallback: ''),
+      _varchar('createdAt', 40),
+    ],
+    rowSecurity: true,
+    permissions: _reviewGrants(),
   );
   await _table(
     tables,
@@ -169,13 +178,33 @@ Future<void> main() async {
       _varchar('name', 80),
       _varchar('role', 20),
       _varchar('phone', 20, required: false, fallback: ''),
+      _varchar('email', 120, required: false, fallback: ''),
     ],
     rowSecurity: true,
-    permissions: [
-      Permission.create(Role.users()),
-      Permission.read(Role.label('owner')),
-    ],
+    permissions: _profileGrants(),
   );
+  // No client permissions. phone-login stores WhatsApp code hashes here.
+  await _table(tables, Ids.otpChallenges, 'OTP challenges', [
+    _varchar('phone', 20),
+    _varchar('codeHash', 64),
+    _varchar('expiresAt', 20),
+    _varchar('sentAt', 20),
+    _intCol('attempts'),
+    _varchar('attemptStamp', 20, required: false, fallback: ''),
+  ], permissions: const []);
+  await _table(tables, Ids.otpLimits, 'OTP send limits', [
+    _varchar('phone', 20),
+    _varchar('windowStart', 20),
+    _intCol('sendCount'),
+  ], permissions: const []);
+  await _table(tables, Ids.paymentEvents, 'Payment events', [
+    _varchar('orderId', 36),
+    _varchar('actorId', 36),
+    _varchar('action', 32),
+    _intCol('amount'),
+    _varchar('reference', 64, required: false, fallback: ''),
+    _varchar('createdAt', 40),
+  ], permissions: const []);
   await _ignore(
     () => storage.createBucket(
       bucketId: Ids.bucket,
@@ -189,8 +218,16 @@ Future<void> main() async {
     ),
   );
 
-  final email = env('APPWRITE_OWNER_EMAIL').isEmpty ? 'owner@bloomly.app' : env('APPWRITE_OWNER_EMAIL');
-  final password = env('APPWRITE_OWNER_PASSWORD').isEmpty ? 'bloomly123' : env('APPWRITE_OWNER_PASSWORD');
+  await _syncPermissions(tables);
+  await _varcharColumn(tables, Ids.orders, 'upiTxnRef', 40);
+  await _varcharColumn(tables, Ids.otpChallenges, 'attemptStamp', 20);
+  await _indexes(tables);
+  await _lockCustomerWrites(tables);
+
+  final email = env('APPWRITE_OWNER_EMAIL').isEmpty
+      ? 'owner@bloomly.app'
+      : env('APPWRITE_OWNER_EMAIL');
+  final password = ownerPassword;
   var ownerId = Ids.ownerUser;
   try {
     final created = await users.create(
@@ -207,12 +244,8 @@ Future<void> main() async {
   }
   await users.updateLabels(userId: ownerId, labels: ['owner']);
 
-  await _row(
-    tables,
-    Ids.store,
-    Ids.storeRow,
-    seedStore.toMap(),
-  );
+  await _varcharColumn(tables, Ids.store, 'promotions', 8000);
+  await _row(tables, Ids.store, Ids.storeRow, seedStore.toMap());
   for (final category in seedCategories) {
     await _row(tables, Ids.categories, category.id, {
       'name': category.name,
@@ -243,15 +276,26 @@ Future<void> main() async {
   await _varcharColumn(tables, Ids.addresses, 'latitude', 32);
   await _varcharColumn(tables, Ids.addresses, 'longitude', 32);
   await _varcharColumn(tables, Ids.addresses, 'landmark', 120);
-  await _varcharColumn(tables, Ids.orders, 'paymentStatus', 16, fallback: 'pending');
+  await _varcharColumn(
+    tables,
+    Ids.orders,
+    'paymentStatus',
+    16,
+    fallback: 'pending',
+  );
   await _varcharColumn(tables, Ids.orders, 'gatewayOrderId', 64);
   await _varcharColumn(tables, Ids.orders, 'gatewayPaymentId', 64);
+  await _varcharColumn(tables, Ids.orders, 'riderId', 36);
+  await _varcharColumn(tables, Ids.orders, 'riderName', 80);
+  await _varcharColumn(tables, Ids.orders, 'destLatitude', 32);
+  await _varcharColumn(tables, Ids.orders, 'destLongitude', 32);
+  await _varcharColumn(tables, Ids.profiles, 'email', 120);
   await _varcharColumn(tables, Ids.profiles, 'phone', 20);
   await _varcharColumn(tables, Ids.store, 'upiId', 80);
-  await _varcharColumn(tables, Ids.store, 'upiName', 80, fallback: 'Bloomly');
+  await _varcharColumn(tables, Ids.store, 'upiName', 80, fallback: 'Bloom');
   await _varcharColumn(tables, Ids.store, 'storePhone', 20);
 
-  stdout.writeln('Bloomly is seeded. Owner: $email');
+  stdout.writeln('Bloom is seeded. Owner: $email');
 }
 
 Map<String, Object> _varchar(
@@ -294,6 +338,14 @@ Map<String, Object> _intCol(String key) => {
   'max': 10000000,
 };
 
+Map<String, Object> _score(String key) => {
+  'key': key,
+  'type': 'integer',
+  'required': true,
+  'min': 1,
+  'max': 5,
+};
+
 Map<String, Object> _boolCol(String key) => {
   'key': key,
   'type': 'boolean',
@@ -316,7 +368,8 @@ Future<void> _table(
       name: name,
       rowSecurity: rowSecurity,
       columns: columns,
-      permissions: permissions ??
+      permissions:
+          permissions ??
           [
             if (guestRead) Permission.read(Role.any()),
             Permission.create(Role.label('owner')),
@@ -358,6 +411,210 @@ Map<String, String> _dotEnv() {
     values[line.substring(0, index).trim()] = line.substring(index + 1).trim();
   }
   return values;
+}
+
+Future<void> _syncPermissions(TablesDB tables) async {
+  await tables.updateTable(
+    databaseId: Ids.database,
+    tableId: Ids.addresses,
+    name: 'Addresses',
+    rowSecurity: true,
+    permissions: _addressGrants(),
+  );
+  await tables.updateTable(
+    databaseId: Ids.database,
+    tableId: Ids.orders,
+    name: 'Orders',
+    rowSecurity: true,
+    permissions: _orderGrants(),
+  );
+  await tables.updateTable(
+    databaseId: Ids.database,
+    tableId: Ids.orderItems,
+    name: 'Order items',
+    rowSecurity: true,
+    permissions: _itemGrants(),
+  );
+  await tables.updateTable(
+    databaseId: Ids.database,
+    tableId: Ids.riderLocations,
+    name: 'Rider locations',
+    rowSecurity: true,
+    permissions: _locationGrants(),
+  );
+  await tables.updateTable(
+    databaseId: Ids.database,
+    tableId: Ids.reviews,
+    name: 'Reviews',
+    rowSecurity: true,
+    permissions: _reviewGrants(),
+  );
+  await tables.updateTable(
+    databaseId: Ids.database,
+    tableId: Ids.profiles,
+    name: 'Profiles',
+    rowSecurity: true,
+    permissions: _profileGrants(),
+  );
+}
+
+List<String> _addressGrants() => [
+  Permission.create(Role.users()),
+  Permission.read(Role.label('owner')),
+  Permission.update(Role.label('owner')),
+  Permission.delete(Role.label('owner')),
+];
+
+List<String> _orderGrants() => [
+  Permission.read(Role.label('owner')),
+  Permission.update(Role.label('owner')),
+  Permission.delete(Role.label('owner')),
+];
+
+List<String> _itemGrants() => [
+  Permission.read(Role.label('owner')),
+  Permission.update(Role.label('owner')),
+];
+
+List<String> _locationGrants() => [Permission.read(Role.label('owner'))];
+
+List<String> _reviewGrants() => [Permission.read(Role.label('owner'))];
+
+List<String> _profileGrants() => [Permission.read(Role.label('owner'))];
+
+Future<void> _indexes(TablesDB tables) async {
+  await _index(tables, Ids.orders, 'orders_user', ['userId']);
+  await _index(tables, Ids.orders, 'orders_status', ['status']);
+  await _index(tables, Ids.orders, 'orders_placed', ['placedAt']);
+  await _index(tables, Ids.orderItems, 'items_order', ['orderId']);
+  await _index(tables, Ids.addresses, 'addresses_user', ['userId']);
+  await _index(tables, Ids.reviews, 'reviews_order', ['orderId']);
+  await _index(tables, Ids.reviews, 'reviews_user', ['userId']);
+  await _index(tables, Ids.riderLocations, 'locations_order', ['orderId']);
+  await _index(tables, Ids.profiles, 'profiles_user', ['userId']);
+}
+
+Future<void> _index(TablesDB tables, String tableId, String key, List<String> columns) {
+  return _ignore(
+    () => tables.createIndex(
+      databaseId: Ids.database,
+      tableId: tableId,
+      key: key,
+      type: TablesDBIndexType.key,
+      columns: columns,
+    ),
+  );
+}
+
+/// Strips customer update from orders that were created before the server
+/// owned money and status. Table grants are not enough: Appwrite also honors
+/// the row grant.
+Future<void> _lockCustomerWrites(TablesDB tables) async {
+  final orders = await _allRows(tables, Ids.orders);
+  final customerOf = <String, String>{};
+  final riderOf = <String, String>{};
+  for (final row in orders) {
+    final userId = '${row.data['userId'] ?? ''}';
+    final riderId = '${row.data['riderId'] ?? ''}';
+    if (userId.isEmpty) continue;
+    customerOf[row.$id] = userId;
+    if (riderId.isNotEmpty) riderOf[row.$id] = riderId;
+    await tables.updateRow(
+      databaseId: Ids.database,
+      tableId: Ids.orders,
+      rowId: row.$id,
+      data: {'userId': userId},
+      permissions: [
+        Permission.read(Role.user(userId)),
+        Permission.read(Role.label('owner')),
+        Permission.update(Role.label('owner')),
+        if (riderId.isNotEmpty) Permission.read(Role.user(riderId)),
+      ],
+    );
+  }
+  for (final row in await _allRows(tables, Ids.orderItems)) {
+    final orderId = '${row.data['orderId'] ?? ''}';
+    final userId = customerOf[orderId] ?? '';
+    if (userId.isEmpty) continue;
+    await tables.updateRow(
+      databaseId: Ids.database,
+      tableId: Ids.orderItems,
+      rowId: row.$id,
+      data: {'orderId': orderId},
+      permissions: [
+        Permission.read(Role.user(userId)),
+        Permission.read(Role.label('owner')),
+        Permission.update(Role.label('owner')),
+      ],
+    );
+  }
+  for (final row in await _allRows(tables, Ids.addresses)) {
+    final userId = '${row.data['userId'] ?? ''}';
+    if (userId.isEmpty) continue;
+    await tables.updateRow(
+      databaseId: Ids.database,
+      tableId: Ids.addresses,
+      rowId: row.$id,
+      data: {'userId': userId},
+      permissions: [
+        Permission.read(Role.user(userId)),
+        Permission.update(Role.user(userId)),
+        Permission.delete(Role.user(userId)),
+        Permission.read(Role.label('owner')),
+        Permission.update(Role.label('owner')),
+        Permission.delete(Role.label('owner')),
+      ],
+    );
+  }
+  for (final row in await _allRows(tables, Ids.riderLocations)) {
+    final orderId = '${row.data['orderId'] ?? row.$id}';
+    final userId = customerOf[orderId] ?? '';
+    final riderId = riderOf[orderId] ?? '';
+    if (userId.isEmpty) continue;
+    await tables.updateRow(
+      databaseId: Ids.database,
+      tableId: Ids.riderLocations,
+      rowId: row.$id,
+      data: {'orderId': orderId},
+      permissions: [
+        Permission.read(Role.user(userId)),
+        Permission.read(Role.label('owner')),
+        if (riderId.isNotEmpty) Permission.read(Role.user(riderId)),
+      ],
+    );
+  }
+  for (final row in await _allRows(tables, Ids.reviews)) {
+    final orderId = '${row.data['orderId'] ?? ''}';
+    final userId = '${row.data['userId'] ?? ''}';
+    final riderId = '${row.data['riderId'] ?? ''}';
+    if (userId.isEmpty) continue;
+    await tables.updateRow(
+      databaseId: Ids.database,
+      tableId: Ids.reviews,
+      rowId: row.$id,
+      data: {'orderId': orderId.isEmpty ? row.$id : orderId},
+      permissions: [
+        Permission.read(Role.user(userId)),
+        Permission.read(Role.label('owner')),
+        if (riderId.isNotEmpty) Permission.read(Role.user(riderId)),
+      ],
+    );
+  }
+}
+
+Future<List<models.Row>> _allRows(TablesDB tables, String tableId) async {
+  final collected = <models.Row>[];
+  var offset = 0;
+  while (true) {
+    final page = await tables.listRows(
+      databaseId: Ids.database,
+      tableId: tableId,
+      queries: [Query.limit(100), Query.offset(offset)],
+    );
+    collected.addAll(page.rows);
+    if (page.rows.length < 100) return collected;
+    offset += 100;
+  }
 }
 
 Future<void> _ignore(Future<Object?> Function() action) async {

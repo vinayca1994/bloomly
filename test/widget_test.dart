@@ -2,6 +2,7 @@ import 'package:bloomly/core/theme.dart';
 import 'package:bloomly/core/widgets.dart';
 import 'package:bloomly/data/memory_backend.dart';
 import 'package:bloomly/data/providers.dart';
+import 'package:bloomly/data/stories.dart';
 import 'package:bloomly/features/shop/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,14 +26,54 @@ void main() {
         overrides: [
           backendProvider.overrideWith((ref) => MemoryBackend.seeded()),
         ],
-        child: MaterialApp(theme: BloomlyTheme.light(), home: const HomeScreen()),
+        child: MaterialApp(
+          theme: BloomlyTheme.light(),
+          home: const HomeScreen(),
+        ),
       ),
     );
     await tester.pump();
 
     expect(find.text('Deliver to'), findsOneWidget);
+    expect(find.text('Free delivery'), findsNothing);
+    expect(find.text('Morning vegetables'), findsNothing);
     expect(find.text('Tomato'), findsWidgets);
     expect(find.text('Fresh today'), findsOneWidget);
     expect(find.text('Regional flowers'), findsOneWidget);
+  });
+
+  testWidgets('a published banner shows on home', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(500, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final backend = MemoryBackend.seeded();
+    await backend.updateStore(
+      backend.store.copyWith(
+        promotions: const [
+          Story(
+            id: 'diwali',
+            placement: StoryPlacement.homeBanner,
+            title: 'Diwali marigolds',
+            subtitle: 'Flowers for the festival',
+            tone: StoryTone.marigold,
+            sort: 0,
+            route: '/categories/flowers',
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [backendProvider.overrideWith((ref) => backend)],
+        child: MaterialApp(
+          theme: BloomlyTheme.light(),
+          home: const HomeScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Diwali marigolds'), findsOneWidget);
+    expect(find.text('Morning vegetables'), findsNothing);
   });
 }
