@@ -52,6 +52,24 @@ void main() {
     expect(find.text('Regional flowers'), findsOneWidget);
   });
 
+  testWidgets('home does not overflow a 390-wide phone', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          backendProvider.overrideWith((ref) => MemoryBackend.seeded()),
+        ],
+        child: MaterialApp(
+          theme: BloomlyTheme.light(),
+          home: const HomeScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a published banner shows on home', (tester) async {
     await tester.binding.setSurfaceSize(const Size(500, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
