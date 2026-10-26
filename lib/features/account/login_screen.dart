@@ -715,11 +715,12 @@ class _AuthHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = context.bloom.isDark;
     return Container(
       height: 248,
-      decoration: const BoxDecoration(
-        color: Plum.s900,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      decoration: BoxDecoration(
+        color: dark ? BloomBrand.night : Plum.s900,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
       child: Stack(
         children: [
@@ -740,14 +741,20 @@ class _AuthHeader extends StatelessWidget {
                       children: [
                         Text(
                           'bloom',
-                          style: BloomlyType.display(26, color: BloomBrand.basilDark),
+                          style: BloomlyType.display(
+                            26,
+                            color: dark ? BloomBrand.basilDark : Petal.s300,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(title, style: BloomlyType.display(28, color: bloomWhite)),
                         const SizedBox(height: 6),
                         Text(
                           subtitle,
-                          style: BloomlyType.uiText(14, color: Plum.s200),
+                          style: BloomlyType.uiText(
+                            14,
+                            color: dark ? BloomBrand.secondaryTextDark : Plum.s200,
+                          ),
                         ),
                       ],
                     ),

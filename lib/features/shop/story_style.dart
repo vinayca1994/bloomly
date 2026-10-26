@@ -23,9 +23,9 @@ class StoryPalette {
         subtitle: Sun.s300,
       ),
       StoryTone.flower => const StoryPalette(
-        wash: Color(0xFFFFF6E4),
-        title: BloomBrand.ink,
-        subtitle: BloomBrand.basil,
+        wash: Petal.s50,
+        title: Plum.s900,
+        subtitle: Petal.s700,
       ),
       StoryTone.fruit => const StoryPalette(
         wash: Mango.s300,

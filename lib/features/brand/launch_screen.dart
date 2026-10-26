@@ -108,7 +108,7 @@ class _SplashFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: Plum.s950,
+      color: context.bloom.isDark ? BloomBrand.night : Plum.s950,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -211,7 +211,9 @@ class _LaunchFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final failed = message != null;
     return ColoredBox(
-      color: failed ? context.bloom.canvas : Plum.s950,
+      color: failed
+          ? context.bloom.canvas
+          : (context.bloom.isDark ? BloomBrand.night : Plum.s50),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -227,16 +229,18 @@ class _LaunchFrame extends StatelessWidget {
                       'bloom',
                       style: BloomlyType.display(
                         52,
-                        color: failed ? context.bloom.link : BloomBrand.basilDark,
+                        color: failed
+                            ? context.bloom.link
+                            : (context.bloom.isDark ? BloomBrand.basilDark : Petal.s600),
                       ),
                     ),
                     if (!failed) ...[
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Fresh in 25 minutes',
                         style: TextStyle(
                           fontFamily: BloomlyType.ui,
-                          color: Plum.s300,
+                          color: context.bloom.isDark ? BloomBrand.secondaryTextDark : Plum.s600,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
