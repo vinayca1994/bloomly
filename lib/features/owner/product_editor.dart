@@ -6,8 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme.dart';
+import '../../core/widgets.dart';
+import '../../data/catalog_seed.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class ProductEditor extends ConsumerStatefulWidget {
   const ProductEditor({this.productId, super.key});
@@ -31,6 +34,8 @@ class _ProductEditorState extends ConsumerState<ProductEditor> {
   final _name = TextEditingController();
   final _description = TextEditingController();
   final _imageUrl = TextEditingController();
+  final _leadPrice = TextEditingController();
+  final _leadMrp = TextEditingController();
   String _category = 'daily-veg';
   String _region = 'North';
   bool _available = true;
@@ -45,6 +50,8 @@ class _ProductEditorState extends ConsumerState<ProductEditor> {
     _name.dispose();
     _description.dispose();
     _imageUrl.dispose();
+    _leadPrice.dispose();
+    _leadMrp.dispose();
     super.dispose();
   }
 
@@ -55,6 +62,9 @@ class _ProductEditorState extends ConsumerState<ProductEditor> {
     _category = product.categorySlug;
     _region = product.region.isEmpty ? 'North' : product.region;
     _available = product.isAvailable;
+    final lead = product.variants.isEmpty ? null : product.variants.first;
+    _leadPrice.text = lead == null ? '' : '${lead.price}';
+    _leadMrp.text = lead == null ? '' : '${lead.mrp}';
     _variants
       ..clear()
       ..addAll(
@@ -80,17 +90,86 @@ class _ProductEditorState extends ConsumerState<ProductEditor> {
     final subs = backend.categories.where((item) => item.parentSlug != null).toList();
     final selected = subs.where((item) => item.slug == _category).firstOrNull;
     final isFlower = selected?.kind == 'flower';
+    final tokens = context.bloom;
+    final kind = switch (selected?.kind) {
+      'fruit' => ColorKind.fruit,
+      'flower' => ColorKind.flower,
+      _ => ColorKind.vegetable,
+    };
 
     return Scaffold(
       appBar: AppBar(title: Text(existing == null ? 'Add product' : 'Edit product')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: SizedBox(
+                  width: 96,
+                  height: 96,
+                  child: ProductImage(
+                    emoji: selected?.emoji ?? '🥬',
+                    kind: kind,
+                    url: _imageUrl.text.trim().isEmpty ? existing?.imageUrl : _imageUrl.text.trim(),
+                    bytes: _bytes,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
+                      onPressed: _pick,
+                      icon: const Icon(BloomIcons.image, size: 18),
+                      label: const Text('Change photo'),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Square, at least 600 px',
+                      style: TextStyle(color: tokens.textSecondary, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _imageUrl,
+            decoration: const InputDecoration(labelText: 'Image URL'),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
           TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name')),
           const SizedBox(height: 8),
           TextField(
             controller: _description,
             decoration: const InputDecoration(labelText: 'Description'),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _leadPrice,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Price', prefixText: '₹ '),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _leadMrp,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'MRP', prefixText: '₹ '),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
@@ -116,40 +195,57 @@ class _ProductEditorState extends ConsumerState<ProductEditor> {
               onChanged: (value) => setState(() => _region = value ?? _region),
             ),
           ],
-          const SizedBox(height: 8),
-          TextField(
-            controller: _imageUrl,
-            decoration: const InputDecoration(labelText: 'Image URL'),
+          const SizedBox(height: 16),
+          Text(
+            'Variants',
+            style: BloomlyType.uiText(13, weight: FontWeight.w800, color: tokens.textSecondary),
           ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: _pick,
-              icon: const Icon(Icons.photo_outlined),
-              label: Text(_bytes == null ? 'Upload photo' : 'Photo ready'),
+          const SizedBox(height: 8),
+          DecoratedBox(
+            decoration: BloomlyDecor.card(tokens),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              child: Column(
+                children: [
+                  for (var i = 0; i < _variants.length; i++) _variantFields(i),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: () => setState(() => _variants.add(_DraftVariant())),
+                      child: const Text('Add variant'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Available'),
-            value: _available,
-            activeThumbColor: BloomlyColors.green,
-            onChanged: (value) => setState(() => _available = value),
+          const SizedBox(height: 12),
+          DecoratedBox(
+            decoration: BloomlyDecor.card(tokens),
+            child: SwitchListTile(
+              title: const Text('Available today', style: TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: Text(
+                'Customers can add it to cart',
+                style: TextStyle(color: tokens.textSecondary),
+              ),
+              value: _available,
+              onChanged: (value) => setState(() => _available = value),
+            ),
           ),
-          const Text('Variants', style: TextStyle(fontWeight: FontWeight.w800)),
-          for (var i = 0; i < _variants.length; i++) _variantFields(i),
-          TextButton(
-            onPressed: () => setState(() => _variants.add(_DraftVariant())),
-            child: const Text('Add variant'),
-          ),
-          if (_error != null)
-            Text(_error!, style: const TextStyle(color: BloomlyColors.danger)),
-          const SizedBox(height: 8),
-          FilledButton(
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: TextStyle(color: tokens.danger)),
+          ],
+        ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: FilledButton(
             onPressed: _busy ? null : () => _save(existing),
             child: Text(_busy ? 'Saving…' : 'Save product'),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -167,26 +263,36 @@ class _ProductEditorState extends ConsumerState<ProductEditor> {
               onChanged: (value) => draft.label = value,
             ),
           ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 80,
-            child: TextFormField(
-              initialValue: draft.price,
-              decoration: const InputDecoration(labelText: 'Price'),
-              keyboardType: TextInputType.number,
-              onChanged: (value) => draft.price = value,
+          if (index == 0)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Text(
+                'Uses price above',
+                style: TextStyle(color: context.bloom.textSecondary, fontSize: 12),
+              ),
+            )
+          else ...[
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 80,
+              child: TextFormField(
+                initialValue: draft.price,
+                decoration: const InputDecoration(labelText: 'Price'),
+                keyboardType: TextInputType.number,
+                onChanged: (value) => draft.price = value,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 80,
-            child: TextFormField(
-              initialValue: draft.mrp,
-              decoration: const InputDecoration(labelText: 'MRP'),
-              keyboardType: TextInputType.number,
-              onChanged: (value) => draft.mrp = value,
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 80,
+              child: TextFormField(
+                initialValue: draft.mrp,
+                decoration: const InputDecoration(labelText: 'MRP'),
+                keyboardType: TextInputType.number,
+                onChanged: (value) => draft.mrp = value,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -207,6 +313,10 @@ class _ProductEditorState extends ConsumerState<ProductEditor> {
     if (_name.text.trim().isEmpty) {
       setState(() => _error = 'Add a name.');
       return;
+    }
+    if (_variants.isNotEmpty) {
+      _variants.first.price = _leadPrice.text;
+      _variants.first.mrp = _leadMrp.text;
     }
     final variants = <Variant>[];
     for (final draft in _variants) {

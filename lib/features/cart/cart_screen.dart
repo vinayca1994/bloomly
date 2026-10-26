@@ -8,6 +8,7 @@ import '../../core/widgets.dart';
 import '../../data/cart_controller.dart';
 import '../../data/catalog_seed.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -27,25 +28,32 @@ class CartScreen extends ConsumerWidget {
               context.go('/');
             }
           },
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(BloomIcons.arrowLeft),
         ),
       ),
       body: summary.lines.isEmpty
-          ? const Center(
+          ? const BloomEmpty(
               key: Key('cart-empty'),
-              child: Text(
-                'Your cart is empty',
-                style: TextStyle(color: BloomlyColors.muted, fontSize: 16),
-              ),
+              icon: BloomIcons.basket,
+              title: 'Your cart is empty',
+              body: 'Add vegetables, fruit, or flowers and they will wait here.',
             )
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
+                FreeDeliveryBar(
+                  subtotal: summary.subtotal,
+                  freeAbove: backend.store.freeDeliveryAbove,
+                ),
+                const SizedBox(height: 12),
                 for (final line in summary.lines)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
+                    padding: EdgeInsets.only(bottom: 10),
                     child: DecoratedBox(
-                      decoration: BloomlyDecor.card(),
+                      decoration: BloomlyDecor.card(
+                        context.bloom,
+                        color: line.soldOut ? context.bloom.cancelledBg : null,
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(
@@ -70,17 +78,16 @@ class CartScreen extends ConsumerWidget {
                                 children: [
                                   Text(
                                     line.product.name,
-                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                    style: TextStyle(fontWeight: FontWeight.w700),
                                   ),
                                   Text(
-                                    line.soldOut
-                                        ? 'Sold out'
-                                        : line.variant.label,
+                                    line.soldOut ? 'Sold out' : line.variant.label,
                                     style: TextStyle(
                                       color: line.soldOut
-                                          ? BloomlyColors.danger
-                                          : BloomlyColors.muted,
+                                          ? context.bloom.danger
+                                          : context.bloom.textSecondary,
                                       fontSize: 12,
+                                      fontWeight: line.soldOut ? FontWeight.w800 : null,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
@@ -92,20 +99,30 @@ class CartScreen extends ConsumerWidget {
                                 ],
                               ),
                             ),
-                            QtyStepper(
-                              qty: line.line.qty,
-                              minusKey: Key('minus-${line.variant.id}'),
-                              plusKey: Key('plus-${line.variant.id}'),
-                              onMinus: () => ref.read(cartProvider.notifier).setQty(
-                                line.product.id,
-                                line.variant.id,
-                                line.line.qty - 1,
+                            if (line.soldOut)
+                              TextButton(
+                                onPressed: () => ref.read(cartProvider.notifier).setQty(
+                                  line.product.id,
+                                  line.variant.id,
+                                  0,
+                                ),
+                                child: const Text('Remove'),
+                              )
+                            else
+                              QtyStepper(
+                                qty: line.line.qty,
+                                minusKey: Key('minus-${line.variant.id}'),
+                                plusKey: Key('plus-${line.variant.id}'),
+                                onMinus: () => ref.read(cartProvider.notifier).setQty(
+                                  line.product.id,
+                                  line.variant.id,
+                                  line.line.qty - 1,
+                                ),
+                                onPlus: () => ref.read(cartProvider.notifier).addOne(
+                                  line.product.id,
+                                  line.variant.id,
+                                ),
                               ),
-                              onPlus: () => ref.read(cartProvider.notifier).addOne(
-                                line.product.id,
-                                line.variant.id,
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -140,27 +157,46 @@ class _Bill extends StatelessWidget {
     final feeLabel = summary.subtotal > 0 && summary.deliveryFee == 0
         ? 'Free'
         : money(summary.deliveryFee);
+    final saved = summary.lines.fold<int>(0, (sum, line) {
+      if (line.soldOut) return sum;
+      final gap = line.variant.mrp - line.variant.price;
+      return sum + (gap > 0 ? gap * line.line.qty : 0);
+    });
+    final tokens = context.bloom;
     return DecoratedBox(
-      decoration: BloomlyDecor.card(),
+      decoration: BloomlyDecor.card(tokens),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _row('Item total', money(summary.subtotal)),
+            _row(context, 'Item total', money(summary.subtotal)),
             const SizedBox(height: 8),
-            _row('Delivery fee', feeLabel, key: const Key('delivery-fee')),
-            const Divider(height: 24),
-            _row('To pay', money(summary.total), key: const Key('to-pay'), strong: true),
+            _row(context, 'Delivery fee', feeLabel, key: const Key('delivery-fee')),
+            if (saved > 0) ...[
+              const SizedBox(height: 8),
+              _row(context, 'You save', money(saved), emphasis: tokens.success),
+            ],
+            Divider(height: 24, color: tokens.border),
+            _row(context, 'To pay', money(summary.total), key: Key('to-pay'), strong: true),
           ],
         ),
       ),
     );
   }
 
-  Widget _row(String label, String value, {Key? key, bool strong = false}) {
+  Widget _row(
+    BuildContext context,
+    String label,
+    String value, {
+    Key? key,
+    bool strong = false,
+    Color? emphasis,
+  }) {
+    final tokens = context.bloom;
     final style = TextStyle(
       fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
       fontSize: strong ? 16 : 14,
+      color: emphasis ?? (strong ? tokens.text : tokens.textSecondary),
     );
     return Row(
       children: [

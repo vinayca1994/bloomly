@@ -1,6 +1,8 @@
 import 'dart:convert';
 
-enum StoryPlacement { homeBanner, homeClip, category, splash }
+enum StoryPlacement { homeBanner, homeClip, category, splash, offerStrip, tileGrid }
+
+enum StoryMediaKind { none, image, video, lottie }
 
 enum StoryTone { leaf, fruit, flower, marigold }
 
@@ -33,6 +35,9 @@ class Story {
     this.hidden = false,
     this.startsAt,
     this.endsAt,
+    this.mediaKind = StoryMediaKind.none,
+    this.mediaUrl = '',
+    this.posterUrl = '',
   });
 
   final String id;
@@ -51,6 +56,11 @@ class Story {
   /// Inclusive start, stored as local midnight. [endsAt] is exclusive.
   final DateTime? startsAt;
   final DateTime? endsAt;
+
+  /// Optional loop inside the promotions JSON. Empty [mediaUrl] means artwork only.
+  final StoryMediaKind mediaKind;
+  final String mediaUrl;
+  final String posterUrl;
 
   bool isActiveAt(DateTime now) {
     if (hidden) return false;
@@ -77,6 +87,9 @@ class Story {
     DateTime? endsAt,
     bool clearStart = false,
     bool clearEnd = false,
+    StoryMediaKind? mediaKind,
+    String? mediaUrl,
+    String? posterUrl,
   }) {
     return Story(
       id: id,
@@ -93,6 +106,9 @@ class Story {
       hidden: hidden ?? this.hidden,
       startsAt: clearStart ? null : (startsAt ?? this.startsAt),
       endsAt: clearEnd ? null : (endsAt ?? this.endsAt),
+      mediaKind: mediaKind ?? this.mediaKind,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      posterUrl: posterUrl ?? this.posterUrl,
     );
   }
 
@@ -111,6 +127,9 @@ class Story {
     'hidden': hidden,
     'startsAt': startsAt?.toIso8601String() ?? '',
     'endsAt': endsAt?.toIso8601String() ?? '',
+    'mediaKind': mediaKind.name,
+    'mediaUrl': mediaUrl,
+    'posterUrl': posterUrl,
   };
 
   static Story? fromJson(Object? raw) {
@@ -137,6 +156,9 @@ class Story {
       hidden: raw['hidden'] == true,
       startsAt: _time(raw['startsAt']),
       endsAt: _time(raw['endsAt']),
+      mediaKind: _mediaKind(raw['mediaKind']),
+      mediaUrl: raw['mediaUrl'] is String ? raw['mediaUrl'] as String : '',
+      posterUrl: raw['posterUrl'] is String ? raw['posterUrl'] as String : '',
     );
   }
 }
@@ -153,6 +175,13 @@ StoryMotif _motif(Object? raw) {
     if (motif.name == raw) return motif;
   }
   return StoryMotif.leaf;
+}
+
+StoryMediaKind _mediaKind(Object? raw) {
+  for (final kind in StoryMediaKind.values) {
+    if (kind.name == raw) return kind;
+  }
+  return StoryMediaKind.none;
 }
 
 StoryTone _tone(Object? raw) {

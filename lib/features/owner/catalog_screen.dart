@@ -4,8 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../core/widgets.dart';
+import '../../data/backend.dart';
+import '../../data/catalog_seed.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class CatalogScreen extends ConsumerWidget {
   const CatalogScreen({super.key});
@@ -45,14 +49,15 @@ class _CatalogBodyState extends ConsumerState<_CatalogBody> {
       if (query.isEmpty) return true;
       return product.name.toLowerCase().contains(query);
     }).toList()..sort((a, b) => a.name.compareTo(b.name));
+    final tokens = context.bloom;
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: BloomlyColors.green,
-        foregroundColor: Colors.white,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: tokens.primary,
+        foregroundColor: tokens.onPrimary,
+        tooltip: 'Add product',
         onPressed: () => context.push('/owner/catalog/new'),
-        icon: const Icon(Icons.add),
-        label: const Text('Add product'),
+        child: const Icon(BloomIcons.add),
       ),
       body: Column(
         children: [
@@ -60,9 +65,9 @@ class _CatalogBodyState extends ConsumerState<_CatalogBody> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
               controller: _search,
-              decoration: const InputDecoration(
-                hintText: 'Search catalog',
-                prefixIcon: Icon(Icons.search),
+              decoration: InputDecoration(
+                hintText: 'Search ${backend.products.length} products',
+                prefixIcon: const Icon(BloomIcons.search),
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -76,7 +81,7 @@ class _CatalogBodyState extends ConsumerState<_CatalogBody> {
                 for (final entry in const [
                   ('all', 'All'),
                   ('vegetable', 'Vegetables'),
-                  ('fruit', 'Fruits'),
+                  ('fruit', 'Fruit'),
                   ('flower', 'Flowers'),
                 ])
                   Padding(
@@ -91,49 +96,35 @@ class _CatalogBodyState extends ConsumerState<_CatalogBody> {
             ),
           ),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
-              itemCount: products.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final product = products[index];
-                return Material(
-                  color: product.isAvailable ? Colors.white : const Color(0xFFF3F3F1),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+              children: [
+                DecoratedBox(
+                  decoration: BloomlyDecor.card(tokens),
+                  child: products.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            'No products match',
+                            style: TextStyle(color: tokens.textSecondary),
+                          ),
+                        )
+                      : Column(
                           children: [
-                            Expanded(
-                              child: InkWell(
-                                onTap: () => context.push('/owner/catalog/${product.id}'),
-                                child: Text(
-                                  product.name,
-                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-                                ),
+                            for (var i = 0; i < products.length; i++)
+                              _CatalogRow(
+                                product: products[i],
+                                emoji: _emoji(backend, products[i]),
+                                kind: kindFor(products[i], backend.categories),
+                                showDivider: i != products.length - 1,
+                                onOpen: () => context.push('/owner/catalog/${products[i].id}'),
+                                onAvailable: (value) =>
+                                    backend.setProductAvailable(products[i].id, value),
                               ),
-                            ),
-                            Switch(
-                              value: product.isAvailable,
-                              activeThumbColor: BloomlyColors.green,
-                              onChanged: (value) => backend.setProductAvailable(product.id, value),
-                            ),
                           ],
                         ),
-                        for (final variant in product.variants)
-                          _PriceEditor(
-                            key: ValueKey(variant.id),
-                            variant: variant,
-                            onSave: (price) => backend.setVariantPrice(product.id, variant.id, price),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                ),
+              ],
             ),
           ),
         ],
@@ -142,78 +133,76 @@ class _CatalogBodyState extends ConsumerState<_CatalogBody> {
   }
 }
 
-class _PriceEditor extends StatefulWidget {
-  const _PriceEditor({required this.variant, required this.onSave, super.key});
-
-  final Variant variant;
-  final ValueChanged<int> onSave;
-
-  @override
-  State<_PriceEditor> createState() => _PriceEditorState();
+String _emoji(BloomlyBackend backend, Product product) {
+  final category = backend.categories
+      .where((item) => item.slug == product.categorySlug)
+      .firstOrNull;
+  return category?.emoji ?? '🥬';
 }
 
-class _PriceEditorState extends State<_PriceEditor> {
-  late final TextEditingController _controller;
+class _CatalogRow extends StatelessWidget {
+  const _CatalogRow({
+    required this.product,
+    required this.emoji,
+    required this.kind,
+    required this.showDivider,
+    required this.onOpen,
+    required this.onAvailable,
+  });
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: '${widget.variant.price}');
-  }
-
-  @override
-  void didUpdateWidget(_PriceEditor oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.variant.price != widget.variant.price &&
-        _controller.text != '${widget.variant.price}') {
-      _controller.text = '${widget.variant.price}';
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final Product product;
+  final String emoji;
+  final ColorKind kind;
+  final bool showDivider;
+  final VoidCallback onOpen;
+  final ValueChanged<bool> onAvailable;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 88,
-            child: Text(widget.variant.label, style: const TextStyle(color: BloomlyColors.muted)),
-          ),
-          const Text('₹'),
-          const SizedBox(width: 6),
-          SizedBox(
-            width: 90,
-            child: TextField(
-              controller: _controller,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(isDense: true),
-              onSubmitted: (_) => _save(),
+    final tokens = context.bloom;
+    final lead = product.variants.isEmpty ? null : product.lead;
+    final caption = lead == null ? 'No price' : '${lead.label} · ${money(lead.price)}';
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: showDivider ? Border(bottom: BorderSide(color: tokens.border)) : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            const SizedBox(width: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: ProductImage(emoji: emoji, kind: kind, url: product.imageUrl),
+              ),
             ),
-          ),
-          IconButton(onPressed: _save, icon: const Icon(Icons.check, color: BloomlyColors.amber)),
-          Text(
-            money(widget.variant.mrp),
-            style: const TextStyle(
-              color: BloomlyColors.muted,
-              decoration: TextDecoration.lineThrough,
-              fontSize: 12,
+            const SizedBox(width: 12),
+            Expanded(
+              child: InkWell(
+                onTap: onOpen,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(product.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 2),
+                      Text(caption, style: TextStyle(color: tokens.textSecondary, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
-        ],
+            Switch(
+              value: product.isAvailable,
+              onChanged: onAvailable,
+            ),
+          ],
+        ),
       ),
     );
-  }
-
-  void _save() {
-    final price = int.tryParse(_controller.text.trim());
-    if (price == null || price < 0) return;
-    widget.onSave(price);
   }
 }

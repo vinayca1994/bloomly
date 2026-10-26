@@ -7,6 +7,7 @@ import '../../core/phone.dart';
 import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class AboutBlock {
   const AboutBlock(this.heading, this.body);
@@ -56,7 +57,7 @@ class AboutScreen extends ConsumerWidget {
           if (call != null)
             OutlinedButton.icon(
               onPressed: () => launchUrl(call),
-              icon: const Icon(Icons.call_outlined),
+              icon: const Icon(BloomIcons.phone),
               label: const Text('Call the store'),
             ),
         ],

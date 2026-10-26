@@ -159,7 +159,7 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pump(const Duration(seconds: 4));
+    await tester.pump(const Duration(seconds: 5));
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 80));
     }

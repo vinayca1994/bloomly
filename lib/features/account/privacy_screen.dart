@@ -32,7 +32,7 @@ class PrivacyScreen extends StatelessWidget {
           SizedBox(height: 12),
           Text(
             'Delete account removes your sign-in, saved addresses, and orders. Store listings also need a public copy of this note, hosted by the store.',
-            style: TextStyle(color: BloomlyColors.muted),
+            style: TextStyle(color: context.bloom.textSecondary),
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/bloom_tokens.dart';
 import 'stories.dart';
 
 enum PromoComposition { poster, stack, ticket }
@@ -127,9 +128,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables?sub=leafy',
     look: PromoLook(
-      ground: Color(0xFF1F4D3A),
-      ink: Color(0xFFF6F1E4),
-      accent: Color(0xFFE2B657),
+      ground: BloomBrand.basil,
+      ink: bloomWhite,
+      accent: BloomBrand.lime,
       motif: StoryMotif.neem,
     ),
     styles: [
@@ -163,9 +164,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.fruit,
     route: '/categories/fruits?sub=seasonal-fruit',
     look: PromoLook(
-      ground: Color(0xFFF4C95D),
-      ink: Color(0xFF1C3D2E),
-      accent: Color(0xFF6E8F3D),
+      ground: BloomBrand.marigold,
+      ink: BloomBrand.ink,
+      accent: BloomBrand.basil,
       motif: StoryMotif.cane,
     ),
     styles: [
@@ -199,9 +200,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.flower,
     route: '/categories/flowers?sub=loose-flowers',
     look: PromoLook(
-      ground: Color(0xFFF7D6E0),
-      ink: Color(0xFF1B3A2F),
-      accent: Color(0xFFE4572E),
+      ground: Color(0xFFFFF6E4),
+      ink: BloomBrand.ink,
+      accent: Mango.s600,
       motif: StoryMotif.flower,
     ),
     styles: [
@@ -235,9 +236,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.marigold,
     route: '/categories/flowers?sub=loose-flowers',
     look: PromoLook(
-      ground: Color(0xFF143D32),
-      ink: Color(0xFFF6E7C1),
-      accent: Color(0xFFE7A23A),
+      ground: BloomBrand.night,
+      ink: BloomBrand.paper,
+      accent: BloomBrand.marigold,
       motif: StoryMotif.lamp,
     ),
     styles: [
@@ -271,9 +272,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables',
     look: PromoLook(
-      ground: Color(0xFFE7F0D8),
-      ink: Color(0xFF1E3A24),
-      accent: Color(0xFFC4554A),
+      ground: BloomBrand.lime,
+      ink: BloomBrand.ink,
+      accent: BloomBrand.basil,
       motif: StoryMotif.leaf,
     ),
     styles: [
@@ -307,9 +308,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.fruit,
     route: '/categories/fruits?sub=everyday-fruit',
     look: PromoLook(
-      ground: Color(0xFF1E4D3A),
-      ink: Color(0xFFF7F3EA),
-      accent: Color(0xFFC23B3B),
+      ground: BloomBrand.basil,
+      ink: bloomWhite,
+      accent: BloomBrand.marigold,
       motif: StoryMotif.orange,
     ),
     styles: [
@@ -343,9 +344,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.fruit,
     route: '/categories/fruits?sub=seasonal-fruit',
     look: PromoLook(
-      ground: Color(0xFFF6C453),
-      ink: Color(0xFF3A2410),
-      accent: Color(0xFFE07A2F),
+      ground: BloomBrand.marigold,
+      ink: BloomBrand.ink,
+      accent: BloomBrand.basil,
       motif: StoryMotif.mango,
     ),
     styles: [
@@ -379,9 +380,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables?sub=leafy',
     look: PromoLook(
-      ground: Color(0xFFD7E8DC),
-      ink: Color(0xFF16342A),
-      accent: Color(0xFF2F6B52),
+      ground: BloomBrand.basil,
+      ink: bloomWhite,
+      accent: BloomBrand.lime,
       motif: StoryMotif.rain,
     ),
     styles: [
@@ -415,9 +416,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.fruit,
     route: '/categories/fruits?sub=citrus',
     look: PromoLook(
-      ground: Color(0xFFFFF4E8),
-      ink: Color(0xFF1C2A24),
-      accent: Color(0xFFE07A2F),
+      ground: Mango.s50,
+      ink: Plum.s900,
+      accent: Mango.s600,
       motif: StoryMotif.orange,
     ),
     styles: [
@@ -451,9 +452,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables',
     look: PromoLook(
-      ground: Color(0xFFE5F4F1),
-      ink: Color(0xFF0A5C4C),
-      accent: Color(0xFF0E7C66),
+      ground: BloomBrand.lime,
+      ink: BloomBrand.ink,
+      accent: BloomBrand.basil,
       motif: StoryMotif.leaf,
     ),
     styles: [
@@ -487,9 +488,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.marigold,
     route: '/categories/vegetables',
     look: PromoLook(
-      ground: Color(0xFFE4572E),
-      ink: Color(0xFFFFF8F2),
-      accent: Color(0xFFF6C453),
+      ground: BloomBrand.basil,
+      ink: bloomWhite,
+      accent: BloomBrand.marigold,
       motif: StoryMotif.basket,
     ),
     styles: [
@@ -523,9 +524,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables?sub=daily-veg',
     look: PromoLook(
-      ground: Color(0xFFE5F4F1),
-      ink: Color(0xFF172026),
-      accent: Color(0xFF0E7C66),
+      ground: BloomBrand.paper,
+      ink: BloomBrand.ink,
+      accent: BloomBrand.basil,
       motif: StoryMotif.basket,
     ),
     styles: [
@@ -559,9 +560,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.flower,
     route: '/categories/flowers',
     look: PromoLook(
-      ground: Color(0xFFFDE7EF),
-      ink: Color(0xFF172026),
-      accent: Color(0xFFC4556A),
+      ground: BloomBrand.paper,
+      ink: Plum.s900,
+      accent: BloomBrand.basil,
       motif: StoryMotif.region,
     ),
     styles: [

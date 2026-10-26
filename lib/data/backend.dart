@@ -154,6 +154,12 @@ abstract class BloomlyBackend extends ChangeNotifier {
   Future<void> expireStaleUpiOrders();
 
   Future<void> updateStore(StoreSettings next);
+
+  /// Stores a promo loop, Lottie file, or poster. Demo shops return null.
+  Future<String?> uploadPromoMedia({
+    required Uint8List bytes,
+    required String filename,
+  });
   Future<void> setProductAvailable(String productId, bool available);
   Future<void> setVariantPrice(String productId, String variantId, int price);
   Future<void> upsertProduct(Product product, {Uint8List? imageBytes});

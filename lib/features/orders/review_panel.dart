@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class ReviewPanel extends ConsumerStatefulWidget {
   const ReviewPanel({required this.order, super.key});
@@ -16,20 +17,28 @@ class ReviewPanel extends ConsumerStatefulWidget {
 
 class _ReviewPanelState extends ConsumerState<ReviewPanel> {
   final _note = TextEditingController();
-  int _freshness = 0;
-  int _rightItems = 0;
-  int _packing = 0;
-  int _onTime = 0;
-  int _polite = 0;
-  int _careful = 0;
+  int _overall = 0;
+  final _detail = <String, int>{};
   String? _error;
   bool _busy = false;
+  var _showDetail = false;
+
+  static const _aspects = <(String, String)>[
+    ('freshness', 'Fresh'),
+    ('rightItems', 'Right items'),
+    ('packing', 'Well packed'),
+    ('onTime', 'On time'),
+    ('polite', 'Polite rider'),
+    ('careful', 'Careful with the bag'),
+  ];
 
   @override
   void dispose() {
     _note.dispose();
     super.dispose();
   }
+
+  int _score(String key) => _detail[key] ?? _overall;
 
   @override
   Widget build(BuildContext context) {
@@ -42,43 +51,76 @@ class _ReviewPanelState extends ConsumerState<ReviewPanel> {
         !user.isOwner &&
         !user.isRider &&
         widget.order.status == OrderStatus.delivered;
-    if (review == null && !canWrite) return const SizedBox.shrink();
+    if (review == null && !canWrite) return SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 20),
-        Text('Review', style: BloomlyType.display(22)),
-        const SizedBox(height: 8),
-        if (review != null)
-          _SavedReview(review: review)
-        else ...[
-          Text('Items', style: BloomlyType.display(16)),
-          _Stars(label: 'Freshness', value: _freshness, onChanged: (value) => setState(() => _freshness = value)),
-          _Stars(label: 'Right items', value: _rightItems, onChanged: (value) => setState(() => _rightItems = value)),
-          _Stars(label: 'Packing', value: _packing, onChanged: (value) => setState(() => _packing = value)),
-          const SizedBox(height: 8),
-          Text('Rider${widget.order.riderName.isEmpty ? '' : ' · ${widget.order.riderName}'}', style: BloomlyType.display(16)),
-          _Stars(label: 'On time', value: _onTime, onChanged: (value) => setState(() => _onTime = value)),
-          _Stars(label: 'Polite', value: _polite, onChanged: (value) => setState(() => _polite = value)),
-          _Stars(label: 'Careful with the bag', value: _careful, onChanged: (value) => setState(() => _careful = value)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _note,
-            maxLength: 280,
-            decoration: const InputDecoration(labelText: 'Note (optional)'),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: BloomlyColors.danger)),
-          ],
-          const SizedBox(height: 8),
-          FilledButton(
-            onPressed: _busy ? null : _submit,
-            child: const Text('Send review'),
-          ),
-        ],
-      ],
+    final tokens = context.bloom;
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: DecoratedBox(
+        decoration: BloomlyDecor.card(tokens),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: review != null
+              ? _SavedReview(review: review)
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'How was your order?',
+                      style: BloomlyType.display(16, weight: FontWeight.w600, color: tokens.text),
+                    ),
+                    const SizedBox(height: 8),
+                    _OverallStars(
+                      value: _overall,
+                      onChanged: (value) => setState(() => _overall = value),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => setState(() => _showDetail = !_showDetail),
+                      child: Text(_showDetail ? 'Hide detail' : 'Add detail'),
+                    ),
+                    if (_showDetail)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final aspect in _aspects)
+                            FilterChip(
+                              label: Text(aspect.$2),
+                              selected: _detail.containsKey(aspect.$1),
+                              onSelected: _overall == 0
+                                  ? null
+                                  : (selected) {
+                                      setState(() {
+                                        if (selected) {
+                                          _detail[aspect.$1] = _overall;
+                                        } else {
+                                          _detail.remove(aspect.$1);
+                                        }
+                                      });
+                                    },
+                            ),
+                        ],
+                      ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _note,
+                      maxLength: 280,
+                      decoration: const InputDecoration(labelText: 'Note (optional)'),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(_error!, style: TextStyle(color: tokens.danger)),
+                    ],
+                    const SizedBox(height: 8),
+                    FilledButton(
+                      onPressed: _busy || _overall == 0 ? null : _submit,
+                      child: const Text('Send review'),
+                    ),
+                  ],
+                ),
+        ),
+      ),
     );
   }
 
@@ -89,12 +131,12 @@ class _ReviewPanelState extends ConsumerState<ReviewPanel> {
     });
     final error = await ref.read(backendProvider).submitReview(
       orderId: widget.order.id,
-      freshness: _freshness,
-      rightItems: _rightItems,
-      packing: _packing,
-      onTime: _onTime,
-      polite: _polite,
-      careful: _careful,
+      freshness: _score('freshness'),
+      rightItems: _score('rightItems'),
+      packing: _score('packing'),
+      onTime: _score('onTime'),
+      polite: _score('polite'),
+      careful: _score('careful'),
       note: _note.text,
     );
     if (!mounted) return;
@@ -112,18 +154,40 @@ class _SavedReview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scores = [
+      review.freshness,
+      review.rightItems,
+      review.packing,
+      review.onTime,
+      review.polite,
+      review.careful,
+    ];
+    final overall = (scores.reduce((a, b) => a + b) / scores.length).round();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Items', style: BloomlyType.display(16)),
-        _Stars(label: 'Freshness', value: review.freshness),
-        _Stars(label: 'Right items', value: review.rightItems),
-        _Stars(label: 'Packing', value: review.packing),
+        Text(
+          'Your review',
+          style: BloomlyType.display(16, weight: FontWeight.w600, color: context.bloom.text),
+        ),
         const SizedBox(height: 8),
-        Text('Rider', style: BloomlyType.display(16)),
-        _Stars(label: 'On time', value: review.onTime),
-        _Stars(label: 'Polite', value: review.polite),
-        _Stars(label: 'Careful with the bag', value: review.careful),
+        _OverallStars(value: overall),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final row in [
+              ('Fresh', review.freshness),
+              ('Right items', review.rightItems),
+              ('Well packed', review.packing),
+              ('On time', review.onTime),
+              ('Polite rider', review.polite),
+              ('Careful with the bag', review.careful),
+            ])
+              Chip(label: Text('${row.$1} ${row.$2}')),
+          ],
+        ),
         if (review.note.trim().isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(review.note),
@@ -140,39 +204,37 @@ class RiderScoreList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        _Stars(label: 'On time', value: review.onTime),
-        _Stars(label: 'Polite', value: review.polite),
-        _Stars(label: 'Careful with the bag', value: review.careful),
+        Chip(label: Text('On time ${review.onTime}')),
+        Chip(label: Text('Polite ${review.polite}')),
+        Chip(label: Text('Careful ${review.careful}')),
       ],
     );
   }
 }
 
-class _Stars extends StatelessWidget {
-  const _Stars({required this.label, required this.value, this.onChanged});
+class _OverallStars extends StatelessWidget {
+  const _OverallStars({required this.value, this.onChanged});
 
-  final String label;
   final int value;
   final ValueChanged<int>? onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.bloom;
     return Row(
       children: [
-        SizedBox(width: 132, child: Text(label, style: const TextStyle(fontSize: 14))),
         for (var star = 1; star <= 5; star++)
           IconButton(
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            tooltip: '$star star${star == 1 ? '' : 's'}',
             onPressed: onChanged == null ? null : () => onChanged!(star),
             icon: Icon(
-              star <= value ? Icons.star : Icons.star_border,
-              color: BloomlyColors.marigold,
-              size: 22,
+              star <= value ? BloomIcons.starFill : BloomIcons.star,
+              color: tokens.star,
+              size: 32,
             ),
           ),
       ],

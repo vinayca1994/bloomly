@@ -43,6 +43,17 @@ Deploy the Dart functions with `appwrite push functions --all --force` (see `app
 
 `dart run tool/seed.dart` reads those values from the environment or from `.env`. The API key stays out of the app. If the Appwrite defines are absent, Bloom uses the in-memory shop.
 
+Promo loops, Lottie files, and posters live in one storage bucket, `promo-media` (also listed in `appwrite.config.json`). Create it with `appwrite push buckets` or in the console:
+
+| Setting | Value |
+| --- | --- |
+| Bucket id | `promo-media` |
+| Maximum file size | 5 MB (5,000,000 bytes) |
+| Extensions | `mp4`, `webm`, `json`, `jpg`, `jpeg`, `png`, `webp` |
+| Permissions | read for anyone; create, update, and delete for signed-in users |
+
+The promotions collection does not change. A banner stores the file id or view URL, plus an optional poster URL, inside the existing promotions JSON (`mediaKind`, `mediaUrl`, `posterUrl`). Home, category, clip, tile, and splash placements read those fields. The in-memory shop has no bucket: the owner editor offers two sample files under `assets/media/` (a short silent MP4 and a small Lottie). Those loops were generated for this repo and are not third-party assets.
+
 Run the app against that project. Pass the UPI ID only if you want it as the default before the owner saves one in Today:
 
 ```bash

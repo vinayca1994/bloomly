@@ -46,6 +46,17 @@ class _ClipRailState extends State<_ClipRail>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _loop.stop();
+      _loop.value = 0;
+    } else if (!_loop.isAnimating) {
+      _loop.repeat(reverse: true);
+    }
+  }
+
+  @override
   void dispose() {
     _curve.dispose();
     _loop.dispose();
@@ -57,26 +68,31 @@ class _ClipRailState extends State<_ClipRail>
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: SizedBox(
-        height: 164,
-        child: PageView.builder(
-          controller: _page,
-          padEnds: false,
-          itemCount: widget.stories.length,
-          itemBuilder: (context, index) {
-            final tile = Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
-              child: _ClipTile(story: widget.stories[index]),
-            );
-            if (index != 0) return tile;
-            return AnimatedBuilder(
-              animation: _scale,
-              builder: (context, child) =>
-                  Transform.scale(scale: _scale.value, child: child),
-              child: tile,
-            );
-          },
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final height = constraints.maxWidth * 0.34 * 16 / 9;
+          return SizedBox(
+            height: height,
+            child: PageView.builder(
+              controller: _page,
+              padEnds: false,
+              itemCount: widget.stories.length,
+              itemBuilder: (context, index) {
+                final tile = Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+                  child: _ClipTile(story: widget.stories[index]),
+                );
+                if (index != 0) return tile;
+                return AnimatedBuilder(
+                  animation: _scale,
+                  builder: (context, child) =>
+                      Transform.scale(scale: _scale.value, child: child),
+                  child: tile,
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }

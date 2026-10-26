@@ -7,10 +7,12 @@ import 'app.dart';
 import 'core/crash_log.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  CrashLog.install();
-  runZonedGuarded(
-    () => runApp(const ProviderScope(child: BloomlyApp())),
-    CrashLog.record,
-  );
+  // ensureInitialized and runApp must share a zone. Initializing the binding
+  // outside this zone makes Flutter assert "Zone mismatch" from runApp, and
+  // CrashLog records that as bloom.crash.
+  runZonedGuarded(() {
+    WidgetsFlutterBinding.ensureInitialized();
+    CrashLog.install();
+    runApp(const ProviderScope(child: BloomlyApp()));
+  }, CrashLog.record);
 }

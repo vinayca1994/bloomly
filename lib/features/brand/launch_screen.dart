@@ -32,7 +32,10 @@ class LaunchGate extends ConsumerStatefulWidget {
 
 class _LaunchGateState extends ConsumerState<LaunchGate> {
   var _timedOut = false;
+  var _skipped = false;
+  var _page = 0;
   Timer? _timer;
+  final _pages = PageController();
 
   @override
   void initState() {
@@ -45,7 +48,13 @@ class _LaunchGateState extends ConsumerState<LaunchGate> {
   @override
   void dispose() {
     _timer?.cancel();
+    _pages.dispose();
     super.dispose();
+  }
+
+  void _skip() {
+    if (_skipped) return;
+    setState(() => _skipped = true);
   }
 
   @override
@@ -57,75 +66,219 @@ class _LaunchGateState extends ConsumerState<LaunchGate> {
       DateTime.now(),
       source: backend.store.promotions,
     );
-    if (leaveSplash(
-      ready: backend.ready,
-      timedOut: _timedOut,
-      failed: failed,
-    )) {
+    if (failed) {
+      return _LaunchFrame(
+        message: backend.loadError,
+        onRetry: () => ref.read(backendProvider).reload(),
+      );
+    }
+    if (_skipped ||
+        leaveSplash(ready: backend.ready, timedOut: _timedOut, failed: false)) {
       return LockGate(child: widget.child ?? const SizedBox.shrink());
     }
     if (splash.isNotEmpty) {
-      return ColoredBox(
-        color: BloomlyColors.canvas,
-        child: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480),
-                child: PromoCard(story: splash.first),
-              ),
-            ),
-          ),
-        ),
+      final page = _page.clamp(0, splash.length - 1);
+      return _SplashFrame(
+        stories: splash,
+        page: page,
+        controller: _pages,
+        onPage: (index) => setState(() => _page = index),
+        onSkip: _skip,
       );
     }
-    return _LaunchFrame(
-      message: backend.loadError,
-      onRetry: failed ? () => ref.read(backendProvider).reload() : null,
-    );
+    return _LaunchFrame(onSkip: _skip);
   }
 }
 
-class _LaunchFrame extends StatelessWidget {
-  const _LaunchFrame({this.message, this.onRetry});
+class _SplashFrame extends StatelessWidget {
+  const _SplashFrame({
+    required this.stories,
+    required this.page,
+    required this.controller,
+    required this.onPage,
+    required this.onSkip,
+  });
 
-  final String? message;
-  final VoidCallback? onRetry;
+  final List<Story> stories;
+  final int page;
+  final PageController controller;
+  final ValueChanged<int> onPage;
+  final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: BloomlyColors.canvas,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: ColoredBox(
-            color: BloomlyColors.paper,
+      color: context.bloom.isDark ? BloomBrand.night : Plum.s950,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          PageView.builder(
+            controller: controller,
+            itemCount: stories.length,
+            onPageChanged: onPage,
+            itemBuilder: (context, index) {
+              return PromoCard(
+                story: stories[index],
+                bleed: true,
+                onTap: () {},
+              );
+            },
+          ),
+          const IgnorePointer(
             child: SafeArea(
-              child: Center(
+              child: Align(
+                alignment: Alignment.topCenter,
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.only(top: 8),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('bloom', style: BloomlyType.display(52)),
-                      if (message != null) ...[
-                        const SizedBox(height: 16),
-                        Text(message!, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: onRetry,
-                          child: const Text('Retry'),
+                      Text(
+                        'bloom',
+                        style: TextStyle(
+                          fontFamily: BloomlyType.displayFamily,
+                          fontSize: 40,
+                          height: 1,
+                          fontWeight: FontWeight.w700,
+                          color: BloomBrand.basilDark,
                         ),
-                      ],
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Fresh in 25 minutes',
+                        style: TextStyle(
+                          fontFamily: BloomlyType.ui,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Plum.s300,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
             ),
           ),
-        ),
+          Positioned(
+            top: 0,
+            right: 16,
+            child: SafeArea(
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: Sun.s100,
+                  backgroundColor: const Color(0x800C1511),
+                  minimumSize: const Size(48, 36),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: onSkip,
+                child: const Text('Skip'),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 32,
+            bottom: 32,
+            child: Row(
+              children: [
+                for (var i = 0; i < stories.length; i++)
+                  Container(
+                    width: 24,
+                    height: 4,
+                    margin: const EdgeInsets.only(right: 6),
+                    decoration: BoxDecoration(
+                      color: i == page ? Sun.s300 : Sun.s100.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LaunchFrame extends StatelessWidget {
+  const _LaunchFrame({this.message, this.onRetry, this.onSkip});
+
+  final String? message;
+  final VoidCallback? onRetry;
+  final VoidCallback? onSkip;
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = message != null;
+    return ColoredBox(
+      color: failed
+          ? context.bloom.canvas
+          : (context.bloom.isDark ? BloomBrand.night : Plum.s50),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'bloom',
+                      style: BloomlyType.display(
+                        52,
+                        color: failed
+                            ? context.bloom.link
+                            : (context.bloom.isDark ? BloomBrand.basilDark : Petal.s600),
+                      ),
+                    ),
+                    if (!failed) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Fresh in 25 minutes',
+                        style: TextStyle(
+                          fontFamily: BloomlyType.ui,
+                          color: context.bloom.isDark ? BloomBrand.secondaryTextDark : Plum.s600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                    if (message != null) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        message!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: context.bloom.text),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton(onPressed: onRetry, child: const Text('Retry')),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (onSkip != null)
+            Positioned(
+              top: 0,
+              right: 16,
+              child: SafeArea(
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Sun.s100,
+                    backgroundColor: const Color(0x800C1511),
+                    minimumSize: const Size(48, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  onPressed: onSkip,
+                  child: const Text('Skip'),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

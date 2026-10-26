@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class AddressesScreen extends ConsumerStatefulWidget {
   const AddressesScreen({super.key});
@@ -21,6 +22,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
   final _pincode = TextEditingController();
   String? _editingId;
   String? _error;
+  var _form = false;
 
   @override
   void dispose() {
@@ -44,6 +46,11 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
     _error = null;
   }
 
+  void _openNew(String city) {
+    _clearForm(city: city);
+    _form = true;
+  }
+
   void _fillForm(Address address) {
     _editingId = address.id;
     _label.text = address.label;
@@ -53,6 +60,14 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
     _city.text = address.city;
     _pincode.text = address.pincode;
     _error = null;
+    _form = true;
+  }
+
+  String get _saveAs {
+    final label = _label.text.trim().toLowerCase();
+    if (label == 'home') return 'Home';
+    if (label == 'work') return 'Work';
+    return 'Other';
   }
 
   @override
@@ -61,115 +76,158 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
     final user = backend.currentUser;
     if (_city.text.isEmpty) _city.text = backend.store.city;
     final addresses = user == null ? <Address>[] : backend.addressesFor(user.id);
+    final tokens = context.bloom;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Addresses')),
+      appBar: AppBar(
+        title: Text(_form ? (_editingId == null ? 'New address' : 'Edit address') : 'Saved addresses'),
+        leading: _form
+            ? IconButton(
+                tooltip: 'Back',
+                onPressed: () => setState(() {
+                  _form = false;
+                  _clearForm(city: backend.store.city);
+                }),
+                icon: const Icon(BloomIcons.arrowLeft),
+              )
+            : null,
+      ),
       body: user == null
           ? const Center(child: Text('Sign in to save an address.'))
+          : _form
+          ? _formBody(tokens)
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
-                for (final address in addresses)
-                  Card(
-                    color: BloomlyColors.card,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Column(
-                        children: [
-                          ListTile(
-                            title: Text(
-                              address.isDefault ? '${address.label} · Default' : address.label,
-                              style: const TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                            subtitle: Text(address.snapshot),
-                            trailing: IconButton(
-                              onPressed: () => backend.deleteAddress(address.id),
-                              icon: const Icon(Icons.delete_outline),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-                            child: Row(
-                              children: [
-                                TextButton(
-                                  onPressed: () => setState(() => _fillForm(address)),
-                                  child: const Text('Edit'),
-                                ),
-                                if (!address.isDefault)
-                                  TextButton(
-                                    onPressed: () => backend.saveAddress(
-                                      address.copyWith(isDefault: true),
-                                    ),
-                                    child: const Text('Set default'),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                for (final address in addresses) ...[
+                  _AddressCard(
+                    address: address,
+                    onEdit: () => setState(() => _fillForm(address)),
+                    onDefault: address.isDefault
+                        ? null
+                        : () => backend.saveAddress(address.copyWith(isDefault: true)),
+                    onDelete: () => backend.deleteAddress(address.id),
                   ),
-                const SizedBox(height: 8),
-                Text(
-                  _editingId == null ? 'New address' : 'Edit address',
-                  style: BloomlyType.display(24),
-                ),
-                if (_editingId != null) ...[
-                  const SizedBox(height: 4),
-                  TextButton(
-                    onPressed: () => setState(() => _clearForm(city: backend.store.city)),
-                    child: const Text('Cancel edit'),
-                  ),
+                  const SizedBox(height: 12),
                 ],
-                const SizedBox(height: 8),
                 OutlinedButton.icon(
-                  onPressed: _useLocation,
-                  icon: const Icon(Icons.my_location),
-                  label: Text(
-                    ref.watch(placeProvider).requesting
-                        ? 'Finding you…'
-                        : 'Use current location',
-                  ),
-                ),
-                if (ref.watch(placeProvider).error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    ref.watch(placeProvider).error!,
-                    style: const TextStyle(color: BloomlyColors.danger),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                TextField(controller: _label, decoration: const InputDecoration(labelText: 'Label')),
-                const SizedBox(height: 8),
-                TextField(controller: _line, decoration: const InputDecoration(labelText: 'House / street')),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _landmark,
-                  decoration: const InputDecoration(labelText: 'Landmark (optional)'),
-                ),
-                const SizedBox(height: 8),
-                TextField(controller: _area, decoration: const InputDecoration(labelText: 'Area')),
-                const SizedBox(height: 8),
-                TextField(controller: _city, decoration: const InputDecoration(labelText: 'City')),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _pincode,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Pincode'),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(_error!, style: const TextStyle(color: BloomlyColors.danger)),
-                ],
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: () => _save(user.id),
-                  child: Text(_editingId == null ? 'Save address' : 'Update address'),
+                  onPressed: () => setState(() => _openNew(backend.store.city)),
+                  icon: const Icon(BloomIcons.add),
+                  label: const Text('Add new address'),
                 ),
               ],
             ),
+      bottomNavigationBar: user == null || !_form
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: FilledButton(
+                  onPressed: () => _save(user.id),
+                  child: const Text('Save address'),
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _formBody(BloomTokens tokens) {
+    final place = ref.watch(placeProvider);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      children: [
+        DecoratedBox(
+          decoration: BloomlyDecor.card(tokens),
+          child: Column(
+            children: [
+              Container(
+                height: 120,
+                width: double.infinity,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: tokens.infoBg,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Icon(BloomIcons.mapPin, size: 36, color: tokens.primary),
+              ),
+              ListTile(
+                leading: Icon(BloomIcons.navigation, color: tokens.link),
+                title: Text(
+                  place.requesting ? 'Finding you…' : 'Use my current location',
+                  style: TextStyle(color: tokens.link, fontWeight: FontWeight.w700),
+                ),
+                trailing: place.place == null
+                    ? null
+                    : Text('Detected', style: TextStyle(color: tokens.textSecondary, fontSize: 12)),
+                onTap: place.requesting ? null : _useLocation,
+              ),
+            ],
+          ),
+        ),
+        if (place.error != null) ...[
+          const SizedBox(height: 8),
+          Text(place.error!, style: TextStyle(color: tokens.danger)),
+        ],
+        const SizedBox(height: 16),
+        TextField(
+          controller: _line,
+          decoration: const InputDecoration(labelText: 'House, flat or floor'),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _area,
+          decoration: const InputDecoration(labelText: 'Street and area'),
+        ),
+        const SizedBox(height: 8),
+        TextField(controller: _city, decoration: const InputDecoration(labelText: 'City')),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _pincode,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Pincode'),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _landmark,
+          decoration: const InputDecoration(labelText: 'Landmark (optional)'),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Save as',
+          style: BloomlyType.uiText(13, weight: FontWeight.w800, color: tokens.textSecondary),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final name in const ['Home', 'Work', 'Other'])
+              ChoiceChip(
+                showCheckmark: false,
+                label: Text(name),
+                selected: _saveAs == name,
+                onSelected: (_) => setState(() {
+                  if (name == 'Other' && _saveAs != 'Other') {
+                    _label.text = '';
+                  } else if (name != 'Other') {
+                    _label.text = name;
+                  }
+                }),
+              ),
+          ],
+        ),
+        if (_saveAs == 'Other') ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: _label,
+            decoration: const InputDecoration(labelText: 'Label'),
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(_error!, style: TextStyle(color: tokens.danger)),
+        ],
+      ],
     );
   }
 
@@ -192,8 +250,8 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
     final backend = ref.read(backendProvider);
     final existing = backend.addressesFor(userId);
     final detected = ref.read(placeProvider).place;
-    final sameCity = detected != null &&
-        detected.city.trim().toLowerCase() == _city.text.trim().toLowerCase();
+    final sameCity =
+        detected != null && detected.city.trim().toLowerCase() == _city.text.trim().toLowerCase();
     Address? editing;
     if (_editingId != null) {
       for (final address in existing) {
@@ -203,11 +261,12 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
         }
       }
     }
+    final label = _label.text.trim().isEmpty ? 'Home' : _label.text.trim();
     await backend.saveAddress(
       Address(
         id: _editingId ?? 'addr${DateTime.now().millisecondsSinceEpoch}',
         userId: userId,
-        label: _label.text.trim().isEmpty ? 'Home' : _label.text.trim(),
+        label: label,
         line: _line.text.trim(),
         landmark: _landmark.text.trim(),
         area: _area.text.trim(),
@@ -219,6 +278,91 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
       ),
     );
     if (!mounted) return;
-    setState(() => _clearForm(city: backend.store.city));
+    setState(() {
+      _form = false;
+      _clearForm(city: backend.store.city);
+    });
+  }
+}
+
+class _AddressCard extends StatelessWidget {
+  const _AddressCard({
+    required this.address,
+    required this.onEdit,
+    required this.onDefault,
+    required this.onDelete,
+  });
+
+  final Address address;
+  final VoidCallback onEdit;
+  final VoidCallback? onDefault;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.bloom;
+    final icon = switch (address.label.toLowerCase()) {
+      'home' => BloomIcons.house,
+      'work' => BloomIcons.briefcase,
+      _ => BloomIcons.mapPin,
+    };
+    return DecoratedBox(
+      decoration: BloomlyDecor.card(tokens),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 4, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 20, color: tokens.text),
+                const SizedBox(width: 8),
+                Text(address.label, style: const TextStyle(fontWeight: FontWeight.w800)),
+                if (address.isDefault) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 20,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: tokens.success.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Default',
+                      style: BloomlyType.uiText(11, weight: FontWeight.w800, color: tokens.success),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                PopupMenuButton<String>(
+                  tooltip: 'Address actions',
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'edit':
+                        onEdit();
+                      case 'default':
+                        onDefault?.call();
+                      case 'delete':
+                        onDelete();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    if (onDefault != null)
+                      const PopupMenuItem(value: 'default', child: Text('Set as default')),
+                    const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: Text(address.snapshot, style: TextStyle(color: tokens.textSecondary)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

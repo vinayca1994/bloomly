@@ -96,5 +96,24 @@
                 }
             ]
         }
+    ],
+    "buckets": [
+        {
+            "$id": "promo-media",
+            "name": "Promo media",
+            "enabled": true,
+            "fileSecurity": false,
+            "maximumFileSize": 5000000,
+            "allowedFileExtensions": ["mp4", "webm", "json", "jpg", "jpeg", "png", "webp"],
+            "compression": "none",
+            "encryption": false,
+            "antivirus": false,
+            "$permissions": [
+                "read(\"any\")",
+                "create(\"users\")",
+                "update(\"users\")",
+                "delete(\"users\")"
+            ]
+        }
     ]
 }

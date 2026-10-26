@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/autoplay.dart';
 import '../../core/theme.dart';
 import '../../data/auth_result.dart';
 import '../../data/cart_controller.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
+import '../../core/bloom_icons.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
@@ -15,173 +17,232 @@ class AccountScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final backend = ref.watch(backendProvider);
     final user = backend.currentUser;
+    final tokens = context.bloom;
+    final lock = ref.watch(appLockProvider);
+    final saved = user == null ? 0 : backend.addressesFor(user.id).length;
     return Scaffold(
       appBar: AppBar(title: const Text('Account')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          DecoratedBox(
-            decoration: BloomlyDecor.card(),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: BloomlyColors.green,
-                    child: Text(
-                      (user == null || user.name.isEmpty)
-                          ? 'B'
-                          : user.name[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: BloomlyColors.ink,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 22,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user == null
-                              ? 'Guest'
-                              : (user.name.trim().isEmpty
-                                    ? 'Bloom customer'
-                                    : user.name),
-                          style: BloomlyType.display(24),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          user?.contact.isNotEmpty == true
-                              ? user!.contact
-                              : 'Sign in to place an order',
-                          style: const TextStyle(color: BloomlyColors.muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (user == null)
-            FilledButton(
-              onPressed: () => context.push('/login'),
-              child: Text(
-                'Sign in',
-                style: BloomlyType.label.copyWith(color: BloomlyColors.ink),
-              ),
-            )
-          else ...[
-            _tile(
-              icon: Icons.location_on_outlined,
-              title: 'Addresses',
-              onTap: () => context.push('/account/addresses'),
-            ),
-            _tile(
-              icon: Icons.receipt_long_outlined,
-              title: 'Orders',
-              onTap: () => context.go('/orders'),
-            ),
-            if (ref.watch(appLockProvider).supported)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: DecoratedBox(
-                  decoration: BloomlyDecor.card(),
-                  child: SwitchListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    title: Text(
-                      'Unlock with ${ref.watch(appLockProvider).label}',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    subtitle: const Text(
-                      'Face ID or fingerprint opens the app. Your password stays with the account.',
-                    ),
-                    value: ref.watch(appLockProvider).enabled,
-                    activeThumbColor: BloomlyColors.green,
-                    onChanged: (value) async {
-                      final error = await ref
-                          .read(appLockProvider)
-                          .setEnabled(value);
-                      if (error != null && context.mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text(error)));
-                      }
-                    },
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: tokens.secondary,
+                  child: Text(
+                    (user == null || user.name.isEmpty)
+                        ? 'B'
+                        : user.name[0].toUpperCase(),
+                    style: BloomlyType.display(24, color: tokens.onSecondary),
                   ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user == null
+                            ? 'Guest'
+                            : (user.name.trim().isEmpty
+                                  ? 'Bloom customer'
+                                  : user.name),
+                        style: BloomlyType.display(20, color: tokens.text),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        user?.contact.isNotEmpty == true
+                            ? user!.contact
+                            : 'Sign in to place an order',
+                        style: BloomlyType.uiText(
+                          13,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (user == null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: FilledButton(
+                onPressed: () => context.push('/login'),
+                child: const Text('Sign in'),
               ),
-            if (user.isOwner)
-              _tile(
-                icon: Icons.storefront_outlined,
+            ),
+          _group(context, 'Appearance', [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: SegmentedButton<ThemeMode>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: ThemeMode.system, label: Text('System')),
+                  ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+                  ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                ],
+                selected: {ref.watch(themeModeProvider).mode},
+                onSelectionChanged: (value) {
+                  ref.read(themeModeProvider).setMode(value.first);
+                },
+              ),
+            ),
+          ]),
+          _group(context, 'Autoplay videos', [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: SegmentedButton<AutoplayChoice>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: AutoplayChoice.always, label: Text('Always')),
+                  ButtonSegment(value: AutoplayChoice.wifi, label: Text('Wi-Fi only')),
+                  ButtonSegment(value: AutoplayChoice.never, label: Text('Never')),
+                ],
+                selected: {ref.watch(autoplayProvider).choice},
+                onSelectionChanged: (value) {
+                  ref.read(autoplayProvider).setChoice(value.first);
+                },
+              ),
+            ),
+          ]),
+          if (user != null)
+            _group(context,
+              'Orders, addresses and security',
+              [
+                _row(context,
+                  icon: BloomIcons.shoppingBag,
+                  title: 'Your orders',
+                  onTap: () => context.go('/orders'),
+                ),
+                _row(context,
+                  icon: BloomIcons.mapPin,
+                  title: 'Saved addresses',
+                  subtitle: saved == 0
+                      ? 'None saved'
+                      : '$saved saved',
+                  onTap: () => context.push('/account/addresses'),
+                ),
+                if (lock.supported)
+                  _row(context,
+                    icon: BloomIcons.lock,
+                    title: 'App lock',
+                    subtitle: lock.label,
+                    trailing: Switch(
+                      value: lock.enabled,
+                      onChanged: (value) async {
+                        final error = await ref
+                            .read(appLockProvider)
+                            .setEnabled(value);
+                        if (error != null && context.mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text(error)));
+                        }
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          _group(context, 'Legal', [
+            _row(context,
+              icon: BloomIcons.info,
+              title: 'About bloom',
+              onTap: () => context.push('/account/about'),
+            ),
+            _row(context,
+              icon: BloomIcons.shield,
+              title: 'Privacy and terms',
+              onTap: () => context.push('/account/privacy'),
+            ),
+          ]),
+          if (user != null)
+            _group(context, 'Account', [
+              _row(context,
+                icon: BloomIcons.signOut,
+                title: 'Sign out',
+                danger: true,
+                onTap: () async {
+                  final error = await backend.signOut();
+                  if (error == null) {
+                    ref.read(cartProvider.notifier).clear();
+                  } else if (context.mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(error)));
+                  }
+                },
+              ),
+              if (!user.isOwner && !user.isRider)
+                _row(context,
+                  icon: BloomIcons.trash,
+                  title: 'Delete account',
+                  danger: true,
+                  onTap: () => _delete(context, ref),
+                ),
+            ]),
+          _group(context, 'Staff', [
+            if (user?.isOwner == true)
+              _row(context,
+                icon: BloomIcons.storefront,
                 title: 'Open store console',
                 onTap: () => context.go('/owner'),
               ),
-            if (user.isRider)
-              _tile(
-                icon: Icons.delivery_dining_outlined,
+            if (user?.isRider == true)
+              _row(context,
+                icon: BloomIcons.moped,
                 title: 'Open deliveries',
                 onTap: () => context.go('/rider'),
               ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () async {
-                final error = await backend.signOut();
-                if (error == null) {
-                  ref.read(cartProvider.notifier).clear();
-                } else if (context.mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text(error)));
+            _row(context,
+              icon: BloomIcons.storefront,
+              title: 'Store team sign in',
+              subtitle: 'Owner and riders',
+              onTap: () {
+                if (user?.isOwner == true) {
+                  context.go('/owner');
+                } else if (user != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'The store console is for the owner account.',
+                      ),
+                    ),
+                  );
+                } else {
+                  context.push('/login?next=/owner');
                 }
               },
-              child: const Text('Log out'),
             ),
-            if (!user.isOwner && !user.isRider) ...[
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => _delete(context, ref),
-                child: const Text(
-                  'Delete account',
-                  style: TextStyle(color: BloomlyColors.danger),
-                ),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _group(BuildContext context, String title, List<Widget> rows) {
+    final tokens = context.bloom;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: Text(
+              title,
+              style: BloomlyType.uiText(
+                12,
+                weight: FontWeight.w700,
+                color: tokens.textSecondary,
               ),
-            ],
-          ],
-          const SizedBox(height: 16),
-          _tile(
-            icon: Icons.local_florist_outlined,
-            title: 'About Bloom',
-            onTap: () => context.push('/account/about'),
+            ),
           ),
-          _tile(
-            icon: Icons.privacy_tip_outlined,
-            title: 'Privacy',
-            onTap: () => context.push('/account/privacy'),
-          ),
-          _tile(
-            icon: Icons.store_outlined,
-            title: 'Store team sign in',
-            onTap: () {
-              if (user?.isOwner == true) {
-                context.go('/owner');
-              } else if (user != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'The store console is for the owner account.',
-                    ),
-                  ),
-                );
-              } else {
-                context.push('/login?next=/owner');
-              }
-            },
+          DecoratedBox(
+            decoration: BloomlyDecor.card(tokens),
+            child: Column(children: rows),
           ),
         ],
       ),
@@ -205,43 +266,55 @@ class AccountScreen extends ConsumerWidget {
     }
   }
 
-  Widget _tile({
+  Widget _row(BuildContext context, {
     required IconData icon,
     required String title,
-    required VoidCallback onTap,
+    String? subtitle,
+    bool danger = false,
+    Widget? trailing,
+    VoidCallback? onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Ink(
-            decoration: BloomlyDecor.card(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: BloomlyColors.leafWash,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(icon, color: BloomlyColors.greenDark, size: 20),
+    final tokens = context.bloom;
+    final color = danger ? tokens.danger : tokens.text;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                Icon(icon, color: color, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: BloomlyType.uiText(
+                          15,
+                          weight: FontWeight.w700,
+                          color: color,
+                        ),
+                      ),
+                      if (subtitle != null)
+                        Text(
+                          subtitle,
+                          style: BloomlyType.uiText(
+                            12,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right, color: BloomlyColors.muted),
-                ],
-              ),
+                ),
+                ?trailing,
+                if (trailing == null && onTap != null)
+                  Icon(BloomIcons.caretRight, color: tokens.textSecondary),
+              ],
             ),
           ),
         ),
@@ -304,8 +377,8 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
             ),
           ],
           if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: BloomlyColors.danger)),
+            SizedBox(height: 8),
+            Text(_error!, style: TextStyle(color: context.bloom.danger)),
           ],
         ],
       ),

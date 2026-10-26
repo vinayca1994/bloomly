@@ -19,6 +19,7 @@ import '../features/owner/owner_shell.dart';
 import '../features/owner/product_editor.dart';
 import '../features/owner/promotions_screen.dart';
 import '../features/owner/riders_screen.dart';
+import '../features/owner/settings_screen.dart';
 import '../features/owner/today_screen.dart';
 import '../features/rider/rider_screen.dart';
 import '../features/shop/category_screen.dart';
@@ -179,6 +180,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/owner/riders',
             builder: (context, state) => const RidersScreen(),
+          ),
+          GoRoute(
+            path: '/owner/settings',
+            builder: (context, state) => const SettingsScreen(),
           ),
           GoRoute(
             path: '/owner/catalog',

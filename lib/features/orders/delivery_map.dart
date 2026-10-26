@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../../core/config.dart';
 import '../../core/theme.dart';
 import '../../data/models.dart';
+import '../../core/bloom_icons.dart';
 
 class DeliveryMap extends StatelessWidget {
   const DeliveryMap({
@@ -51,25 +52,25 @@ class DeliveryMap extends StatelessWidget {
                         point: dest,
                         width: 36,
                         height: 36,
-                        child: const Icon(Icons.place, color: BloomlyColors.marigold, size: 32),
+                        child: Icon(BloomIcons.mapPin, color: context.bloom.star, size: 32),
                       ),
                     if (pin != null)
                       Marker(
                         point: pin,
                         width: 40,
                         height: 40,
-                        child: const Icon(Icons.delivery_dining, color: BloomlyColors.amber, size: 32),
+                        child: Icon(BloomIcons.moped, color: context.bloom.link, size: 32),
                       ),
                   ],
                 ),
               ],
             ),
-            const Positioned(
+            Positioned(
               left: 8,
               bottom: 6,
               child: Text(
                 '© OpenStreetMap',
-                style: TextStyle(fontSize: 11, color: BloomlyColors.muted),
+                style: TextStyle(fontSize: 11, color: context.bloom.textSecondary),
               ),
             ),
           ],
@@ -90,7 +91,7 @@ class _WaitingMap extends StatelessWidget {
       height: 120,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: BloomlyColors.leafWash,
+        color: context.bloom.washVeg,
         borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.all(16),

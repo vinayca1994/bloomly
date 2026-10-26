@@ -437,8 +437,9 @@ class OrderRecord {
         placed.day != day.day) {
       return false;
     }
-    if (status == OrderStatus.cancelled || status == OrderStatus.paymentPending)
+    if (status == OrderStatus.cancelled || status == OrderStatus.paymentPending) {
       return false;
+    }
     if (paymentStatus != PaymentStatus.paid) return false;
     return true;
   }

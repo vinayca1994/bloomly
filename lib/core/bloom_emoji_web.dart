@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart';
 
 /// CanvasKit downloads Noto for emoji, and that fetch fails on this shop's
 /// network. A plain span uses the browser's own emoji font.
-Widget bloomEmoji(String emoji, double size) {
+Widget bloomEmoji(String emoji, double size, [Color? color]) {
   return SizedBox(
     width: size,
     height: size,

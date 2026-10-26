@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
@@ -772,8 +771,9 @@ class AppwriteBackend extends BloomlyBackend {
     required String orderId,
     required String riderId,
   }) async {
-    if (currentUser?.isOwner != true)
+    if (currentUser?.isOwner != true) {
       return 'Only the store can assign a rider.';
+    }
     try {
       await _execute(Ids.payments, {
         'action': 'assignRider',
@@ -888,6 +888,24 @@ class AppwriteBackend extends BloomlyBackend {
     } on BloomlyException {
       // The schedule still cancels unpaid UPI orders if this call fails.
     }
+  }
+
+  @override
+  Future<String?> uploadPromoMedia({
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    if (bytes.length > 5000000) {
+      throw BloomlyException('That file is over 5 MB.');
+    }
+    if (_demo) return null;
+    final file = await _storage.createFile(
+      bucketId: Ids.promoMedia,
+      fileId: ID.unique(),
+      file: InputFile.fromBytes(bytes: bytes, filename: filename),
+      permissions: [Permission.read(Role.any())],
+    );
+    return '${config.endpoint}/storage/buckets/${Ids.promoMedia}/files/${file.$id}/view?project=${config.projectId}';
   }
 
   @override
@@ -1037,8 +1055,9 @@ class AppwriteBackend extends BloomlyBackend {
   ];
 
   Future<void> _ensureProfile() async {
-    if (currentUser == null || currentUser!.isOwner || currentUser!.isRider)
+    if (currentUser == null || currentUser!.isOwner || currentUser!.isRider) {
       return;
+    }
     try {
       await _execute(Ids.payments, {'action': 'ensureProfile'});
     } on BloomlyException {

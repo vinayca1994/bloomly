@@ -15,6 +15,8 @@ analyzer:
     - android/**
     - web/**
     - ios/**
+    # Nested Dart packages. CI analyzes them with `dart test` after their own pub get.
+    - functions/**
 
 linter:
   # The lint rules applied to this project can be customized in the
