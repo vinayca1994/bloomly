@@ -18,28 +18,39 @@ class CategoryScreen extends ConsumerStatefulWidget {
   ConsumerState<CategoryScreen> createState() => _CategoryScreenState();
 }
 
+enum _Sort { featured, priceLow, priceHigh, name }
+
 class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   static const _regions = ['All', 'North', 'South', 'East', 'West'];
   String _sub = '';
   String _region = 'All';
+  String? _groupOverride;
+  _Sort _sort = _Sort.featured;
   bool _syncedRoute = false;
 
-  String get _group => widget.group ?? 'vegetables';
+  String get _group => _groupOverride ?? widget.group ?? 'vegetables';
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_syncedRoute) return;
     _syncedRoute = true;
-    _sub = GoRouterState.of(context).uri.queryParameters['sub'] ?? '';
+    final router = GoRouter.maybeOf(context);
+    _sub = router == null
+        ? ''
+        : GoRouterState.of(context).uri.queryParameters['sub'] ?? '';
   }
 
   @override
   void didUpdateWidget(CategoryScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.group != widget.group) {
-      _sub = GoRouterState.of(context).uri.queryParameters['sub'] ?? '';
+      final router = GoRouter.maybeOf(context);
+      _sub = router == null
+          ? ''
+          : GoRouterState.of(context).uri.queryParameters['sub'] ?? '';
       _region = 'All';
+      _groupOverride = null;
       _syncedRoute = true;
     }
   }
@@ -67,7 +78,18 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         return false;
       }
       return true;
-    }).toList()..sort((a, b) => a.sort.compareTo(b.sort));
+    }).toList();
+    switch (_sort) {
+      case _Sort.featured:
+        products.sort((a, b) => a.sort.compareTo(b.sort));
+      case _Sort.priceLow:
+        products.sort((a, b) => a.lead.price.compareTo(b.lead.price));
+      case _Sort.priceHigh:
+        products.sort((a, b) => b.lead.price.compareTo(a.lead.price));
+      case _Sort.name:
+        products.sort((a, b) => a.name.compareTo(b.name));
+    }
+    final known = groups.any((item) => item.slug == _group);
 
     final promos = activeStories(
       StoryPlacement.category,
@@ -86,7 +108,10 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         actions: [
           IconButton(
             tooltip: 'Search',
-            onPressed: () => context.push('/search'),
+            onPressed: () {
+              if (GoRouter.maybeOf(context) == null) return;
+              context.push('/search');
+            },
             icon: const Icon(BloomIcons.search),
           ),
         ],
@@ -94,10 +119,10 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
       body: Column(
         children: [
           SizedBox(
-            height: 48,
+            height: 64,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               children: [
                 for (final group in groups)
                   Padding(
@@ -116,7 +141,12 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                       side: BorderSide(
                         color: group.slug == _group ? tokens.primary : tokens.border,
                       ),
-                      onSelected: (_) => context.go('/categories/${group.slug}'),
+                      avatar: Icon(
+                        _iconFor(group.slug),
+                        size: 18,
+                        color: group.slug == _group ? tokens.onPrimary : tokens.text,
+                      ),
+                      onSelected: (_) => _openGroup(context, group.slug),
                     ),
                   ),
               ],
@@ -164,14 +194,53 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                 ],
               ),
             ),
-          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+            child: Row(
+              children: [
+                Text(
+                  _sortLabel(_sort),
+                  style: BloomlyType.uiText(13, weight: FontWeight.w700, color: tokens.textSecondary),
+                ),
+                const Spacer(),
+                PopupMenuButton<_Sort>(
+                  tooltip: 'Sort',
+                  initialValue: _sort,
+                  onSelected: (value) => setState(() => _sort = value),
+                  itemBuilder: (context) => [
+                    for (final sort in _Sort.values)
+                      PopupMenuItem(value: sort, child: Text(_sortLabel(sort))),
+                  ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Icon(BloomIcons.sort, color: tokens.text),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
           Expanded(
-            child: products.isEmpty
-                ? Center(
-                    child: Text(
-                      'Nothing on this shelf right now.',
-                      style: TextStyle(color: tokens.textSecondary),
-                    ),
+            child: !backend.ready
+                ? const Center(child: CircularProgressIndicator())
+                : !known
+                ? _CategoryMessage(
+                    icon: BloomIcons.search,
+                    title: "That aisle isn't in the shop",
+                    body: 'Pick vegetables, fruit, or flowers.',
+                    action: 'Show vegetables',
+                    onAction: () => _openGroup(context, 'vegetables'),
+                  )
+                : products.isEmpty
+                ? _CategoryMessage(
+                    icon: BloomIcons.basket,
+                    title: 'Nothing on this shelf right now',
+                    body: 'Clear the filter to see the rest of the aisle.',
+                    action: _sub.isNotEmpty || _region != 'All' ? 'Clear filters' : null,
+                    onAction: () => setState(() {
+                      _sub = '';
+                      _region = 'All';
+                    }),
                   )
                 : GridView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -188,6 +257,18 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         ],
       ),
     );
+  }
+
+  void _openGroup(BuildContext context, String slug) {
+    if (GoRouter.maybeOf(context) != null) {
+      context.go('/categories/$slug');
+      return;
+    }
+    setState(() {
+      _groupOverride = slug;
+      _sub = '';
+      _region = 'All';
+    });
   }
 
   Widget _subChip(BuildContext context, String label, bool selected, VoidCallback onTap) {
@@ -207,6 +288,69 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         ),
         side: BorderSide(color: selected ? tokens.secondary : tokens.border),
         onSelected: (_) => onTap(),
+      ),
+    );
+  }
+}
+
+IconData _iconFor(String slug) {
+  return switch (slug) {
+    'fruits' => BloomIcons.fruits,
+    'flowers' => BloomIcons.flowers,
+    'puja' => BloomIcons.puja,
+    'gifting' => BloomIcons.gifting,
+    _ => BloomIcons.vegetables,
+  };
+}
+
+String _sortLabel(_Sort sort) {
+  return switch (sort) {
+    _Sort.featured => 'Featured',
+    _Sort.priceLow => 'Lowest price',
+    _Sort.priceHigh => 'Highest price',
+    _Sort.name => 'Name',
+  };
+}
+
+class _CategoryMessage extends StatelessWidget {
+  const _CategoryMessage({
+    required this.icon,
+    required this.title,
+    required this.body,
+    this.action,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final String? action;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.bloom;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 36, color: tokens.textSecondary),
+            const SizedBox(height: 12),
+            Text(title, textAlign: TextAlign.center, style: BloomlyType.display(22, color: tokens.text)),
+            const SizedBox(height: 6),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: BloomlyType.uiText(14, color: tokens.textSecondary),
+            ),
+            if (action != null && onAction != null) ...[
+              const SizedBox(height: 12),
+              TextButton(onPressed: onAction, child: Text(action!)),
+            ],
+          ],
+        ),
       ),
     );
   }

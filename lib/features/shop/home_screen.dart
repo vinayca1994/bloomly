@@ -54,17 +54,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       for (final product in forSale) product.name,
     ];
     final tabs = [
-      _Tab('all', 'All', BloomIcons.squaresDuo),
-      _Tab('vegetables', 'Vegetables', BloomIcons.plantDuo),
-      _Tab('fruits', 'Fruits', BloomIcons.orangeDuo),
-      _Tab('flowers', 'Flowers', BloomIcons.flowerDuo),
-      _Tab('puja', 'Puja', BloomIcons.lotusDuo),
-      _Tab('gifting', 'Gifting', BloomIcons.giftDuo),
+      _Tab('all', 'All', BloomIcons.all, null),
+      _Tab('vegetables', 'Vegetables', BloomIcons.vegetables, '/categories/vegetables'),
+      _Tab('fruits', 'Fruits', BloomIcons.fruits, '/categories/fruits'),
+      _Tab('flowers', 'Flowers', BloomIcons.flowers, '/categories/flowers'),
+      _Tab('puja', 'Puja', BloomIcons.puja, '/categories/flowers'),
+      _Tab('gifting', 'Gifting', BloomIcons.gifting, '/categories/flowers?sub=garlands'),
       if (festival != null)
         _Tab(
           'festival',
           _festivalName(festival.themeId),
-          BloomIcons.lampDuo,
+          BloomIcons.festival,
+          null,
         ),
     ];
 
@@ -94,6 +95,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             SliverPersistentHeader(
               pinned: true,
               delegate: _SearchHeader(
+                ground: look?.ground,
                 child: _RotatingSearch(
                   hints: hints.isEmpty
                       ? const ['Search vegetables, fruits, flowers']
@@ -115,7 +117,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: _CategoryTabs(
                 tabs: tabs,
                 selected: _tab,
-                onSelect: (id) => setState(() => _tab = id),
+                onSelect: (tab) => _openTab(context, tab),
               ),
             ),
             SliverToBoxAdapter(
@@ -147,7 +149,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ),
-            if (_tab == 'all') ...[
+            if (!backend.ready)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (forSale.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: _EmptyShelf(
+                  title: 'The shop is empty',
+                  body: 'New crates show up here when the store publishes them.',
+                ),
+              )
+            else if (_tab == 'all') ...[
               SliverToBoxAdapter(
                 child: _RowSection(
                   title: 'Fresh today',
@@ -183,6 +198,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  void _openTab(BuildContext context, _Tab tab) {
+    final route = tab.route;
+    if (route != null && GoRouter.maybeOf(context) != null) {
+      context.go(route);
+      return;
+    }
+    setState(() => _tab = tab.id);
+  }
+
   void _openAddress(BuildContext context, bool signedIn) {
     if (GoRouter.maybeOf(context) == null) return;
     if (signedIn) {
@@ -194,10 +218,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _Tab {
-  const _Tab(this.id, this.label, this.icon);
+  const _Tab(this.id, this.label, this.icon, this.route);
   final String id;
   final String label;
-  final (IconData, IconData) icon;
+  final IconData icon;
+  final String? route;
 }
 
 Story? _festival(List<Story> source, DateTime now) {
@@ -306,9 +331,6 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.bloom;
     final fg = ink ?? tokens.text;
-    final letter = (initial == null || initial!.isEmpty)
-        ? 'B'
-        : initial![0].toUpperCase();
     return ColoredBox(
       color: ground ?? tokens.canvas,
       child: Padding(
@@ -362,21 +384,14 @@ class _Header extends StatelessWidget {
                 const SizedBox(width: 12),
                 Semantics(
                   button: true,
-                  label: 'Account',
+                  label: initial == null || initial!.isEmpty ? 'Account' : 'Account, $initial',
                   child: InkWell(
                     onTap: onProfile,
                     customBorder: const CircleBorder(),
                     child: CircleAvatar(
                       radius: 18,
                       backgroundColor: tokens.secondary,
-                      child: Text(
-                        letter,
-                        style: BloomlyType.uiText(
-                          14,
-                          weight: FontWeight.w800,
-                          color: tokens.onSecondary,
-                        ),
-                      ),
+                      child: Icon(BloomIcons.userFill, size: 20, color: tokens.onSecondary),
                     ),
                   ),
                 ),
@@ -401,9 +416,10 @@ class _Header extends StatelessWidget {
 }
 
 class _SearchHeader extends SliverPersistentHeaderDelegate {
-  _SearchHeader({required this.child});
+  _SearchHeader({required this.child, this.ground});
 
   final Widget child;
+  final Color? ground;
 
   @override
   double get minExtent => 64;
@@ -414,7 +430,7 @@ class _SearchHeader extends SliverPersistentHeaderDelegate {
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Material(
-      color: context.bloom.canvas,
+      color: ground ?? context.bloom.canvas,
       elevation: overlapsContent ? 1 : 0,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -424,7 +440,8 @@ class _SearchHeader extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(_SearchHeader oldDelegate) => child != oldDelegate.child;
+  bool shouldRebuild(_SearchHeader oldDelegate) =>
+      child != oldDelegate.child || ground != oldDelegate.ground;
 }
 
 class _RotatingSearch extends StatefulWidget {
@@ -545,13 +562,13 @@ class _CategoryTabs extends StatelessWidget {
 
   final List<_Tab> tabs;
   final String selected;
-  final ValueChanged<String> onSelect;
+  final ValueChanged<_Tab> onSelect;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.bloom;
     return SizedBox(
-      height: 72,
+      height: 92,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -566,12 +583,25 @@ class _CategoryTabs extends StatelessWidget {
             selected: active,
             label: tab.label,
             child: InkWell(
-              onTap: () => onSelect(tab.id),
+              onTap: () => onSelect(tab),
               child: SizedBox(
                 width: 76,
                 child: Column(
                   children: [
-                    BloomDuotone(tab.icon, size: 24, color: color),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: active ? tokens.primary : tokens.sunken,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        tab.icon,
+                        size: 22,
+                        color: active ? tokens.onPrimary : tokens.text,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       tab.label,
@@ -603,6 +633,35 @@ class _CategoryTabs extends StatelessWidget {
   }
 }
 
+class _EmptyShelf extends StatelessWidget {
+  const _EmptyShelf({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.bloom;
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(BloomIcons.basket, size: 36, color: tokens.textSecondary),
+          const SizedBox(height: 12),
+          Text(title, style: BloomlyType.display(22, color: tokens.text)),
+          const SizedBox(height: 6),
+          Text(
+            body,
+            textAlign: TextAlign.center,
+            style: BloomlyType.uiText(14, color: tokens.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FilteredShelf extends StatelessWidget {
   const _FilteredShelf({required this.title, required this.products});
 
@@ -612,12 +671,9 @@ class _FilteredShelf extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (products.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(
-          'Nothing on this shelf right now.',
-          style: BloomlyType.uiText(14, color: context.bloom.textSecondary),
-        ),
+      return const _EmptyShelf(
+        title: 'Nothing on this shelf',
+        body: 'Try another aisle. Fresh crates land through the day.',
       );
     }
     return Padding(

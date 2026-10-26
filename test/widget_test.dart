@@ -1,3 +1,4 @@
+import 'package:bloomly/core/bloom_icons.dart';
 import 'package:bloomly/core/theme.dart';
 import 'package:bloomly/core/widgets.dart';
 import 'package:bloomly/data/memory_backend.dart';
@@ -37,6 +38,13 @@ void main() {
     await tester.pump();
 
     expect(find.text('Deliver to'), findsOneWidget);
+    final icons = tester.widgetList<Icon>(find.byType(Icon));
+    expect(icons, isNotEmpty);
+    expect(
+      icons.every((icon) => icon.icon?.fontFamily == 'MaterialIcons'),
+      isTrue,
+    );
+    expect(icons.any((icon) => icon.icon == BloomIcons.vegetables), isTrue);
     expect(find.text('Free delivery'), findsNothing);
     expect(find.text('Morning vegetables'), findsNothing);
     expect(find.text('Tomato'), findsWidgets);
