@@ -14,28 +14,28 @@ class StoryPalette {
   final Color title;
   final Color subtitle;
 
-  /// Festival grounds stay on the primitive ramps in both themes.
+  /// Festival grounds stay on the poster ramps, separate from the shop.
   static StoryPalette of(StoryTone tone) {
     return switch (tone) {
       StoryTone.marigold => const StoryPalette(
-        wash: Plum.s950,
-        title: Sun.s100,
-        subtitle: Sun.s300,
+        wash: Poster.night,
+        title: Poster.nightInk,
+        subtitle: Poster.harvest,
       ),
       StoryTone.flower => const StoryPalette(
-        wash: Petal.s50,
-        title: Plum.s900,
-        subtitle: Petal.s700,
+        wash: Market.flower,
+        title: Market.ink,
+        subtitle: Poster.red,
       ),
       StoryTone.fruit => const StoryPalette(
-        wash: Mango.s300,
-        title: Plum.s900,
-        subtitle: Chili.s700,
+        wash: Poster.cream,
+        title: Market.ink,
+        subtitle: Poster.citrus,
       ),
       StoryTone.leaf => const StoryPalette(
-        wash: Basil.s900,
-        title: Sun.s50,
-        subtitle: Mango.s300,
+        wash: Poster.pine,
+        title: bloomWhite,
+        subtitle: Poster.lime,
       ),
     };
   }

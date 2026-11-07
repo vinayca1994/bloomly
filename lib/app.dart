@@ -43,8 +43,7 @@ class _BloomlyAppState extends ConsumerState<BloomlyApp>
       title: 'Bloom',
       debugShowCheckedModeBanner: false,
       theme: BloomlyTheme.light(),
-      darkTheme: BloomlyTheme.dark(),
-      themeMode: ref.watch(themeModeProvider).mode,
+      themeMode: ThemeMode.light,
       routerConfig: router,
       builder: (context, child) => LaunchGate(child: child),
     );

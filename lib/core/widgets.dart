@@ -18,7 +18,8 @@ class BloomEmoji extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) => bloomEmoji(emoji, size, context.bloom.text);
+  Widget build(BuildContext context) =>
+      bloomEmoji(emoji, size, context.bloom.text);
 }
 
 class PhoneFrame extends StatelessWidget {
@@ -107,6 +108,7 @@ class QtyStepper extends StatelessWidget {
     required this.onPlus,
     this.minusKey,
     this.plusKey,
+    this.fitted = false,
     super.key,
   });
 
@@ -116,31 +118,54 @@ class QtyStepper extends StatelessWidget {
   final Key? minusKey;
   final Key? plusKey;
 
+  /// Fills a narrow parent, such as the control on a product photo.
+  final bool fitted;
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.bloom;
+    final height = fitted ? 32.0 : 44.0;
+    final qtyWidth = fitted ? 18.0 : 28.0;
     return Material(
-      color: tokens.primary,
-      borderRadius: BorderRadius.circular(14),
+      color: tokens.link,
+      borderRadius: BorderRadius.circular(fitted ? 10 : 12),
+      clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        height: 44,
+        height: height,
+        width: fitted ? double.infinity : null,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: fitted ? MainAxisSize.max : MainAxisSize.min,
           children: [
-            _button(context, BloomIcons.minus, onMinus, minusKey, 'Decrease, $qty in cart'),
+            _button(
+              context,
+              BloomIcons.minus,
+              onMinus,
+              minusKey,
+              'Decrease, $qty in cart',
+              height,
+              fitted,
+            ),
             SizedBox(
-              width: 28,
+              width: qtyWidth,
               child: Text(
                 '$qty',
                 textAlign: TextAlign.center,
                 style: BloomlyType.uiText(
-                  14,
-                  weight: FontWeight.w800,
+                  fitted ? 13 : 14,
+                  weight: FontWeight.w600,
                   color: tokens.onPrimary,
                 ),
               ),
             ),
-            _button(context, BloomIcons.add, onPlus, plusKey, '$qty in cart, increase'),
+            _button(
+              context,
+              BloomIcons.add,
+              onPlus,
+              plusKey,
+              '$qty in cart, increase',
+              height,
+              fitted,
+            ),
           ],
         ),
       ),
@@ -153,9 +178,11 @@ class QtyStepper extends StatelessWidget {
     VoidCallback onPressed,
     Key? key,
     String label,
+    double height,
+    bool fitted,
   ) {
     final tokens = context.bloom;
-    return Semantics(
+    final hit = Semantics(
       button: true,
       label: label,
       child: InkWell(
@@ -163,12 +190,14 @@ class QtyStepper extends StatelessWidget {
         onTap: onPressed,
         customBorder: const CircleBorder(),
         child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(icon, size: 18, color: tokens.onPrimary),
+          width: fitted ? double.infinity : 44,
+          height: height,
+          child: Icon(icon, size: fitted ? 16 : 18, color: tokens.onPrimary),
         ),
       ),
     );
+    if (fitted) return Expanded(child: hit);
+    return hit;
   }
 }
 
@@ -201,7 +230,11 @@ class StatusPill extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: BloomlyType.uiText(12, weight: FontWeight.w800, color: pair.$2),
+              style: BloomlyType.uiText(
+                12,
+                weight: FontWeight.w800,
+                color: pair.$2,
+              ),
             ),
           ],
         ),
@@ -322,7 +355,11 @@ class BloomEmpty extends StatelessWidget {
             Text(
               body,
               textAlign: TextAlign.center,
-              style: BloomlyType.uiText(14, color: tokens.textSecondary, height: 1.4),
+              style: BloomlyType.uiText(
+                14,
+                color: tokens.textSecondary,
+                height: 1.4,
+              ),
             ),
             if (action != null) ...[
               const SizedBox(height: 18),
@@ -337,7 +374,11 @@ class BloomEmpty extends StatelessWidget {
 
 /// Six visual boxes over one code field. The field stays the source of truth.
 class OtpBoxes extends StatelessWidget {
-  const OtpBoxes({required this.controller, required this.focusNode, super.key});
+  const OtpBoxes({
+    required this.controller,
+    required this.focusNode,
+    super.key,
+  });
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -363,7 +404,9 @@ class OtpBoxes extends StatelessWidget {
                       color: tokens.surface,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: i == digits.length ? tokens.borderFocus : tokens.borderStrong,
+                        color: i == digits.length
+                            ? tokens.borderFocus
+                            : tokens.borderStrong,
                         width: i == digits.length ? 2 : 1.5,
                       ),
                     ),

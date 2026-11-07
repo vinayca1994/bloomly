@@ -1,6 +1,7 @@
 import '../core/bill.dart';
 import 'backend.dart';
 import 'models.dart';
+import 'service_area.dart';
 
 class CartPrice {
   const CartPrice({
@@ -25,8 +26,15 @@ CartPrice priceLines({
   required String Function() nextItemId,
 }) {
   if (lines.isEmpty) throw BloomlyException('Your cart is empty.');
-  if (address.city.trim().toLowerCase() != backend.store.city.trim().toLowerCase()) {
-    throw BloomlyException('Bloom delivers in ${backend.store.city} only.');
+  if (!inDeliveryArea(
+    city: address.city,
+    pincode: address.pincode,
+    storeCity: backend.store.city,
+    storePincode: backend.store.pincode,
+  )) {
+    throw BloomlyException(
+      deliveryAreaMessage(backend.store.city, pincode: backend.store.pincode),
+    );
   }
   final items = <OrderItem>[];
   var subtotal = 0;

@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/phone.dart';
-import '../core/upi.dart';
 import 'auth_result.dart';
 import 'backend.dart';
 import 'catalog_seed.dart';
@@ -73,13 +72,13 @@ class MemoryBackend extends BloomlyBackend {
         id: 'addr-demo',
         userId: 'customer-demo',
         label: 'Home',
-        line: '42, 4th Cross',
-        area: 'Koramangala',
-        city: 'Bengaluru',
-        pincode: '560034',
+        line: '12, Temple Street',
+        area: 'Malur town',
+        city: 'Malur',
+        pincode: '563130',
         isDefault: true,
-        latitude: 12.9352,
-        longitude: 77.6245,
+        latitude: 13.0032,
+        longitude: 77.9382,
       ),
     ];
     unawaited(_restoreSession());
@@ -102,7 +101,7 @@ class MemoryBackend extends BloomlyBackend {
   bool get demoShortcuts => true;
 
   @override
-  bool get usesTestCheckout => store.upiId.trim().isEmpty;
+  bool get usesTestCheckout => true;
 
   @override
   bool ready = true;
@@ -136,6 +135,7 @@ class MemoryBackend extends BloomlyBackend {
   List<Address> _addresses = [];
   String? _pendingUserId;
   String? _pendingPhone;
+  String? _pendingEmail;
   bool _pendingIsNew = false;
   String? _resetUserId;
   final Map<String, Uint8List> _images = {};
@@ -228,6 +228,11 @@ class MemoryBackend extends BloomlyBackend {
     String phone, {
     required OtpChannel channel,
   }) async {
+    if (channel == OtpChannel.email) {
+      return const PhoneLoginStart.failure(
+        'Use email sign-in for an email code.',
+      );
+    }
     final normalized = PhoneNumber.normalizeIndia(phone);
     if (normalized == null) {
       return const PhoneLoginStart.failure(
@@ -245,7 +250,54 @@ class MemoryBackend extends BloomlyBackend {
       _pendingIsNew = true;
     }
     _pendingPhone = normalized;
+    _pendingEmail = null;
     return PhoneLoginStart(userId: _pendingUserId, isNew: _pendingIsNew);
+  }
+
+  @override
+  Future<PhoneLoginStart> startEmailLogin(String email) async {
+    final normalized = normalizeLoginEmail(email);
+    if (normalized == null) {
+      return const PhoneLoginStart.failure('Enter a valid email address.');
+    }
+    final existing = _accounts[normalized];
+    if (existing != null) {
+      _pendingUserId = existing.profile.id;
+      _pendingIsNew = false;
+    } else {
+      _pendingUserId = _nextId('user');
+      _pendingIsNew = true;
+    }
+    _pendingEmail = normalized;
+    _pendingPhone = null;
+    return PhoneLoginStart(userId: _pendingUserId, isNew: _pendingIsNew);
+  }
+
+  @override
+  Future<String?> verifyEmailOtp({
+    required String userId,
+    required String code,
+  }) async {
+    if (code.trim() != _demoOtp) return 'That code is wrong.';
+    if (userId != _pendingUserId || _pendingEmail == null) {
+      return 'Request a new code.';
+    }
+    if (_pendingIsNew) {
+      final profile = Profile(
+        id: userId,
+        name: '',
+        email: _pendingEmail!,
+        role: 'customer',
+      );
+      _accounts[_pendingEmail!] = _Account(password: '', profile: profile);
+      currentUser = profile;
+    } else {
+      currentUser = _accountById(userId)?.profile;
+    }
+    _pendingEmail = null;
+    if (currentUser != null) unawaited(_remember());
+    notifyListeners();
+    return currentUser == null ? 'Request a new code.' : null;
   }
 
   @override
@@ -413,6 +465,8 @@ class MemoryBackend extends BloomlyBackend {
     } catch (_) {}
   }
 
+  String _customerPhone(String userId) => _accountById(userId)?.profile.phone ?? '';
+
   _Account? _accountById(String id) {
     for (final account in _accounts.values) {
       if (account.profile.id == id) return account;
@@ -476,6 +530,7 @@ class MemoryBackend extends BloomlyBackend {
       total: price.total,
       paymentMethod: PaymentMethod.cod,
       paymentStatus: PaymentStatus.pending,
+      customerPhone: _customerPhone(userId),
       placedAt: DateTime.now(),
       destLatitude: address.latitude,
       destLongitude: address.longitude,
@@ -512,8 +567,7 @@ class MemoryBackend extends BloomlyBackend {
       total: price.total,
       paymentMethod: PaymentMethod.upi,
       paymentStatus: PaymentStatus.pending,
-      gatewayOrderId: store.upiId.trim(),
-      upiTxnRef: orderId.replaceAll(RegExp(r'[^A-Za-z0-9]'), ''),
+      customerPhone: _customerPhone(userId),
       placedAt: DateTime.now(),
       destLatitude: address.latitude,
       destLongitude: address.longitude,
@@ -522,12 +576,24 @@ class MemoryBackend extends BloomlyBackend {
     orders = [order, ...orders];
     notifyListeners();
     _emit(order);
-    return OnlinePayment(
-      order: order,
-      upiId: store.upiId.trim(),
-      upiName: store.upiName.trim().isEmpty ? 'Bloom' : store.upiName.trim(),
-      amountRupees: price.total,
-    );
+    return OnlinePayment(order: order, amountRupees: price.total);
+  }
+
+  @override
+  Future<OnlinePayment> resumeOnlinePayment(String orderId) async {
+    final order = orderById(orderId);
+    if (order == null) throw BloomlyException('Order not found.');
+    return OnlinePayment(order: order, amountRupees: order.total);
+  }
+
+  @override
+  Future<String?> verifyOnlinePayment({
+    required String orderId,
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String signature,
+  }) async {
+    return 'This shop does not take a bank payment.';
   }
 
   @override
@@ -535,60 +601,16 @@ class MemoryBackend extends BloomlyBackend {
     required String orderId,
     required String reference,
   }) async {
-    final order = orderById(orderId);
-    if (order == null) return 'Order not found.';
-    if (store.upiId.trim().isEmpty) return 'Add the store UPI ID first.';
-    final user = currentUser;
-    if (user == null || (user.id != order.userId && !user.isOwner)) {
-      return 'This order belongs to someone else.';
-    }
-    if (!order.awaitingPayment || order.paymentMethod != PaymentMethod.upi) {
-      return 'This order is not awaiting a UPI payment.';
-    }
-    final cleaned = normalizeUpiReference(reference);
-    if (cleaned == null || cleaned.isEmpty) {
-      return 'Enter the UPI reference as letters and numbers only.';
-    }
-    _replaceOrder(
-      order.copyWith(
-        paymentStatus: PaymentStatus.submitted,
-        gatewayPaymentId: cleaned,
-      ),
-    );
-    return null;
+    return 'The store does not confirm a UPI reference. Razorpay confirms the payment.';
   }
 
   @override
   Future<String?> confirmUpiPayment(String orderId) async {
-    final order = orderById(orderId);
-    if (order == null) return 'Order not found.';
-    if (currentUser?.isOwner != true) {
-      return 'Only the store can confirm a UPI payment.';
-    }
-    if (order.paymentMethod != PaymentMethod.upi) {
-      return 'This order was not paid by UPI.';
-    }
-    if (!order.awaitingPayment) {
-      return 'This order is not awaiting a UPI payment.';
-    }
-    if (order.paymentStatus != PaymentStatus.submitted ||
-        order.gatewayPaymentId.isEmpty) {
-      return 'Wait for the customer’s UPI reference before confirming.';
-    }
-    _replaceOrder(
-      order.copyWith(
-        status: OrderStatus.placed,
-        paymentStatus: PaymentStatus.paid,
-      ),
-    );
-    return null;
+    return 'The store does not confirm a UPI reference. Razorpay confirms the payment.';
   }
 
   @override
   Future<String?> completeTestPayment(String orderId) async {
-    if (store.upiId.trim().isNotEmpty) {
-      return 'This shop collects UPI in the customer’s app.';
-    }
     final order = orderById(orderId);
     if (order == null) return 'Order not found.';
     if (!order.awaitingPayment) return 'This order is not awaiting payment.';

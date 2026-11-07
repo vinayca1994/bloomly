@@ -36,9 +36,9 @@ void main() {
     expect(sameHash(first, '${first}x'), isFalse);
   });
 
-  test('cooldown lasts 30 seconds and the code lasts 10 minutes', () {
+  test('cooldown lasts 30 seconds and the code lasts 15 minutes', () {
     expect(otpCooldown, const Duration(seconds: 30));
-    expect(otpLifetime, const Duration(minutes: 10));
+    expect(otpLifetime, const Duration(minutes: 15));
     expect(otpMaxAttempts, 5);
     expect(cooldownError(sentAtMillis: 1000, nowMillis: 1000 + 29999), otpWait);
     expect(cooldownError(sentAtMillis: 1000, nowMillis: 1000 + 30000), isNull);
@@ -47,34 +47,29 @@ void main() {
     expect(isExpired(expiresAtMillis: 5001, nowMillis: 5000), isFalse);
   });
 
-  test('WhatsApp payload carries the code in the body and the button', () {
-    final body = whatsAppBody(
-      integratedNumber: '919000000000',
-      template: 'bloom_login',
-      namespace: 'ns',
-      language: 'en',
+  test('WhatsApp OTP uses loomWhatsAppOTP for 6 digits and 15 minutes', () {
+    final body = msg91OtpBody(
+      template: whatsAppTemplate(const {}),
       phone: '+919876543210',
       code: '654321',
     );
-    final encoded = jsonEncode(body);
-    expect(encoded.contains('authkey'), isFalse);
-    final template = (body['payload'] as Map)['template'] as Map;
-    final target = (template['to_and_components'] as List).first as Map;
-    expect(target['to'], ['919876543210']);
-    final components = target['components'] as Map;
-    expect((components['body_1'] as Map)['value'], '654321');
-    expect((components['button_1'] as Map)['value'], '654321');
+    expect(jsonEncode(body).contains('authkey'), isFalse);
+    expect(body['template_id'], whatsAppTemplateName);
+    expect(body['mobile'], '919876543210');
+    expect(body['otp'], '654321');
+    expect(body['otp_length'], 6);
+    expect(body['otp_expiry'], 15);
+    expect(
+      whatsAppTemplate(const {'MSG91_WHATSAPP_TEMPLATE': 'other'}),
+      'other',
+    );
   });
 
-  test('live WhatsApp stays off until every function variable is set', () {
+  test('live WhatsApp stays off until the pepper and MSG91 key are set', () {
     const pepper = '0123456789abcdef0123456789abcdef';
     const env = {
       'OTP_PEPPER': pepper,
       'MSG91_AUTH_KEY': 'key',
-      'MSG91_WHATSAPP_NUMBER': '919000000000',
-      'MSG91_WHATSAPP_TEMPLATE': 'bloom_login',
-      'MSG91_WHATSAPP_NAMESPACE': 'ns',
-      'MSG91_WHATSAPP_LANGUAGE': 'en',
     };
     expect(pepper.length, greaterThanOrEqualTo(minPepperLength));
     expect(whatsAppReady(env), isTrue);
@@ -109,5 +104,13 @@ void main() {
     expect(nextAttempt(attempts: 4).blocked, isFalse);
     expect(nextAttempt(attempts: 5).blocked, isTrue);
     expect(sendLimitId('+919876543210'), isNot(sendLimitId(mockPhone)));
+    final global = claimSend(
+      windowStart: 1000,
+      sendCount: otpGlobalSendLimit,
+      nowMillis: 2000,
+      limit: otpGlobalSendLimit,
+    );
+    expect(global.allowed, isFalse);
+    expect(globalSendLimitId, 'otpglobal');
   });
 }

@@ -108,7 +108,7 @@ class _SplashFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: context.bloom.isDark ? BloomBrand.night : Plum.s950,
+      color: Poster.night,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -140,7 +140,7 @@ class _SplashFrame extends StatelessWidget {
                           fontSize: 40,
                           height: 1,
                           fontWeight: FontWeight.w700,
-                          color: BloomBrand.basilDark,
+                          color: Poster.lime,
                         ),
                       ),
                       SizedBox(height: 4),
@@ -150,7 +150,7 @@ class _SplashFrame extends StatelessWidget {
                           fontFamily: BloomlyType.ui,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Plum.s300,
+                          color: Market.line,
                         ),
                       ),
                     ],
@@ -165,8 +165,8 @@ class _SplashFrame extends StatelessWidget {
             child: SafeArea(
               child: TextButton(
                 style: TextButton.styleFrom(
-                  foregroundColor: Sun.s100,
-                  backgroundColor: const Color(0x800C1511),
+                  foregroundColor: Poster.nightInk,
+                  backgroundColor: const Color(0x66000000),
                   minimumSize: const Size(48, 36),
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -187,7 +187,9 @@ class _SplashFrame extends StatelessWidget {
                     height: 4,
                     margin: const EdgeInsets.only(right: 6),
                     decoration: BoxDecoration(
-                      color: i == page ? Sun.s300 : Sun.s100.withValues(alpha: 0.3),
+                      color: i == page
+                          ? Poster.lime
+                          : Poster.nightInk.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(9),
                     ),
                   ),
@@ -211,9 +213,7 @@ class _LaunchFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final failed = message != null;
     return ColoredBox(
-      color: failed
-          ? context.bloom.canvas
-          : (context.bloom.isDark ? BloomBrand.night : Plum.s50),
+      color: failed ? context.bloom.canvas : context.bloom.canvas,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -227,12 +227,7 @@ class _LaunchFrame extends StatelessWidget {
                   children: [
                     Text(
                       'bloom',
-                      style: BloomlyType.display(
-                        52,
-                        color: failed
-                            ? context.bloom.link
-                            : (context.bloom.isDark ? BloomBrand.basilDark : Petal.s600),
-                      ),
+                      style: BloomlyType.display(52, color: context.bloom.text),
                     ),
                     if (!failed) ...[
                       const SizedBox(height: 8),
@@ -240,7 +235,7 @@ class _LaunchFrame extends StatelessWidget {
                         'Fresh in 25 minutes',
                         style: TextStyle(
                           fontFamily: BloomlyType.ui,
-                          color: context.bloom.isDark ? BloomBrand.secondaryTextDark : Plum.s600,
+                          color: context.bloom.textSecondary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -253,7 +248,10 @@ class _LaunchFrame extends StatelessWidget {
                         style: TextStyle(color: context.bloom.text),
                       ),
                       const SizedBox(height: 16),
-                      FilledButton(onPressed: onRetry, child: const Text('Retry')),
+                      FilledButton(
+                        onPressed: onRetry,
+                        child: const Text('Retry'),
+                      ),
                     ],
                   ],
                 ),
@@ -267,8 +265,8 @@ class _LaunchFrame extends StatelessWidget {
               child: SafeArea(
                 child: TextButton(
                   style: TextButton.styleFrom(
-                    foregroundColor: Sun.s100,
-                    backgroundColor: const Color(0x800C1511),
+                    foregroundColor: context.bloom.text,
+                    backgroundColor: context.bloom.sunken,
                     minimumSize: const Size(48, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,

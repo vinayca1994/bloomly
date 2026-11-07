@@ -33,8 +33,8 @@ void main() {
     expect(started.order.status, OrderStatus.paymentPending);
     expect(started.order.paymentMethod, PaymentMethod.upi);
     expect(started.order.subtotal, 36);
-    expect(started.payUri, contains('upi://pay'));
-    expect(started.payUri, contains('am=61.00'));
+    expect(started.opensGateway, isFalse);
+    expect(started.amountRupees, 61);
 
     expect(
       await backend.noteUpiPayment(
@@ -50,7 +50,7 @@ void main() {
     expect(OrderStatus.visibleToStore(order.status), isFalse);
   });
 
-  test('the store confirms UPI and cash stays unpaid', () async {
+  test('the store cannot confirm a UPI reference, and cash stays unpaid', () async {
     final backend = MemoryBackend.seeded(
       upiId: 'bloomly@oksbi',
       upiName: 'Bloomly',
@@ -86,54 +86,46 @@ void main() {
         orderId: started.order.id,
         reference: '123456789012',
       ),
-      isNull,
+      isNotNull,
     );
     final sent = backend.orderById(started.order.id)!;
-    expect(sent.paymentStatus, PaymentStatus.submitted);
-    expect(sent.gatewayPaymentId, '123456789012');
+    expect(sent.paymentStatus, PaymentStatus.pending);
+    expect(sent.status, OrderStatus.paymentPending);
     expect(OrderStatus.visibleToStore(sent.status), isFalse);
 
     await backend.signIn(MemoryBackend.ownerEmail, MemoryBackend.demoPassword);
-    expect(await backend.confirmUpiPayment(started.order.id), isNull);
+    expect(await backend.confirmUpiPayment(started.order.id), isNotNull);
+    final stillWaiting = backend.orderById(started.order.id)!;
+    expect(stillWaiting.status, OrderStatus.paymentPending);
+    expect(stillWaiting.paymentStatus, PaymentStatus.pending);
+  });
+
+  test('the in-memory shop marks UPI paid without a bank', () async {
+    final backend = MemoryBackend.seeded(upiId: 'bloomly@oksbi');
+    expect(backend.usesTestCheckout, isTrue);
+    final address = backend.addressesFor('customer-demo').first;
+    final started = await backend.startOnlinePayment(
+      userId: 'customer-demo',
+      address: address,
+      lines: const [
+        CartLine(productId: 'tomato', variantId: 'tomato-250g', qty: 1),
+      ],
+    );
+    expect(started.opensGateway, isFalse);
+    expect(await backend.completeTestPayment(started.order.id), isNull);
     final paid = backend.orderById(started.order.id)!;
     expect(paid.status, OrderStatus.placed);
     expect(paid.paymentStatus, PaymentStatus.paid);
-    expect(OrderStatus.visibleToStore(paid.status), isTrue);
+    expect(
+      await backend.verifyOnlinePayment(
+        orderId: paid.id,
+        razorpayOrderId: 'order_1',
+        razorpayPaymentId: 'pay_1',
+        signature: 'nope',
+      ),
+      isNotNull,
+    );
   });
-
-  test(
-    'the demo checkout marks an order paid only when no UPI ID is set',
-    () async {
-      final backend = MemoryBackend.seeded();
-      expect(backend.usesTestCheckout, isTrue);
-      final address = backend.addressesFor('customer-demo').first;
-      final started = await backend.startOnlinePayment(
-        userId: 'customer-demo',
-        address: address,
-        lines: const [
-          CartLine(productId: 'tomato', variantId: 'tomato-250g', qty: 1),
-        ],
-      );
-      expect(started.payUri, isNull);
-      expect(await backend.completeTestPayment(started.order.id), isNull);
-      final paid = backend.orderById(started.order.id)!;
-      expect(paid.paymentStatus, PaymentStatus.paid);
-
-      final live = MemoryBackend.seeded(upiId: 'bloomly@oksbi');
-      final pending = await live.startOnlinePayment(
-        userId: 'customer-demo',
-        address: address,
-        lines: const [
-          CartLine(productId: 'tomato', variantId: 'tomato-250g', qty: 1),
-        ],
-      );
-      expect(await live.completeTestPayment(pending.order.id), isNotNull);
-      expect(
-        live.orderById(pending.order.id)!.paymentStatus,
-        PaymentStatus.pending,
-      );
-    },
-  );
 
   test('a UPI link uses rupees and rejects a bad ID', () {
     final uri = upiPayUri(
@@ -157,6 +149,78 @@ void main() {
     );
     expect(normalizeUpiReference(''), '');
     expect(normalizeUpiReference('abc 1'), isNull);
+  });
+
+  test('each UPI app link carries the ID, amount, and reference', () {
+    for (final app in upiApps) {
+      final link = upiAppLink(
+        app: app,
+        android: false,
+        vpa: 'bloomly@oksbi',
+        name: 'Bloomly',
+        amountRupees: 43,
+        note: 'Bloom ord1',
+        transactionRef: 'ord1',
+      );
+      expect(link, isNotNull);
+      expect(link, contains('pa=bloomly%40oksbi'));
+      expect(link, contains('am=43.00'));
+      expect(link, contains('tr=ord1'));
+    }
+    final gpay = upiAppLink(
+      app: upiApps.first,
+      android: true,
+      vpa: 'bloomly@oksbi',
+      name: 'Bloomly',
+      amountRupees: 43,
+      note: 'Bloom ord1',
+      transactionRef: 'ord1',
+    );
+    expect(gpay, startsWith('intent://pay?'));
+    expect(gpay, contains('package=com.google.android.apps.nbu.paisa.user'));
+    expect(gpay, contains('am=43.00'));
+    expect(gpay, contains('tr=ord1'));
+    expect(
+      upiAppLink(
+        app: upiApps.first,
+        android: true,
+        vpa: 'not-a-upi-id',
+        name: 'Bloomly',
+        amountRupees: 43,
+        note: '',
+      ),
+      isNull,
+    );
+  });
+
+  test('Malur with another pin is outside the launch area', () async {
+    final backend = MemoryBackend.seeded();
+    const address = Address(
+      id: 'other-pin',
+      userId: 'customer-demo',
+      label: 'Home',
+      line: '1 Main Road',
+      area: 'Malur',
+      city: 'Malur',
+      pincode: '563160',
+      isDefault: false,
+    );
+    expect(
+      () => backend.placeOrder(
+        userId: 'customer-demo',
+        address: address,
+        lines: const [
+          CartLine(productId: 'tomato', variantId: 'tomato-250g', qty: 1),
+        ],
+      ),
+      throwsA(
+        isA<BloomlyException>().having(
+          (error) => error.message,
+          'message',
+          'Bloom delivers in Malur, 563130 only.',
+        ),
+      ),
+    );
   });
 
   test('an address outside the store city is rejected', () async {
@@ -225,5 +289,39 @@ void main() {
     final named = await backend.updateDisplayName('Meera');
     expect(named, isNull);
     expect(backend.currentUser?.name, 'Meera');
+  });
+
+  test('email sign-in accepts the demo code and rejects another', () async {
+    final backend = MemoryBackend.seeded();
+    final started = await backend.startEmailLogin('new.shopper@gmail.com');
+    expect(started.ok, isTrue);
+    expect(
+      await backend.verifyEmailOtp(userId: started.userId!, code: '000000'),
+      isNotNull,
+    );
+    expect(
+      await backend.verifyEmailOtp(
+        userId: started.userId!,
+        code: MemoryBackend.demoOtp,
+      ),
+      isNull,
+    );
+    expect(backend.currentUser?.email, 'new.shopper@gmail.com');
+    expect(backend.currentUser?.name, '');
+    expect(backend.currentUser?.role, 'customer');
+    final named = await backend.updateDisplayName('Meera');
+    expect(named, isNull);
+    expect(backend.currentUser?.name, 'Meera');
+    final again = await backend.startEmailLogin('New.Shopper@gmail.com');
+    expect(again.userId, backend.currentUser?.id);
+    expect(
+      await backend.verifyEmailOtp(
+        userId: again.userId!,
+        code: MemoryBackend.demoOtp,
+      ),
+      isNull,
+    );
+    expect(backend.currentUser?.name, 'Meera');
+    expect((await backend.startEmailLogin('not-an-email')).ok, isFalse);
   });
 }

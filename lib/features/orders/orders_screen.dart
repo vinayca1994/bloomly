@@ -19,7 +19,10 @@ class OrdersScreen extends ConsumerWidget {
     final user = backend.currentUser;
     final orders = user == null
         ? <OrderRecord>[]
-        : backend.orders.where((order) => order.userId == user.id).toList();
+        : backend.orders.where((order) => order.userId == user.id).toList()
+          ..sort((a, b) => b.placedAt.compareTo(a.placedAt));
+    final open = orders.where(_isOpen).toList();
+    final past = orders.where((order) => !_isOpen(order)).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Orders')),
@@ -38,73 +41,41 @@ class OrdersScreen extends ConsumerWidget {
               body:
                   'Vegetables, fruit, and flowers you order will show up here.',
             )
-          : ListView.separated(
+          : ListView(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-              itemCount: orders.length,
-              separatorBuilder: (_, _) => SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final order = orders[index];
-                return DecoratedBox(
-                  decoration: BloomlyDecor.card(context.bloom),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () => context.push('/orders/${order.id}'),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                StatusPill(
-                                  status: order.paymentStatus == PaymentStatus.submitted
-                                      ? OrderStatus.paymentPending
-                                      : order.status,
-                                  label: customerStatusLabel(order),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  money(order.total),
-                                  style: BloomlyType.display(26),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              formatWhen(order.placedAt),
-                              style: TextStyle(
-                                color: context.bloom.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              order.items
-                                  .map((item) => '${item.name} × ${item.qty}')
-                                  .join(', '),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: context.bloom.text,
-                                height: 1.3,
-                              ),
-                            ),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () => _reorder(context, ref, order),
-                                child: const Text('Reorder'),
-                              ),
-                            ),
-                          ],
+              children: [
+                for (final order in open) ...[
+                  _OpenOrder(
+                    order: order,
+                    eta: backend.store.etaLabel,
+                    onOpen: () => context.push('/orders/${order.id}'),
+                    onReorder: () => _reorder(context, ref, order),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (past.isNotEmpty) ...[
+                  if (open.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'Past orders',
+                        style: BloomlyType.uiText(
+                          12,
+                          weight: FontWeight.w700,
+                          color: context.bloom.textSecondary,
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  for (final order in past) ...[
+                    _PastOrder(
+                      order: order,
+                      onOpen: () => context.push('/orders/${order.id}'),
+                      onReorder: () => _reorder(context, ref, order),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ],
+              ],
             ),
     );
   }
@@ -122,6 +93,153 @@ class OrdersScreen extends ConsumerWidget {
       cart.setQty(product.id, variant.id, item.qty);
     }
     context.go('/cart');
+  }
+}
+
+bool _isOpen(OrderRecord order) {
+  return order.status != OrderStatus.delivered &&
+      order.status != OrderStatus.cancelled;
+}
+
+class _OpenOrder extends StatelessWidget {
+  const _OpenOrder({
+    required this.order,
+    required this.eta,
+    required this.onOpen,
+    required this.onReorder,
+  });
+
+  final OrderRecord order;
+  final String eta;
+  final VoidCallback onOpen;
+  final VoidCallback onReorder;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.bloom;
+    final headline = order.awaitingPayment ? 'Awaiting payment' : eta;
+    return DecoratedBox(
+      decoration: BloomlyDecor.card(tokens),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onOpen,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                StatusPill(
+                  status: order.paymentStatus == PaymentStatus.submitted
+                      ? OrderStatus.paymentPending
+                      : order.status,
+                  label: customerStatusLabel(order),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  headline,
+                  style: BloomlyType.display(28, color: tokens.primary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  order.items
+                      .map((item) => '${item.name} × ${item.qty}')
+                      .join(', '),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: BloomlyType.uiText(14, color: tokens.text),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(
+                      money(order.total),
+                      style: BloomlyType.uiText(
+                        16,
+                        weight: FontWeight.w800,
+                        color: tokens.text,
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton(onPressed: onReorder, child: const Text('Reorder')),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PastOrder extends StatelessWidget {
+  const _PastOrder({
+    required this.order,
+    required this.onOpen,
+    required this.onReorder,
+  });
+
+  final OrderRecord order;
+  final VoidCallback onOpen;
+  final VoidCallback onReorder;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.bloom;
+    return Material(
+      color: tokens.surface,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 4, 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      customerStatusLabel(order),
+                      style: BloomlyType.uiText(
+                        13,
+                        weight: FontWeight.w800,
+                        color: tokens.text,
+                      ),
+                    ),
+                    Text(
+                      formatWhen(order.placedAt),
+                      style: BloomlyType.uiText(
+                        12,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      order.items.map((item) => item.name).join(', '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: BloomlyType.uiText(13, color: tokens.text),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                money(order.total),
+                style: BloomlyType.uiText(
+                  13,
+                  weight: FontWeight.w800,
+                  color: tokens.text,
+                ),
+              ),
+              TextButton(onPressed: onReorder, child: const Text('Reorder')),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

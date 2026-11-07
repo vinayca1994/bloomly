@@ -128,9 +128,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables?sub=leafy',
     look: PromoLook(
-      ground: BloomBrand.basil,
+      ground: Poster.pine,
       ink: bloomWhite,
-      accent: BloomBrand.lime,
+      accent: Poster.red,
       motif: StoryMotif.neem,
     ),
     styles: [
@@ -164,9 +164,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.fruit,
     route: '/categories/fruits?sub=seasonal-fruit',
     look: PromoLook(
-      ground: BloomBrand.marigold,
-      ink: BloomBrand.ink,
-      accent: BloomBrand.basil,
+      ground: Poster.harvest,
+      ink: Market.ink,
+      accent: Poster.pine,
       motif: StoryMotif.cane,
     ),
     styles: [
@@ -201,8 +201,8 @@ const promoTemplates = <PromoTemplate>[
     route: '/categories/flowers?sub=loose-flowers',
     look: PromoLook(
       ground: Color(0xFFFFF6E4),
-      ink: BloomBrand.ink,
-      accent: Mango.s600,
+      ink: Market.ink,
+      accent: Poster.citrus,
       motif: StoryMotif.flower,
     ),
     styles: [
@@ -236,9 +236,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.marigold,
     route: '/categories/flowers?sub=loose-flowers',
     look: PromoLook(
-      ground: BloomBrand.night,
-      ink: BloomBrand.paper,
-      accent: BloomBrand.marigold,
+      ground: Poster.night,
+      ink: bloomWhite,
+      accent: Poster.harvest,
       motif: StoryMotif.lamp,
     ),
     styles: [
@@ -272,9 +272,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables',
     look: PromoLook(
-      ground: BloomBrand.lime,
-      ink: BloomBrand.ink,
-      accent: BloomBrand.basil,
+      ground: Poster.red,
+      ink: Market.ink,
+      accent: Poster.pine,
       motif: StoryMotif.leaf,
     ),
     styles: [
@@ -308,9 +308,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.fruit,
     route: '/categories/fruits?sub=everyday-fruit',
     look: PromoLook(
-      ground: BloomBrand.basil,
+      ground: Poster.pine,
       ink: bloomWhite,
-      accent: BloomBrand.marigold,
+      accent: Poster.harvest,
       motif: StoryMotif.orange,
     ),
     styles: [
@@ -344,9 +344,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.fruit,
     route: '/categories/fruits?sub=seasonal-fruit',
     look: PromoLook(
-      ground: BloomBrand.marigold,
-      ink: BloomBrand.ink,
-      accent: BloomBrand.basil,
+      ground: Poster.harvest,
+      ink: Market.ink,
+      accent: Poster.pine,
       motif: StoryMotif.mango,
     ),
     styles: [
@@ -380,9 +380,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables?sub=leafy',
     look: PromoLook(
-      ground: BloomBrand.basil,
+      ground: Poster.pine,
       ink: bloomWhite,
-      accent: BloomBrand.lime,
+      accent: Poster.red,
       motif: StoryMotif.rain,
     ),
     styles: [
@@ -416,9 +416,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.fruit,
     route: '/categories/fruits?sub=citrus',
     look: PromoLook(
-      ground: Mango.s50,
-      ink: Plum.s900,
-      accent: Mango.s600,
+      ground: Poster.cream,
+      ink: Market.ink,
+      accent: Poster.citrus,
       motif: StoryMotif.orange,
     ),
     styles: [
@@ -452,9 +452,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables',
     look: PromoLook(
-      ground: BloomBrand.lime,
-      ink: BloomBrand.ink,
-      accent: BloomBrand.basil,
+      ground: Poster.red,
+      ink: Market.ink,
+      accent: Poster.pine,
       motif: StoryMotif.leaf,
     ),
     styles: [
@@ -488,9 +488,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.marigold,
     route: '/categories/vegetables',
     look: PromoLook(
-      ground: BloomBrand.basil,
+      ground: Poster.pine,
       ink: bloomWhite,
-      accent: BloomBrand.marigold,
+      accent: Poster.harvest,
       motif: StoryMotif.basket,
     ),
     styles: [
@@ -524,9 +524,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.leaf,
     route: '/categories/vegetables?sub=daily-veg',
     look: PromoLook(
-      ground: BloomBrand.paper,
-      ink: BloomBrand.ink,
-      accent: BloomBrand.basil,
+      ground: bloomWhite,
+      ink: Market.ink,
+      accent: Poster.pine,
       motif: StoryMotif.basket,
     ),
     styles: [
@@ -560,9 +560,9 @@ const promoTemplates = <PromoTemplate>[
     tone: StoryTone.flower,
     route: '/categories/flowers',
     look: PromoLook(
-      ground: BloomBrand.paper,
-      ink: Plum.s900,
-      accent: BloomBrand.basil,
+      ground: bloomWhite,
+      ink: Market.ink,
+      accent: Poster.pine,
       motif: StoryMotif.region,
     ),
     styles: [

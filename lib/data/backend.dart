@@ -11,6 +11,12 @@ abstract class BloomlyBackend extends ChangeNotifier {
   /// Reloads catalog/session after a failed startup (or pull-to-refresh style retry).
   Future<void> reload();
 
+  /// Set when the latest order reload failed. The previous list stays.
+  String? get ordersError => null;
+
+  /// Reloads orders without taking the shop back to the splash.
+  Future<void> refreshOrders() async {}
+
   StoreSettings get store;
   List<ShopCategory> get categories;
   List<Product> get products;
@@ -59,6 +65,11 @@ abstract class BloomlyBackend extends ChangeNotifier {
     required String code,
     required OtpChannel channel,
   });
+  Future<PhoneLoginStart> startEmailLogin(String email);
+  Future<String?> verifyEmailOtp({
+    required String userId,
+    required String code,
+  });
   Future<String?> updateDisplayName(String name);
   Future<RecoveryStart> sendPasswordReset(String email);
   Future<String?> completePasswordReset({
@@ -87,6 +98,17 @@ abstract class BloomlyBackend extends ChangeNotifier {
     required Address address,
     required List<CartLine> lines,
     String? idempotencyKey,
+  });
+
+  /// Opens the same unpaid UPI order again. Does not create a second bill.
+  Future<OnlinePayment> resumeOnlinePayment(String orderId);
+
+  /// Marks the order paid after Razorpay returns a signed capture.
+  Future<String?> verifyOnlinePayment({
+    required String orderId,
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String signature,
   });
 
   /// Customer says the UPI app accepted the payment. This does not mark it paid.

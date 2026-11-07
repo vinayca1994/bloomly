@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:bloomly/data/catalog_seed.dart';
 import 'package:bloomly/data/ids.dart';
+import 'package:bloomly/data/models.dart';
 import 'package:dart_appwrite/dart_appwrite.dart';
 import 'package:dart_appwrite/enums.dart';
 import 'package:dart_appwrite/models.dart' as models;
@@ -45,6 +46,7 @@ Future<void> main() async {
   await _ignore(() => tables.create(databaseId: Ids.database, name: 'Bloom'));
   await _table(tables, Ids.store, 'Store', [
     _varchar('city', 80),
+    _varchar('pincode', 6, required: false, fallback: '563130'),
     _varchar('etaLabel', 40),
     _intCol('deliveryFee'),
     _intCol('freeDeliveryAbove'),
@@ -114,6 +116,7 @@ Future<void> main() async {
       _varchar('placedAt', 40),
       _varchar('riderId', 36, required: false, fallback: ''),
       _varchar('riderName', 80, required: false, fallback: ''),
+      _varchar('customerPhone', 20, required: false, fallback: ''),
       _varchar('destLatitude', 32, required: false, fallback: ''),
       _varchar('destLongitude', 32, required: false, fallback: ''),
       _varchar('upiTxnRef', 40, required: false, fallback: ''),
@@ -245,16 +248,11 @@ Future<void> main() async {
   await users.updateLabels(userId: ownerId, labels: ['owner']);
 
   await _varcharColumn(tables, Ids.store, 'promotions', 8000);
+  await _varcharColumn(tables, Ids.store, 'pincode', 6, fallback: '563130');
   await _row(tables, Ids.store, Ids.storeRow, seedStore.toMap());
+  await _fillStorePin(tables);
   for (final category in seedCategories) {
-    await _row(tables, Ids.categories, category.id, {
-      'name': category.name,
-      'slug': category.slug,
-      'kind': category.kind,
-      'parentSlug': category.parentSlug ?? '',
-      'sort': category.sort,
-      'emoji': category.emoji,
-    });
+    await _repairCategory(tables, category);
   }
   for (final product in seedProducts) {
     await _row(tables, Ids.products, product.id, product.toMap());
@@ -287,6 +285,7 @@ Future<void> main() async {
   await _varcharColumn(tables, Ids.orders, 'gatewayPaymentId', 64);
   await _varcharColumn(tables, Ids.orders, 'riderId', 36);
   await _varcharColumn(tables, Ids.orders, 'riderName', 80);
+  await _varcharColumn(tables, Ids.orders, 'customerPhone', 20);
   await _varcharColumn(tables, Ids.orders, 'destLatitude', 32);
   await _varcharColumn(tables, Ids.orders, 'destLongitude', 32);
   await _varcharColumn(tables, Ids.profiles, 'email', 120);
@@ -379,6 +378,55 @@ Future<void> _table(
           ],
     ),
   );
+}
+
+Future<void> _fillStorePin(TablesDB tables) async {
+  try {
+    final row = await tables.getRow(
+      databaseId: Ids.database,
+      tableId: Ids.store,
+      rowId: Ids.storeRow,
+    );
+    final pin = '${row.data['pincode'] ?? ''}'.trim();
+    if (pin.isNotEmpty) return;
+    await tables.updateRow(
+      databaseId: Ids.database,
+      tableId: Ids.store,
+      rowId: Ids.storeRow,
+      data: {'pincode': '563130'},
+    );
+  } on AppwriteException catch (error) {
+    if (error.code == 404) return;
+    rethrow;
+  }
+}
+
+Future<void> _repairCategory(TablesDB tables, ShopCategory category) async {
+  final data = {
+    'name': category.name,
+    'slug': category.slug,
+    'kind': category.kind,
+    'parentSlug': category.parentSlug ?? '',
+    'sort': category.sort,
+    'emoji': category.emoji,
+  };
+  try {
+    await tables.createRow(
+      databaseId: Ids.database,
+      tableId: Ids.categories,
+      rowId: category.id,
+      data: data,
+    );
+  } on AppwriteException catch (error) {
+    if (error.code == 403) return;
+    if (error.code != 409) rethrow;
+    await tables.updateRow(
+      databaseId: Ids.database,
+      tableId: Ids.categories,
+      rowId: category.id,
+      data: data,
+    );
+  }
 }
 
 Future<void> _row(

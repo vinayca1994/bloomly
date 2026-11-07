@@ -10,39 +10,21 @@ void main() {
     expect(cartShapeError(lineCount: 41, quantities: const [1]), cartTooBig);
     expect(cartShapeError(lineCount: 1, quantities: const [100]), cartQty);
     expect(cartShapeError(lineCount: 2, quantities: const [1, 99]), isNull);
+    expect(
+      deliveryAreaError(city: 'Malur', pincode: '563130', storeCity: 'Malur'),
+      isNull,
+    );
+    expect(
+      deliveryAreaError(city: 'Malur', pincode: '563160', storeCity: 'Malur'),
+      'Bloom delivers in Malur, 563130 only.',
+    );
+    expect(
+      deliveryAreaError(city: 'Mumbai', pincode: '400001', storeCity: 'Malur'),
+      'Bloom delivers in Malur, 563130 only.',
+    );
   });
 
-  test('confirm is rejected unless the order is still awaiting a reference', () {
-    expect(
-      confirmUpiError(
-        isOwner: false,
-        paymentMethod: 'upi',
-        status: 'payment_pending',
-        paymentStatus: 'submitted',
-        reference: 'ABC123',
-      ),
-      confirmOwner,
-    );
-    expect(
-      confirmUpiError(
-        isOwner: true,
-        paymentMethod: 'upi',
-        status: 'placed',
-        paymentStatus: 'paid',
-        reference: 'ABC123',
-      ),
-      confirmNotWaiting,
-    );
-    expect(
-      confirmUpiError(
-        isOwner: true,
-        paymentMethod: 'upi',
-        status: 'payment_pending',
-        paymentStatus: 'pending',
-        reference: '',
-      ),
-      confirmWait,
-    );
+  test('a typed UPI reference is never confirmed by the store', () {
     expect(
       confirmUpiError(
         isOwner: true,
@@ -51,7 +33,45 @@ void main() {
         paymentStatus: 'submitted',
         reference: 'ABC123',
       ),
-      isNull,
+      confirmClosed,
+    );
+    expect(
+      blocksAccountDelete(paymentMethod: 'upi', paymentStatus: 'paid'),
+      isTrue,
+    );
+    expect(
+      blocksAccountDelete(paymentMethod: 'upi', paymentStatus: 'refund_pending'),
+      isTrue,
+    );
+    expect(
+      blocksAccountDelete(paymentMethod: 'cod', paymentStatus: 'paid'),
+      isFalse,
+    );
+    expect(
+      blocksAccountDelete(paymentMethod: 'upi', paymentStatus: 'refunded'),
+      isFalse,
+    );
+    final now = DateTime.utc(2026, 11, 7, 12);
+    expect(classifyGateway('', now), GatewaySlot.empty);
+    expect(classifyGateway('order_abc', now), GatewaySlot.ready);
+    expect(
+      classifyGateway(gatewayClaimAt(now), now),
+      GatewaySlot.freshClaim,
+    );
+    expect(
+      classifyGateway(gatewayClaimAt(now.subtract(const Duration(minutes: 2))), now),
+      GatewaySlot.staleClaim,
+    );
+    expect(refundProgress('processed'), 'processed');
+    expect(refundProgress('failed'), isNull);
+    expect(
+      deliveryAreaError(
+        city: 'Malur',
+        pincode: '563130',
+        storeCity: 'Bengaluru',
+        storePincode: '560001',
+      ),
+      'Bloom delivers in Bengaluru, 560001 only.',
     );
   });
 
@@ -154,5 +174,132 @@ void main() {
     expect(validCoord(120, latitude: true), isFalse);
     expect(paymentStatusOnDeliver(paymentMethod: 'cod', paymentStatus: 'pending'), 'paid');
     expect(paymentStatusOnDeliver(paymentMethod: 'upi', paymentStatus: 'paid'), isNull);
+  });
+
+  test('a Razorpay signature matches the order and payment', () {
+    const secret = 'secret';
+    const orderId = 'order_1';
+    const paymentId = 'pay_1';
+    final signature = razorpayHex(secret: secret, message: '$orderId|$paymentId');
+    expect(
+      signature,
+      '52115a0d3400de9e86aade1f1b6eba9e8974604f4e267a9e9a16633a4c8dd2cb',
+    );
+    expect(
+      checkoutSignatureError(
+        secret: secret,
+        orderId: orderId,
+        paymentId: paymentId,
+        signature: signature,
+      ),
+      isNull,
+    );
+    expect(
+      checkoutSignatureError(
+        secret: secret,
+        orderId: orderId,
+        paymentId: paymentId,
+        signature: 'nope',
+      ),
+      paymentNotChecked,
+    );
+    const raw = '{"event":"payment.captured"}';
+    final hook = razorpayHex(secret: 'whsec', message: raw);
+    expect(razorpayWebhookMatches(secret: 'whsec', rawBody: raw, signature: hook), isTrue);
+    expect(
+      razorpayWebhookMatches(secret: 'whsec', rawBody: '$raw ', signature: hook),
+      isFalse,
+    );
+    expect(isRazorpayEventBody(raw), isTrue);
+    expect(isRazorpayEventBody('{"event":"refund.processed"}'), isTrue);
+    expect(isRazorpayEventBody('{"action":"create"}'), isFalse);
+  });
+
+  test('a capture is accepted only for the same paise amount', () {
+    expect(
+      captureAcceptError(
+        status: 'captured',
+        amountPaise: 6100,
+        expectedRupees: 61,
+        razorpayOrderId: 'order_1',
+        expectedOrderId: 'order_1',
+      ),
+      isNull,
+    );
+    expect(
+      captureAcceptError(
+        status: 'authorized',
+        amountPaise: 6100,
+        expectedRupees: 61,
+        razorpayOrderId: 'order_1',
+        expectedOrderId: 'order_1',
+      ),
+      paymentNotCaptured,
+    );
+    expect(
+      captureAcceptError(
+        status: 'captured',
+        amountPaise: 100,
+        expectedRupees: 61,
+        razorpayOrderId: 'order_1',
+        expectedOrderId: 'order_1',
+      ),
+      paymentAmountMismatch,
+    );
+    expect(
+      captureDecision(orderStatus: 'payment_pending', paymentStatus: 'pending'),
+      CaptureDecision.markPaid,
+    );
+    expect(
+      captureDecision(orderStatus: 'placed', paymentStatus: 'paid'),
+      CaptureDecision.alreadyPaid,
+    );
+    expect(
+      captureDecision(orderStatus: 'cancelled', paymentStatus: 'failed'),
+      CaptureDecision.lateAfterCancel,
+    );
+    expect(razorpayKeys(const {}).ready, isFalse);
+    expect(
+      razorpayKeys(const {'RAZORPAY_KEY_ID': 'rzp_test_x', 'RAZORPAY_KEY_SECRET': 's'}).ready,
+      isTrue,
+    );
+    final notice = capturedPaymentNotice({
+      'event': 'payment.captured',
+      'payload': {
+        'payment': {
+          'entity': {
+            'id': 'pay_1',
+            'order_id': 'order_1',
+            'amount': 6100,
+            'status': 'captured',
+            'notes': {'bloomOrderId': 'ord1'},
+          },
+        },
+      },
+    });
+    expect(notice?.paymentId, 'pay_1');
+    expect(notice?.bloomOrderId, 'ord1');
+    expect(notice?.amountPaise, 6100);
+    expect(capturedPaymentNotice({'event': 'payment.failed'}), isNull);
+    final refund = refundProcessedNotice({
+      'event': 'refund.processed',
+      'payload': {
+        'refund': {
+          'entity': {
+            'id': 'rfnd_1',
+            'payment_id': 'pay_1',
+            'status': 'processed',
+          },
+        },
+        'payment': {
+          'entity': {
+            'notes': {'bloomOrderId': 'ord1'},
+          },
+        },
+      },
+    });
+    expect(refund?.paymentId, 'pay_1');
+    expect(refund?.bloomOrderId, 'ord1');
+    expect(refund?.status, 'processed');
   });
 }

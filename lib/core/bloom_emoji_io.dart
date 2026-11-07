@@ -10,7 +10,7 @@ Widget bloomEmoji(String emoji, double size, [Color? color]) {
     emoji,
     style: TextStyle(
       inherit: false,
-      color: color ?? Plum.s900,
+      color: color ?? Market.ink,
       fontSize: size,
       height: 1.1,
     ),

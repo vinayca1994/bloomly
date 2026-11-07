@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Material Symbols Rounded, the same family the Petal Pop build used.
+/// Material Symbols Rounded, bundled so controls do not depend on a download.
 ///
 /// Phosphor was drawn by hand from the package font files. On this Flutter
 /// version those glyphs fall back to Latin letters, so every control uses

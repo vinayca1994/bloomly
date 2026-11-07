@@ -15,7 +15,6 @@ class Ids {
   static const otpLimits = 'otp_limits';
   static const paymentEvents = 'payment_events';
   static const bucket = 'product-images';
-  static const promoMedia = 'promo-media';
   static const storeRow = 'main';
   static const ownerUser = 'bloomly-owner';
   static const phoneLogin = 'phone-login';

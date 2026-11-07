@@ -32,15 +32,13 @@ class CustomerShell extends StatelessWidget {
             child: Column(
               children: [
                 Expanded(child: shell),
-                if (showCart)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: CartBar(),
-                  ),
+                if (showCart) const CartBar(),
                 DecoratedBox(
                   decoration: BoxDecoration(
                     color: tokens.surface,
-                    border: Border(top: BorderSide(color: tokens.border)),
+                    border: Border(
+                      top: BorderSide(color: tokens.border, width: 0.5),
+                    ),
                   ),
                   child: _CompactNav(shell: shell),
                 ),
@@ -61,14 +59,18 @@ class _CompactNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: context.bloom.surface,
+      color: Colors.transparent,
       child: SafeArea(
         top: false,
         child: SizedBox(
           height: 64,
           child: Row(
             children: [
-              for (var index = 0; index < CustomerShell.destinations.length; index++)
+              for (
+                var index = 0;
+                index < CustomerShell.destinations.length;
+                index++
+              )
                 Expanded(
                   child: _NavItem(
                     selected: shell.currentIndex == index,
@@ -107,7 +109,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.bloom;
-    final color = selected ? tokens.link : tokens.textSecondary;
+    final color = selected ? tokens.primary : tokens.textSecondary;
     return Semantics(
       button: true,
       selected: selected,
@@ -118,15 +120,6 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 24,
-              height: 3,
-              decoration: BoxDecoration(
-                color: selected ? tokens.primary : Colors.transparent,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-            const SizedBox(height: 4),
             Icon(selected ? selectedIcon : icon, size: 24, color: color),
             const SizedBox(height: 2),
             Text(

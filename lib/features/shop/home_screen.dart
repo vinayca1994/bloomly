@@ -12,24 +12,17 @@ import '../../data/demo_promos.dart';
 import '../../data/models.dart';
 import '../../data/promo_templates.dart';
 import '../../data/providers.dart';
+import '../../data/service_area.dart';
 import '../../data/stories.dart';
+import 'aisle_circle.dart';
 import 'product_card.dart';
 import 'story_banner.dart';
-import 'story_clips.dart';
-import 'story_placements.dart';
 
-class HomeScreen extends ConsumerStatefulWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  var _tab = 'all';
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final backend = ref.watch(backendProvider);
     final detected = ref.watch(placeProvider).place;
     final address = _defaultAddress(backend);
@@ -42,32 +35,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               : '${detected.area}, ${detected.city}')
         : '${backend.store.city} · Set your address';
     final city = address?.city ?? detected?.city ?? '';
-    final outside =
-        city.isNotEmpty &&
-        city.trim().toLowerCase() != backend.store.city.trim().toLowerCase();
-    final forSale = backend.products.where((product) => product.forSale).toList();
+    final pin = address?.pincode ?? detected?.pincode ?? '';
+    final outside = outsideDelivery(
+      city: city,
+      pincode: pin,
+      storeCity: backend.store.city,
+      storePincode: backend.store.pincode,
+    );
+    final forSale = backend.products
+        .where((product) => product.forSale)
+        .toList();
     final now = DateTime.now();
     final promos = backend.store.promotions;
     final festival = _festival(promos, now);
-    final look = festival == null ? null : promoLook(festival.themeId);
-    final hints = [
-      for (final product in forSale) product.name,
-    ];
-    final tabs = [
-      _Tab('all', 'All', BloomIcons.all, null),
-      _Tab('vegetables', 'Vegetables', BloomIcons.vegetables, '/categories/vegetables'),
-      _Tab('fruits', 'Fruits', BloomIcons.fruits, '/categories/fruits'),
-      _Tab('flowers', 'Flowers', BloomIcons.flowers, '/categories/flowers'),
-      _Tab('puja', 'Puja', BloomIcons.puja, '/categories/flowers'),
-      _Tab('gifting', 'Gifting', BloomIcons.gifting, '/categories/flowers?sub=garlands'),
+    final hints = [for (final product in forSale) product.name];
+    final aisles = [
+      const _Aisle('vegetables', 'Vegetables', '/categories/vegetables'),
+      const _Aisle('fruits', 'Fruits', '/categories/fruits'),
+      const _Aisle('flowers', 'Flowers', '/categories/flowers'),
+      const _Aisle('puja', 'Puja', '/categories/flowers'),
+      const _Aisle(
+        'gifting',
+        'Gifting',
+        '/categories/flowers?sub=garlands',
+      ),
       if (festival != null)
-        _Tab(
-          'festival',
+        _Aisle(
+          festival.themeId.isEmpty ? 'festival' : festival.themeId,
           _festivalName(festival.themeId),
-          BloomIcons.festival,
-          null,
+          _festivalRoute(festival),
         ),
     ];
+    final again = _orderAgain(backend, forSale);
 
     return Scaffold(
       body: SafeArea(
@@ -82,10 +81,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 subtitle: subtitle,
                 outside: outside,
                 city: backend.store.city,
-                ground: look?.ground,
-                ink: look?.ink,
+                pincode: backend.store.pincode,
                 initial: backend.currentUser?.name,
-                onAddress: () => _openAddress(context, backend.currentUser != null),
+                onAddress: () =>
+                    _openAddress(context, backend.currentUser != null),
                 onProfile: () {
                   if (GoRouter.maybeOf(context) == null) return;
                   context.go('/account');
@@ -95,7 +94,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             SliverPersistentHeader(
               pinned: true,
               delegate: _SearchHeader(
-                ground: look?.ground,
                 child: _RotatingSearch(
                   hints: hints.isEmpty
                       ? const ['Search vegetables, fruits, flowers']
@@ -105,19 +103,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             SliverToBoxAdapter(
-              child: OfferStrip(
-                stories: activeStories(
-                  StoryPlacement.offerStrip,
-                  now,
-                  source: promos,
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: _CategoryTabs(
-                tabs: tabs,
-                selected: _tab,
-                onSelect: (tab) => _openTab(context, tab),
+              child: _AisleGrid(
+                aisles: aisles,
+                onOpen: (route) {
+                  if (GoRouter.maybeOf(context) == null) return;
+                  context.go(route);
+                },
               ),
             ),
             SliverToBoxAdapter(
@@ -128,25 +119,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   source: promos,
                 ),
                 bleed: true,
-                aspect: 16 / 9,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: StoryTileGrid(
-                stories: activeStories(
-                  StoryPlacement.tileGrid,
-                  now,
-                  source: promos,
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: StoryClipRail(
-                stories: activeStories(
-                  StoryPlacement.homeClip,
-                  now,
-                  source: promos,
-                ),
+                aspect: 2.4,
               ),
             ),
             if (!backend.ready)
@@ -159,70 +132,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 hasScrollBody: false,
                 child: _EmptyShelf(
                   title: 'The shop is empty',
-                  body: 'New crates show up here when the store publishes them.',
+                  body:
+                      'New crates show up here when the store publishes them.',
                 ),
               )
-            else if (_tab == 'all') ...[
+            else ...[
+              if (again.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _RowSection(
+                    title: 'Order again',
+                    onSeeAll: () {
+                      if (GoRouter.maybeOf(context) == null) return;
+                      context.go('/orders');
+                    },
+                    products: again,
+                  ),
+                ),
               SliverToBoxAdapter(
                 child: _RowSection(
                   title: 'Fresh today',
-                  onSeeAll: () => context.go('/categories/vegetables'),
+                  onSeeAll: () {
+                    if (GoRouter.maybeOf(context) == null) return;
+                    context.go('/categories/vegetables');
+                  },
                   products: _pick(forSale, freshTodayIds),
                 ),
               ),
               SliverToBoxAdapter(
                 child: _RowSection(
                   title: 'Regional flowers',
-                  onSeeAll: () => context.go('/categories/flowers'),
+                  onSeeAll: () {
+                    if (GoRouter.maybeOf(context) == null) return;
+                    context.go('/categories/flowers');
+                  },
                   products: _pick(forSale, regionalFlowerIds),
                 ),
               ),
               SliverToBoxAdapter(
                 child: _RowSection(
                   title: 'Bestsellers',
-                  onSeeAll: () => context.go('/categories/fruits'),
+                  onSeeAll: () {
+                    if (GoRouter.maybeOf(context) == null) return;
+                    context.go('/categories/fruits');
+                  },
                   products: _pick(forSale, bestsellerIds),
                 ),
               ),
-            ] else
-              SliverToBoxAdapter(
-                child: _FilteredShelf(
-                  title: tabs.where((tab) => tab.id == _tab).firstOrNull?.label ?? '',
-                  products: _filtered(forSale, backend, _tab, festival),
-                ),
-              ),
+            ],
             const SliverToBoxAdapter(child: SizedBox(height: 28)),
           ],
         ),
       ),
     );
   }
-
-  void _openTab(BuildContext context, _Tab tab) {
-    final route = tab.route;
-    if (route != null && GoRouter.maybeOf(context) != null) {
-      context.go(route);
-      return;
-    }
-    setState(() => _tab = tab.id);
-  }
-
-  void _openAddress(BuildContext context, bool signedIn) {
-    if (GoRouter.maybeOf(context) == null) return;
-    if (signedIn) {
-      context.push('/account/addresses');
-    } else {
-      context.push('/login?next=${Uri.encodeComponent('/account/addresses')}');
-    }
-  }
 }
 
-class _Tab {
-  const _Tab(this.id, this.label, this.icon, this.route);
+class _Aisle {
+  const _Aisle(this.id, this.label, this.route);
+
   final String id;
   final String label;
-  final IconData icon;
-  final String? route;
+  final String route;
 }
 
 Story? _festival(List<Story> source, DateTime now) {
@@ -242,30 +212,10 @@ String _festivalName(String themeId) {
   return themeId[0].toUpperCase() + themeId.substring(1);
 }
 
-List<Product> _filtered(
-  List<Product> products,
-  BloomlyBackend backend,
-  String tab,
-  Story? festival,
-) {
-  bool match(Product product) {
-    final category = backend.categories
-        .where((item) => item.slug == product.categorySlug)
-        .firstOrNull;
-    if (category == null) return false;
-    final group = category.parentSlug ?? category.slug;
-    return switch (tab) {
-      'vegetables' => group == 'vegetables',
-      'fruits' => group == 'fruits',
-      'flowers' || 'puja' => group == 'flowers',
-      'gifting' =>
-        product.categorySlug == 'garlands' || product.categorySlug == 'bunches',
-      'festival' => group == 'flowers' || (festival?.route ?? '').contains(group),
-      _ => true,
-    };
-  }
-
-  return products.where(match).toList();
+String _festivalRoute(Story festival) {
+  final route = festival.route ?? '';
+  if (route.startsWith('/categories')) return route;
+  return '/categories/flowers';
 }
 
 Address? _defaultAddress(BloomlyBackend backend) {
@@ -276,12 +226,42 @@ Address? _defaultAddress(BloomlyBackend backend) {
   return list.where((address) => address.isDefault).firstOrNull ?? list.first;
 }
 
+List<Product> _orderAgain(BloomlyBackend backend, List<Product> forSale) {
+  final user = backend.currentUser;
+  if (user == null) return const [];
+  final delivered =
+      backend.orders
+          .where(
+            (order) =>
+                order.userId == user.id &&
+                order.status == OrderStatus.delivered,
+          )
+          .toList()
+        ..sort((a, b) => b.placedAt.compareTo(a.placedAt));
+  final ids = <String>[];
+  for (final order in delivered) {
+    for (final item in order.items) {
+      if (!ids.contains(item.productId)) ids.add(item.productId);
+    }
+  }
+  return _pick(forSale, ids);
+}
+
 List<Product> _pick(List<Product> products, List<String> ids) {
   return [
     for (final id in ids)
       if (products.where((product) => product.id == id).firstOrNull != null)
         products.firstWhere((product) => product.id == id),
   ];
+}
+
+void _openAddress(BuildContext context, bool signedIn) {
+  if (GoRouter.maybeOf(context) == null) return;
+  if (signedIn) {
+    context.push('/account/addresses');
+  } else {
+    context.push('/login?next=${Uri.encodeComponent('/account/addresses')}');
+  }
 }
 
 class _LocationProbe extends ConsumerStatefulWidget {
@@ -309,11 +289,10 @@ class _Header extends StatelessWidget {
     required this.subtitle,
     required this.outside,
     required this.city,
+    required this.pincode,
     required this.initial,
     required this.onAddress,
     required this.onProfile,
-    this.ground,
-    this.ink,
   });
 
   final String eta;
@@ -321,93 +300,96 @@ class _Header extends StatelessWidget {
   final String subtitle;
   final bool outside;
   final String city;
+  final String pincode;
   final String? initial;
   final VoidCallback onAddress;
   final VoidCallback onProfile;
-  final Color? ground;
-  final Color? ink;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.bloom;
-    final fg = ink ?? tokens.text;
     return ColoredBox(
-      color: ground ?? tokens.canvas,
+      color: tokens.canvas,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: Column(
+        padding: const EdgeInsets.fromLTRB(16, 8, 12, 2),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: onAddress,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            Expanded(
+              child: InkWell(
+                onTap: onAddress,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      eta,
+                      style: BloomlyType.display(26, color: tokens.primary),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
                       children: [
                         Text(
-                          eta,
-                          style: BloomlyType.display(22, color: fg),
+                          title,
+                          maxLines: 1,
+                          style: BloomlyType.uiText(
+                            14,
+                            weight: FontWeight.w700,
+                            color: tokens.text,
+                          ),
                         ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Text(
-                              title,
-                              style: BloomlyType.uiText(
-                                14,
-                                weight: FontWeight.w700,
-                                color: fg,
-                              ),
+                        Flexible(
+                          child: Text(
+                            ' · $subtitle',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: BloomlyType.uiText(
+                              14,
+                              weight: FontWeight.w600,
+                              color: tokens.textSecondary,
                             ),
-                            Flexible(
-                              child: Text(
-                                ' · $subtitle',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: BloomlyType.uiText(
-                                  14,
-                                  weight: FontWeight.w600,
-                                  color: ink == null ? tokens.textSecondary : fg,
-                                ),
-                              ),
-                            ),
-                            Icon(BloomIcons.caretDown, size: 16, color: fg),
-                          ],
+                          ),
+                        ),
+                        Icon(
+                          BloomIcons.caretDown,
+                          size: 16,
+                          color: tokens.text,
                         ),
                       ],
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Semantics(
-                  button: true,
-                  label: initial == null || initial!.isEmpty ? 'Account' : 'Account, $initial',
-                  child: InkWell(
-                    onTap: onProfile,
-                    customBorder: const CircleBorder(),
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: tokens.secondary,
-                      child: Icon(BloomIcons.userFill, size: 20, color: tokens.onSecondary),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (outside) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Bloom delivers in $city only.',
-                style: BloomlyType.uiText(
-                  14,
-                  weight: FontWeight.w600,
-                  color: tokens.danger,
+                    if (outside) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        deliveryAreaMessage(city, pincode: pincode),
+                        style: BloomlyType.uiText(
+                          13,
+                          weight: FontWeight.w600,
+                          color: tokens.danger,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ],
+            ),
+            Semantics(
+              button: true,
+              label: initial == null || initial!.isEmpty
+                  ? 'Account'
+                  : 'Account, $initial',
+              child: InkWell(
+                onTap: onProfile,
+                customBorder: const CircleBorder(),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: tokens.sunken,
+                  child: Icon(
+                    BloomIcons.userFill,
+                    size: 18,
+                    color: tokens.textSecondary,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -416,32 +398,34 @@ class _Header extends StatelessWidget {
 }
 
 class _SearchHeader extends SliverPersistentHeaderDelegate {
-  _SearchHeader({required this.child, this.ground});
+  _SearchHeader({required this.child});
 
   final Widget child;
-  final Color? ground;
 
   @override
-  double get minExtent => 64;
+  double get minExtent => 56;
 
   @override
-  double get maxExtent => 64;
+  double get maxExtent => 56;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Material(
-      color: ground ?? context.bloom.canvas,
+      color: context.bloom.canvas,
       elevation: overlapsContent ? 1 : 0,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
         child: child,
       ),
     );
   }
 
   @override
-  bool shouldRebuild(_SearchHeader oldDelegate) =>
-      child != oldDelegate.child || ground != oldDelegate.ground;
+  bool shouldRebuild(_SearchHeader oldDelegate) => child != oldDelegate.child;
 }
 
 class _RotatingSearch extends StatefulWidget {
@@ -502,17 +486,16 @@ class _RotatingSearchState extends State<_RotatingSearch> {
     final reduce = MediaQuery.disableAnimationsOf(context);
     return Material(
       color: tokens.surface,
-      borderRadius: BorderRadius.circular(14),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: tokens.borderStrong),
+      ),
       child: InkWell(
         onTap: widget.onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: tokens.border),
-          ),
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             children: [
               Icon(BloomIcons.search, color: tokens.textSecondary, size: 20),
@@ -539,7 +522,10 @@ class _RotatingSearchState extends State<_RotatingSearch> {
                         reduce ? widget.hints.first : hint,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: BloomlyType.uiText(14, color: tokens.textSecondary),
+                        style: BloomlyType.uiText(
+                          14,
+                          color: tokens.textSecondary,
+                        ),
                       ),
                     ),
                   ),
@@ -553,81 +539,29 @@ class _RotatingSearchState extends State<_RotatingSearch> {
   }
 }
 
-class _CategoryTabs extends StatelessWidget {
-  const _CategoryTabs({
-    required this.tabs,
-    required this.selected,
-    required this.onSelect,
-  });
+class _AisleGrid extends StatelessWidget {
+  const _AisleGrid({required this.aisles, required this.onOpen});
 
-  final List<_Tab> tabs;
-  final String selected;
-  final ValueChanged<_Tab> onSelect;
+  final List<_Aisle> aisles;
+  final ValueChanged<String> onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.bloom;
-    return SizedBox(
-      height: 92,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-        itemCount: tabs.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 4),
-        itemBuilder: (context, index) {
-          final tab = tabs[index];
-          final active = tab.id == selected;
-          final color = active ? tokens.primary : tokens.textSecondary;
-          return Semantics(
-            button: true,
-            selected: active,
-            label: tab.label,
-            child: InkWell(
-              onTap: () => onSelect(tab),
-              child: SizedBox(
-                width: 76,
-                child: Column(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: active ? tokens.primary : tokens.sunken,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        tab.icon,
-                        size: 22,
-                        color: active ? tokens.onPrimary : tokens.text,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      tab.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: BloomlyType.uiText(
-                        12,
-                        weight: FontWeight.w700,
-                        color: color,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      width: 28,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        color: active ? tokens.primary : Colors.transparent,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        children: [
+          for (final aisle in aisles)
+            AisleCircle(
+              label: aisle.label,
+              emoji: aisleEmoji(aisle.id),
+              icon: BloomIcons.festival,
+              selected: false,
+              onTap: () => onOpen(aisle.route),
             ),
-          );
-        },
+        ],
       ),
     );
   }
@@ -662,45 +596,6 @@ class _EmptyShelf extends StatelessWidget {
   }
 }
 
-class _FilteredShelf extends StatelessWidget {
-  const _FilteredShelf({required this.title, required this.products});
-
-  final String title;
-  final List<Product> products;
-
-  @override
-  Widget build(BuildContext context) {
-    if (products.isEmpty) {
-      return const _EmptyShelf(
-        title: 'Nothing on this shelf',
-        body: 'Try another aisle. Fresh crates land through the day.',
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: BloomlyType.display(20, color: context.bloom.text)),
-          const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: products.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 12,
-              mainAxisExtent: 268,
-            ),
-            itemBuilder: (context, index) => ProductCard(product: products[index]),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _RowSection extends StatelessWidget {
   const _RowSection({
     required this.title,
@@ -716,7 +611,7 @@ class _RowSection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (products.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -727,14 +622,14 @@ class _RowSection extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: BloomlyType.display(20, color: context.bloom.text),
+                  style: BloomlyType.display(18, color: context.bloom.text),
                 ),
               ),
               TextButton(onPressed: onSeeAll, child: const Text('See all')),
             ],
           ),
           SizedBox(
-            height: 268,
+            height: productCardExtent,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               primary: false,
@@ -742,7 +637,7 @@ class _RowSection extends StatelessWidget {
               separatorBuilder: (_, _) => const SizedBox(width: 10),
               itemBuilder: (context, index) {
                 return SizedBox(
-                  width: 148,
+                  width: 132,
                   child: ProductCard(product: products[index], compact: true),
                 );
               },

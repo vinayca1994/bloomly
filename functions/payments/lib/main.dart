@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:dart_appwrite/dart_appwrite.dart';
 import 'package:dart_appwrite/models.dart' as models;
 
+import 'razorpay_api.dart';
 import 'rules.dart';
 
 const _database = 'bloomly';
@@ -22,33 +23,85 @@ const _events = 'payment_events';
 
 const _genericError = 'Could not update the order.';
 
-/// Orders, UPI confirmation, delivery, reviews, and account deletion.
+/// Orders, Razorpay capture, delivery, reviews, and account deletion.
 ///
 /// The API key writes money and status. A customer session cannot.
-Future<dynamic> main(dynamic context) async {
-  final action = _actionOf('${context.req.body ?? ''}');
+/// Razorpay calls this function without a session. That request is accepted
+/// only when its signature matches the webhook secret.
+String _header(dynamic context, String name) {
   try {
-    if ((Platform.environment['APPWRITE_FUNCTION_TRIGGER'] ?? '') == 'schedule') {
+    final headers = context.req.headers;
+    if (headers is Map) {
+      for (final entry in headers.entries) {
+        if (entry.key.toString().toLowerCase() == name) {
+          final value = entry.value;
+          if (value is List && value.isNotEmpty) return value.first.toString();
+          return value?.toString() ?? '';
+        }
+      }
+    }
+  } catch (_) {
+    return '';
+  }
+  return '';
+}
+
+String _firstNonEmpty(String header, String envKey) {
+  if (header.isNotEmpty) return header;
+  return Platform.environment[envKey] ?? '';
+}
+
+Future<dynamic> main(dynamic context) async {
+  final raw = _rawBody(context);
+  final action = _actionOf(raw);
+  try {
+    final trigger = _firstNonEmpty(
+      _header(context, 'x-appwrite-trigger'),
+      'APPWRITE_FUNCTION_TRIGGER',
+    );
+    if (trigger == 'schedule' || trigger == 'interval') {
       final result = await _expire();
       return context.res.json(result);
     }
+    final signature = _header(context, 'x-razorpay-signature');
+    if (signature.isNotEmpty || isRazorpayEventBody(raw)) {
+      final result = await _webhook(raw, signature);
+      return context.res.json(result, result['error'] == null ? 200 : 400);
+    }
     final result = await handle(
-      body: '${context.req.body ?? ''}',
-      userId: Platform.environment['APPWRITE_FUNCTION_USER_ID'] ?? '',
+      body: raw,
+      userId: _firstNonEmpty(
+        _header(context, 'x-appwrite-user-id'),
+        'APPWRITE_FUNCTION_USER_ID',
+      ),
       now: DateTime.now().toUtc(),
     );
     return context.res.json(result, result['error'] == null ? 200 : 400);
   } on AppwriteException catch (error) {
-    context.log(action);
+    context.log('$action ${error.code} ${error.type} ${error.message}');
     final missing = error.code == 404;
     return context.res.json(
       {'error': missing ? 'Order not found.' : _genericError},
       missing ? 400 : 500,
     );
-  } catch (_) {
-    context.log(action);
+  } catch (error) {
+    context.log('$action $error');
     return context.res.json({'error': _genericError}, 500);
   }
+}
+
+String _rawBody(dynamic context) {
+  try {
+    final raw = context.req.bodyRaw;
+    if (raw is String) return raw;
+  } catch (_) {}
+  try {
+    final text = context.req.bodyText;
+    if (text is String) return text;
+  } catch (_) {}
+  final body = context.req.body;
+  if (body is String) return body;
+  return '';
 }
 
 String _actionOf(String body) {
@@ -75,9 +128,8 @@ Future<Map<String, dynamic>> handle({
     case 'deleteAccount':
       return _deleteAccount(payload, userId, clock);
     case 'note':
-      return _note(payload, userId);
     case 'confirm':
-      return _confirm(payload, userId);
+      return {'error': confirmClosed};
     case 'cancel':
       return _cancel(payload, userId);
     case 'advance':
@@ -99,7 +151,12 @@ Future<Map<String, dynamic>> handle({
     case 'updateName':
       return _updateName(payload, userId);
     case 'expire':
+      if (userId.isEmpty) return {'error': 'Sign in before paying.'};
       return _expire(clock);
+    case 'verify':
+      return _verify(payload, userId);
+    case 'checkout':
+      return _checkout(payload, userId);
     case 'markRefunded':
       return _markRefunded(payload, userId);
     case 'create':
@@ -135,6 +192,16 @@ Future<Map<String, dynamic>> _deleteAccount(
   }
 
   final tables = _tables();
+  var paidUpi = false;
+  await _eachPage(tables, _orders, [Query.equal('userId', userId)], (row) async {
+    if (blocksAccountDelete(
+      paymentMethod: '${row.data['paymentMethod'] ?? ''}',
+      paymentStatus: '${row.data['paymentStatus'] ?? ''}',
+    )) {
+      paidUpi = true;
+    }
+  });
+  if (paidUpi) return {'error': accountHasPaidOrders};
   final orderIds = <String>[];
   await _eachPage(tables, _orders, [Query.equal('userId', userId)], (row) async {
     orderIds.add(row.$id);
@@ -209,19 +276,26 @@ Future<Map<String, dynamic>> _create(Map<String, dynamic> payload, String userId
     if (existing.data['userId']?.toString() != userId) {
       return {'error': 'Could not start checkout.'};
     }
-    return _createdPayload(existing);
+    if (method == 'upi') return _sessionFor(tables, existing);
+    return {
+      'orderId': existing.$id,
+      'amountRupees': _int(existing.data['total']),
+      'currency': 'INR',
+    };
   }
 
   final store = await tables.getRow(databaseId: _database, tableId: _store, rowId: _storeRow);
-  final storeCity = '${store.data['city'] ?? ''}'.trim().toLowerCase();
-  final city = '${address['city'] ?? ''}'.trim();
-  if (city.toLowerCase() != storeCity) {
-    return {'error': 'Bloom delivers in ${store.data['city']} only.'};
-  }
-  final upiId = _firstUpi(store.data['upiId'], Platform.environment['BLOOMLY_UPI_ID']);
-  final upiName = _firstName(store.data['upiName'], Platform.environment['BLOOMLY_UPI_NAME']);
-  if (method == 'upi' && upiId.isEmpty) {
-    return {'error': 'Add the store UPI ID before taking UPI payments.'};
+  final storeCity = '${store.data['city'] ?? ''}'.trim();
+  final areaError = deliveryAreaError(
+    city: '${address['city'] ?? ''}',
+    pincode: '${address['pincode'] ?? ''}',
+    storeCity: storeCity,
+    storePincode: '${store.data['pincode'] ?? ''}',
+  );
+  if (areaError != null) return {'error': areaError};
+  if (method == 'upi') {
+    final keys = razorpayKeys(Platform.environment);
+    if (!keys.ready) return {'error': onlinePayNotSetUp};
   }
 
   var subtotal = 0;
@@ -255,6 +329,13 @@ Future<Map<String, dynamic>> _create(Map<String, dynamic> payload, String userId
       'qty': qty,
     });
   }
+  var customerPhone = '';
+  try {
+    final buyer = await Users(_client()).get(userId: userId);
+    customerPhone = buyer.phone;
+  } on AppwriteException {
+    customerPhone = '';
+  }
   final fee = pricedDeliveryFee(
     subtotal: subtotal,
     fee: _int(store.data['deliveryFee']),
@@ -262,7 +343,6 @@ Future<Map<String, dynamic>> _create(Map<String, dynamic> payload, String userId
   );
   final total = subtotal + fee;
   final permissions = _orderRead(userId);
-  final txn = method == 'upi' ? upiTransactionRef(key) : '';
   final created = await tables.createRow(
     databaseId: _database,
     tableId: _orders,
@@ -276,11 +356,12 @@ Future<Map<String, dynamic>> _create(Map<String, dynamic> payload, String userId
       'total': total,
       'paymentMethod': method,
       'paymentStatus': 'pending',
-      'gatewayOrderId': method == 'upi' ? upiId : '',
+      'gatewayOrderId': '',
       'gatewayPaymentId': '',
-      'upiTxnRef': txn,
+      'upiTxnRef': '',
       'riderId': '',
       'riderName': '',
+      'customerPhone': customerPhone,
       'destLatitude': '${address['latitude'] ?? ''}',
       'destLongitude': '${address['longitude'] ?? ''}',
       'placedAt': DateTime.now().toUtc().toIso8601String(),
@@ -301,93 +382,374 @@ Future<Map<String, dynamic>> _create(Map<String, dynamic> payload, String userId
     await _deleteOrderTree(tables, created.$id);
     return {'error': _genericError};
   }
+  if (method == 'upi') {
+    final session = await _attachRazorpay(tables, created.$id, total);
+    if (session['error'] != null) {
+      await _deleteOrderTree(tables, created.$id);
+      return session;
+    }
+    await _event(
+      orderId: created.$id,
+      actorId: userId,
+      action: 'created',
+      amount: total,
+      reference: '${session['razorpayOrderId'] ?? ''}',
+    );
+    return session;
+  }
   await _event(
     orderId: created.$id,
     actorId: userId,
     action: 'created',
     amount: total,
-    reference: txn,
+    reference: '',
   );
-  return {
-    'orderId': created.$id,
-    'upiId': upiId,
-    'upiName': upiName,
-    'amountRupees': total,
-    'upiTxnRef': txn,
-    'currency': 'INR',
-  };
+  return {'orderId': created.$id, 'amountRupees': total, 'currency': 'INR'};
 }
 
-Map<String, dynamic> _createdPayload(models.Row existing) {
-  return {
-    'orderId': existing.$id,
-    'upiId': '${existing.data['gatewayOrderId'] ?? ''}',
-    'upiName': '',
-    'amountRupees': _int(existing.data['total']),
-    'upiTxnRef': '${existing.data['upiTxnRef'] ?? ''}',
-    'currency': 'INR',
-  };
-}
-
-Future<Map<String, dynamic>> _note(Map<String, dynamic> payload, String userId) async {
+Future<Map<String, dynamic>> _checkout(
+  Map<String, dynamic> payload,
+  String userId,
+) async {
   if (userId.isEmpty) return {'error': 'Sign in before paying.'};
   final orderId = '${payload['orderId'] ?? ''}';
-  final reference = normalizedUpiReference('${payload['reference'] ?? ''}');
-  if (reference == null) {
-    return {'error': 'Enter the UPI reference as letters and numbers only.'};
-  }
+  if (!validIdempotencyKey(orderId)) return {'error': 'Order not found.'};
   final tables = _tables();
-  final order = await tables.getRow(databaseId: _database, tableId: _orders, rowId: orderId);
+  final order = await tables.getRow(
+    databaseId: _database,
+    tableId: _orders,
+    rowId: orderId,
+  );
   if (order.data['userId']?.toString() != userId) {
     return {'error': 'This order belongs to someone else.'};
   }
-  if (order.data['paymentMethod']?.toString() != 'upi' ||
-      order.data['status']?.toString() != 'payment_pending') {
-    return {'error': confirmNotWaiting};
-  }
-  final changed = await _writeIfStatus(
-    tables,
-    orderId,
-    'payment_pending',
-    {'paymentStatus': 'submitted', 'gatewayPaymentId': reference},
-  );
-  if (changed != null) return {'error': changed};
-  await _event(
-    orderId: orderId,
-    actorId: userId,
-    action: 'noted',
-    amount: _int(order.data['total']),
-    reference: reference,
-  );
-  return {'ok': true, 'orderId': orderId};
+  return _sessionFor(tables, order);
 }
 
-Future<Map<String, dynamic>> _confirm(Map<String, dynamic> payload, String userId) async {
-  if (!await _isOwner(userId)) return {'error': confirmOwner};
-  final orderId = '${payload['orderId'] ?? ''}';
-  final tables = _tables();
-  final order = await tables.getRow(databaseId: _database, tableId: _orders, rowId: orderId);
-  final error = confirmUpiError(
-    isOwner: true,
-    paymentMethod: '${order.data['paymentMethod'] ?? ''}',
-    status: '${order.data['status'] ?? ''}',
-    paymentStatus: '${order.data['paymentStatus'] ?? ''}',
-    reference: '${order.data['gatewayPaymentId'] ?? ''}',
+Future<Map<String, dynamic>> _sessionFor(TablesDB tables, models.Row order) async {
+  final status = '${order.data['status'] ?? ''}';
+  final paymentStatus = '${order.data['paymentStatus'] ?? ''}';
+  final total = _int(order.data['total']);
+  if (paymentStatus == 'paid' && status != 'payment_pending') {
+    return {'orderId': order.$id, 'alreadyPaid': true, 'amountRupees': total};
+  }
+  if (status != 'payment_pending' || order.data['paymentMethod']?.toString() != 'upi') {
+    return {'error': confirmNotWaiting};
+  }
+  return _attachRazorpay(
+    tables,
+    order.$id,
+    total,
+    existingGateway: '${order.data['gatewayOrderId'] ?? ''}',
   );
-  if (error != null) return {'error': error};
-  final changed = await _writeIfStatus(tables, orderId, 'payment_pending', {
+}
+
+Future<Map<String, dynamic>> _attachRazorpay(
+  TablesDB tables,
+  String orderId,
+  int total, {
+  String existingGateway = '',
+}) async {
+  final keys = razorpayKeys(Platform.environment);
+  if (!keys.ready) return {'error': onlinePayNotSetUp};
+  if (total < 1) return {'error': 'The bill must be at least ₹1.'};
+  final held = await _claimGateway(
+    tables,
+    orderId,
+    existingGateway.trim(),
+    amountRupees: total,
+  );
+  if (held.error != null) return {'error': held.error};
+  return {
+    'orderId': orderId,
+    'keyId': keys.keyId,
+    'razorpayOrderId': held.id,
+    'amountRupees': total,
+    'currency': 'INR',
+  };
+}
+
+/// One caller owns the empty gateway slot. A second caller reuses that id.
+Future<({String? id, String? error})> _claimGateway(
+  TablesDB tables,
+  String orderId,
+  String existing, {
+  required int amountRupees,
+  int depth = 0,
+}) async {
+  if (depth > 3) return (id: null, error: paymentStarting);
+  final now = DateTime.now().toUtc();
+  final slot = classifyGateway(existing, now);
+  if (slot == GatewaySlot.ready) return (id: existing, error: null);
+  if (slot == GatewaySlot.freshClaim || slot == GatewaySlot.unknown) {
+    return (id: null, error: paymentStarting);
+  }
+  final from = slot == GatewaySlot.empty ? '' : existing;
+  final claim = gatewayClaimAt(now);
+  final won = await _swapGateway(tables, orderId, from, claim);
+  if (!won) {
+    final again = await tables.getRow(
+      databaseId: _database,
+      tableId: _orders,
+      rowId: orderId,
+    );
+    final current = '${again.data['gatewayOrderId'] ?? ''}'.trim();
+    if (current == existing) return (id: null, error: paymentStarting);
+    return _claimGateway(
+      tables,
+      orderId,
+      current,
+      amountRupees: amountRupees,
+      depth: depth + 1,
+    );
+  }
+  final createdId = await _createRazorpayOrder(
+    amountRupees: amountRupees,
+    orderId: orderId,
+  );
+  if (createdId == null) {
+    await _swapGateway(tables, orderId, claim, '');
+    return (id: null, error: 'Could not start the payment.');
+  }
+  final wrote = await _swapGateway(tables, orderId, claim, createdId);
+  if (wrote) return (id: createdId, error: null);
+  final again = await tables.getRow(
+    databaseId: _database,
+    tableId: _orders,
+    rowId: orderId,
+  );
+  final current = '${again.data['gatewayOrderId'] ?? ''}'.trim();
+  if (isRazorpayOrderId(current)) return (id: current, error: null);
+  return (id: null, error: paymentStarting);
+}
+
+Future<bool> _swapGateway(
+  TablesDB tables,
+  String orderId,
+  String from,
+  String to,
+) async {
+  try {
+    final page = await tables.updateRows(
+      databaseId: _database,
+      tableId: _orders,
+      data: {'gatewayOrderId': to},
+      queries: [
+        Query.equal(r'$id', orderId),
+        Query.equal('gatewayOrderId', from),
+      ],
+    );
+    return page.rows.isNotEmpty;
+  } on AppwriteException {
+    return false;
+  }
+}
+
+Future<String?> _createRazorpayOrder({
+  required int amountRupees,
+  required String orderId,
+}) async {
+  final keys = razorpayKeys(Platform.environment);
+  final api = RazorpayApi(keyId: keys.keyId, keySecret: keys.keySecret);
+  try {
+    return await api.createOrder(
+      amountPaise: amountRupees * 100,
+      receipt: orderId,
+      bloomOrderId: orderId,
+    );
+  } on RazorpayException {
+    return null;
+  } finally {
+    api.close();
+  }
+}
+
+Future<Map<String, dynamic>> _verify(
+  Map<String, dynamic> payload,
+  String userId,
+) async {
+  if (userId.isEmpty) return {'error': 'Sign in before paying.'};
+  final orderId = '${payload['orderId'] ?? ''}';
+  final razorpayOrderId = '${payload['razorpayOrderId'] ?? ''}'.trim();
+  final paymentId = '${payload['razorpayPaymentId'] ?? ''}'.trim();
+  final signature = '${payload['signature'] ?? ''}';
+  final keys = razorpayKeys(Platform.environment);
+  if (!keys.ready) return {'error': onlinePayNotSetUp};
+  final signatureError = checkoutSignatureError(
+    secret: keys.keySecret,
+    orderId: razorpayOrderId,
+    paymentId: paymentId,
+    signature: signature,
+  );
+  if (signatureError != null) return {'error': signatureError};
+  final tables = _tables();
+  final order = await tables.getRow(
+    databaseId: _database,
+    tableId: _orders,
+    rowId: orderId,
+  );
+  if (order.data['userId']?.toString() != userId) {
+    return {'error': 'This order belongs to someone else.'};
+  }
+  if ('${order.data['gatewayOrderId'] ?? ''}' != razorpayOrderId) {
+    return {'error': paymentOrderMismatch};
+  }
+  final payment = await _fetchRazorpayPayment(paymentId);
+  if (payment == null) return {'error': paymentNotConfirmed};
+  return _applyCapture(order: order, payment: payment, actorId: userId);
+}
+
+Future<Map<String, dynamic>> _webhook(String raw, String signature) async {
+  final keys = razorpayKeys(Platform.environment);
+  if (keys.webhookSecret.isEmpty) return {'error': 'Webhook is not set up.'};
+  if (!razorpayWebhookMatches(
+    secret: keys.webhookSecret,
+    rawBody: raw,
+    signature: signature,
+  )) {
+    return {'error': paymentNotChecked};
+  }
+  Object? decoded;
+  try {
+    decoded = jsonDecode(raw);
+  } on FormatException {
+    return {'error': paymentNotChecked};
+  }
+  final event = razorpayEventName(decoded);
+  if (event == null) return {'error': paymentNotChecked};
+  if (event == 'refund.processed') return _applyRefundNotice(decoded);
+  if (event != 'payment.captured') return {'ok': true, 'ignored': true};
+  final notice = capturedPaymentNotice(decoded);
+  if (notice == null || !isRazorpayPaymentId(notice.paymentId)) {
+    return {'error': paymentNotChecked};
+  }
+  final payment = await _fetchRazorpayPayment(notice.paymentId);
+  if (payment == null) return {'error': paymentNotConfirmed};
+  final order = await _orderForPayment(payment, notice.bloomOrderId);
+  if (order == null) return {'ok': true, 'ignored': true};
+  return _applyCapture(order: order, payment: payment, actorId: 'razorpay');
+}
+
+Future<Map<String, dynamic>?> _fetchRazorpayPayment(String paymentId) async {
+  final keys = razorpayKeys(Platform.environment);
+  if (!keys.ready || !isRazorpayPaymentId(paymentId)) return null;
+  final api = RazorpayApi(keyId: keys.keyId, keySecret: keys.keySecret);
+  try {
+    return await api.fetchPayment(paymentId);
+  } on RazorpayException {
+    return null;
+  } finally {
+    api.close();
+  }
+}
+
+Future<models.Row?> _orderForPayment(
+  Map<String, dynamic> payment,
+  String noticeOrderId,
+) async {
+  final notes = payment['notes'];
+  final fromNotes = notes is Map ? '${notes['bloomOrderId'] ?? ''}'.trim() : '';
+  final bloomOrderId = validIdempotencyKey(fromNotes)
+      ? fromNotes
+      : (validIdempotencyKey(noticeOrderId) ? noticeOrderId : '');
+  final tables = _tables();
+  if (bloomOrderId.isNotEmpty) {
+    return _maybeRow(tables, _orders, bloomOrderId);
+  }
+  final razorpayOrderId = '${payment['order_id'] ?? ''}'.trim();
+  if (!isRazorpayOrderId(razorpayOrderId)) return null;
+  try {
+    final page = await tables.listRows(
+      databaseId: _database,
+      tableId: _orders,
+      queries: [Query.equal('gatewayOrderId', razorpayOrderId), Query.limit(1)],
+    );
+    if (page.rows.isEmpty) return null;
+    return page.rows.first;
+  } on AppwriteException {
+    return null;
+  }
+}
+
+Future<Map<String, dynamic>> _applyCapture({
+  required models.Row order,
+  required Map<String, dynamic> payment,
+  required String actorId,
+}) async {
+  final notes = payment['notes'];
+  final bloomOrderId = notes is Map ? '${notes['bloomOrderId'] ?? ''}'.trim() : '';
+  if (bloomOrderId.isNotEmpty && bloomOrderId != order.$id) {
+    return {'error': paymentOrderMismatch};
+  }
+  final paymentId = '${payment['id'] ?? ''}'.trim();
+  if (!isRazorpayPaymentId(paymentId)) return {'error': paymentNotChecked};
+  final accept = captureAcceptError(
+    status: '${payment['status'] ?? ''}'.trim(),
+    amountPaise: readPaise(payment['amount']),
+    expectedRupees: _int(order.data['total']),
+    razorpayOrderId: '${payment['order_id'] ?? ''}'.trim(),
+    expectedOrderId: '${order.data['gatewayOrderId'] ?? ''}'.trim(),
+  );
+  if (accept != null) return {'error': accept};
+  final decision = captureDecision(
+    orderStatus: '${order.data['status'] ?? ''}',
+    paymentStatus: '${order.data['paymentStatus'] ?? ''}',
+  );
+  final tables = _tables();
+  if (decision == CaptureDecision.alreadyPaid) {
+    return {'ok': true, 'orderId': order.$id, 'alreadyPaid': true};
+  }
+  if (decision == CaptureDecision.lateAfterCancel) {
+    final recorded = await _writeIfStatus(tables, order.$id, 'cancelled', {
+      'gatewayPaymentId': paymentId,
+      'paymentStatus': 'refund_pending',
+    });
+    if (recorded != null && '${order.data['paymentStatus'] ?? ''}' != 'refund_pending') {
+      return {'error': recorded};
+    }
+    await _event(
+      orderId: order.$id,
+      actorId: actorId,
+      action: 'captured_after_cancel',
+      amount: _int(order.data['total']),
+      reference: paymentId,
+    );
+    final refunded = await _sendRefund(
+      tables: tables,
+      orderId: order.$id,
+      paymentId: paymentId,
+      amountRupees: _int(order.data['total']),
+      actorId: actorId,
+    );
+    return {'ok': true, 'orderId': order.$id, 'late': true, 'refunded': refunded};
+  }
+  if (decision != CaptureDecision.markPaid) {
+    return {'ok': true, 'orderId': order.$id, 'ignored': true};
+  }
+  final changed = await _writeIfStatus(tables, order.$id, 'payment_pending', {
     'status': 'placed',
     'paymentStatus': 'paid',
+    'gatewayPaymentId': paymentId,
   });
-  if (changed != null) return {'error': changed};
+  if (changed != null) {
+    final again = await tables.getRow(
+      databaseId: _database,
+      tableId: _orders,
+      rowId: order.$id,
+    );
+    if (again.data['paymentStatus']?.toString() == 'paid') {
+      return {'ok': true, 'orderId': order.$id, 'alreadyPaid': true};
+    }
+    return {'error': changed};
+  }
   await _event(
-    orderId: orderId,
-    actorId: userId,
-    action: 'confirmed',
+    orderId: order.$id,
+    actorId: actorId,
+    action: 'captured',
     amount: _int(order.data['total']),
-    reference: '${order.data['gatewayPaymentId'] ?? ''}',
+    reference: paymentId,
   );
-  return {'ok': true, 'orderId': orderId};
+  return {'ok': true, 'orderId': order.$id};
 }
 
 Future<Map<String, dynamic>> _cancel(Map<String, dynamic> payload, String userId) async {
@@ -417,6 +779,16 @@ Future<Map<String, dynamic>> _cancel(Map<String, dynamic> payload, String userId
     amount: _int(order.data['total']),
     reference: nextPayment,
   );
+  if (nextPayment == 'refund_pending') {
+    final paymentId = '${order.data['gatewayPaymentId'] ?? ''}'.trim();
+    await _sendRefund(
+      tables: tables,
+      orderId: orderId,
+      paymentId: paymentId,
+      amountRupees: _int(order.data['total']),
+      actorId: userId,
+    );
+  }
   return {'ok': true, 'orderId': orderId};
 }
 
@@ -476,6 +848,12 @@ Future<Map<String, dynamic>> _assignRider(Map<String, dynamic> payload, String u
     ],
   );
   if (changed != null) return {'error': changed};
+  await _grantRiderItems(
+    tables: tables,
+    orderId: orderId,
+    customerId: customerId,
+    riderId: rider.$id,
+  );
   final locationPermissions = [
     Permission.read(Role.user(customerId)),
     Permission.read(Role.user(rider.$id)),
@@ -507,6 +885,34 @@ Future<Map<String, dynamic>> _assignRider(Map<String, dynamic> payload, String u
     reference: rider.$id,
   );
   return {'ok': true, 'orderId': orderId};
+}
+
+Future<void> _grantRiderItems({
+  required TablesDB tables,
+  required String orderId,
+  required String customerId,
+  required String riderId,
+}) async {
+  final page = await tables.listRows(
+    databaseId: _database,
+    tableId: _orderItems,
+    queries: [Query.equal('orderId', orderId), Query.limit(100)],
+  );
+  final permissions = [
+    Permission.read(Role.user(customerId)),
+    Permission.read(Role.label('owner')),
+    Permission.update(Role.label('owner')),
+    Permission.read(Role.user(riderId)),
+  ];
+  for (final item in page.rows) {
+    await tables.updateRow(
+      databaseId: _database,
+      tableId: _orderItems,
+      rowId: item.$id,
+      data: {'orderId': orderId},
+      permissions: permissions,
+    );
+  }
 }
 
 Future<Map<String, dynamic>> _updateLocation(Map<String, dynamic> payload, String userId) async {
@@ -794,20 +1200,148 @@ Future<Map<String, dynamic>> _markRefunded(Map<String, dynamic> payload, String 
   if (order.data['paymentStatus']?.toString() != 'refund_pending') {
     return {'error': 'This order is not waiting for a refund.'};
   }
-  await tables.updateRow(
-    databaseId: _database,
-    tableId: _orders,
-    rowId: orderId,
-    data: {'paymentStatus': 'refunded'},
-  );
-  await _event(
+  final sent = await _sendRefund(
+    tables: tables,
     orderId: orderId,
+    paymentId: '${order.data['gatewayPaymentId'] ?? ''}'.trim(),
+    amountRupees: _int(order.data['total']),
     actorId: userId,
-    action: 'refunded',
-    amount: _int(order.data['total']),
-    reference: '',
   );
+  if (!sent) return {'error': refundFailed};
+  final again = await tables.getRow(databaseId: _database, tableId: _orders, rowId: orderId);
+  if (again.data['paymentStatus']?.toString() != 'refunded') {
+    return {'error': 'Razorpay is still sending the refund.'};
+  }
   return {'ok': true, 'orderId': orderId};
+}
+
+Future<Map<String, dynamic>> _applyRefundNotice(Object? decoded) async {
+  final notice = refundProcessedNotice(decoded);
+  if (notice == null || notice.status != 'processed') {
+    return {'ok': true, 'ignored': true};
+  }
+  if (!isRazorpayPaymentId(notice.paymentId)) return {'error': paymentNotChecked};
+  final tables = _tables();
+  models.Row? order;
+  if (validIdempotencyKey(notice.bloomOrderId)) {
+    order = await _maybeRow(tables, _orders, notice.bloomOrderId);
+  }
+  order ??= await _orderByPayment(tables, notice.paymentId);
+  if (order == null) return {'ok': true, 'ignored': true};
+  if ('${order.data['gatewayPaymentId'] ?? ''}'.trim() != notice.paymentId) {
+    return {'ok': true, 'ignored': true};
+  }
+  final moved = await _setPaymentStatus(
+    tables,
+    order.$id,
+    '${order.data['paymentStatus'] ?? ''}',
+    'refunded',
+    refundId: notice.refundId,
+  );
+  if (moved) {
+    await _event(
+      orderId: order.$id,
+      actorId: 'razorpay',
+      action: 'refunded',
+      amount: _int(order.data['total']),
+      reference: notice.refundId,
+    );
+  }
+  return {'ok': true, 'orderId': order.$id};
+}
+
+Future<models.Row?> _orderByPayment(TablesDB tables, String paymentId) async {
+  try {
+    final page = await tables.listRows(
+      databaseId: _database,
+      tableId: _orders,
+      queries: [Query.equal('gatewayPaymentId', paymentId), Query.limit(1)],
+    );
+    if (page.rows.isEmpty) return null;
+    return page.rows.first;
+  } on AppwriteException {
+    return null;
+  }
+}
+
+/// Asks Razorpay to return a captured payment. `true` when Razorpay accepted it.
+Future<bool> _sendRefund({
+  required TablesDB tables,
+  required String orderId,
+  required String paymentId,
+  required int amountRupees,
+  required String actorId,
+}) async {
+  if (!isRazorpayPaymentId(paymentId) || amountRupees < 1) return false;
+  final keys = razorpayKeys(Platform.environment);
+  if (!keys.ready) return false;
+  final api = RazorpayApi(keyId: keys.keyId, keySecret: keys.keySecret);
+  try {
+    Map<String, dynamic> body;
+    try {
+      body = await api.refundPayment(
+        paymentId: paymentId,
+        amountPaise: amountRupees * 100,
+        bloomOrderId: orderId,
+      );
+    } on RazorpayException {
+      final payment = await api.fetchPayment(paymentId);
+      if ('${payment['refund_status'] ?? ''}' != 'full') return false;
+      body = {'status': 'processed', 'id': '${payment['id'] ?? ''}'};
+    }
+    final progress = refundProgress('${body['status'] ?? ''}');
+    if (progress == null) return false;
+    final refundId = '${body['id'] ?? ''}'.trim();
+    if (progress == 'processed') {
+      await _setPaymentStatus(
+        tables,
+        orderId,
+        'refund_pending',
+        'refunded',
+        refundId: refundId,
+      );
+      await _event(
+        orderId: orderId,
+        actorId: actorId,
+        action: 'refunded',
+        amount: amountRupees,
+        reference: refundId,
+      );
+    }
+    return true;
+  } on RazorpayException {
+    return false;
+  } finally {
+    api.close();
+  }
+}
+
+Future<bool> _setPaymentStatus(
+  TablesDB tables,
+  String orderId,
+  String from,
+  String to, {
+  String refundId = '',
+}) async {
+  if (from == to) return true;
+  final data = <String, dynamic>{'paymentStatus': to};
+  if (refundId.isNotEmpty) {
+    data['upiTxnRef'] = refundId.length > 40 ? refundId.substring(0, 40) : refundId;
+  }
+  try {
+    final page = await tables.updateRows(
+      databaseId: _database,
+      tableId: _orders,
+      data: data,
+      queries: [
+        Query.equal(r'$id', orderId),
+        Query.equal('paymentStatus', from),
+      ],
+    );
+    return page.rows.isNotEmpty;
+  } on AppwriteException {
+    return false;
+  }
 }
 
 Future<String?> _writeIfStatus(
@@ -817,18 +1351,29 @@ Future<String?> _writeIfStatus(
   Map<String, dynamic> data, {
   List<String>? permissions,
 }) async {
-  final current = await tables.getRow(databaseId: _database, tableId: _orders, rowId: orderId);
-  if (current.data['status']?.toString() != expected) return statusChanged;
+  final wanted = data['status']?.toString() ?? expected;
+  try {
+    final page = await tables.updateRows(
+      databaseId: _database,
+      tableId: _orders,
+      data: data,
+      queries: [
+        Query.equal(r'$id', orderId),
+        Query.equal('status', expected),
+      ],
+    );
+    if (page.rows.isEmpty) return statusChanged;
+  } on AppwriteException {
+    return statusChanged;
+  }
+  if (permissions == null) return null;
   await tables.updateRow(
     databaseId: _database,
     tableId: _orders,
     rowId: orderId,
-    data: data,
+    data: {'status': wanted},
     permissions: permissions,
   );
-  final again = await tables.getRow(databaseId: _database, tableId: _orders, rowId: orderId);
-  final wanted = data['status']?.toString() ?? expected;
-  if (again.data['status']?.toString() != wanted) return statusChanged;
   return null;
 }
 
@@ -964,22 +1509,6 @@ String _randomPassword() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   final random = Random.secure();
   return List.generate(24, (_) => alphabet[random.nextInt(alphabet.length)]).join();
-}
-
-String _firstUpi(Object? stored, String? fromEnv) {
-  final pattern = RegExp(r'^[A-Za-z0-9.\-_]{2,256}@[A-Za-z][A-Za-z0-9.\-]{1,63}$');
-  final row = '${stored ?? ''}'.trim();
-  if (pattern.hasMatch(row)) return row;
-  final env = (fromEnv ?? '').trim();
-  if (pattern.hasMatch(env)) return env;
-  return '';
-}
-
-String _firstName(Object? stored, String? fromEnv) {
-  final row = '${stored ?? ''}'.trim();
-  if (row.isNotEmpty) return row;
-  final env = (fromEnv ?? '').trim();
-  return env.isEmpty ? 'Bloom' : env;
 }
 
 Client _client() {

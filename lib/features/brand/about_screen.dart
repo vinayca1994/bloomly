@@ -27,11 +27,11 @@ List<AboutBlock> aboutBlocks(StoreSettings store) => [
   ),
   AboutBlock(
     'Where and how fast',
-    'Bloom delivers in ${store.city}. Orders usually arrive in ${store.etaLabel}. Delivery is ${money(store.deliveryFee)}, and free on orders over ${money(store.freeDeliveryAbove)}.',
+    'Bloom delivers in ${store.city}, ${store.pincode}. Orders usually arrive in ${store.etaLabel}. Delivery is ${money(store.deliveryFee)}, and free on orders over ${money(store.freeDeliveryAbove)}.',
   ),
   const AboutBlock(
     'How an order moves',
-    'Cash orders are Placed immediately. UPI orders are Placed after the store confirms the payment. Then the order moves through Packing, Out for delivery, and Delivered.',
+    'Cash orders are Placed immediately. UPI orders are Placed after Razorpay captures the payment. Then the order moves through Packing, Out for delivery, and Delivered.',
   ),
 ];
 

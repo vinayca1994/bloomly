@@ -14,13 +14,19 @@ class DetectedPlace {
     required this.area,
     required this.city,
     required this.pincode,
+    this.line = '',
+    this.landmark = '',
   });
 
   final double latitude;
   final double longitude;
+
+  /// House or street number, when the map has one.
+  final String line;
   final String area;
   final String city;
   final String pincode;
+  final String landmark;
 
   bool outside(String storeCity) {
     if (city.trim().isEmpty) return false;
@@ -30,18 +36,22 @@ class DetectedPlace {
   Map<String, dynamic> toJson() => {
     'latitude': latitude,
     'longitude': longitude,
+    'line': line,
     'area': area,
     'city': city,
     'pincode': pincode,
+    'landmark': landmark,
   };
 
   factory DetectedPlace.fromJson(Map<String, dynamic> json) {
     return DetectedPlace(
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
+      line: json['line'] as String? ?? '',
       area: json['area'] as String? ?? '',
       city: json['city'] as String? ?? '',
       pincode: json['pincode'] as String? ?? '',
+      landmark: json['landmark'] as String? ?? '',
     );
   }
 }
@@ -81,23 +91,30 @@ class PlaceController extends ChangeNotifier {
         return place;
       }
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 12),
+        ),
       );
       final coded = await reverseGeocode(position.latitude, position.longitude);
       final detected = DetectedPlace(
         latitude: position.latitude,
         longitude: position.longitude,
+        line: coded?.line ?? place?.line ?? '',
         area: coded?.area ?? place?.area ?? '',
         city: coded?.city ?? '',
         pincode: coded?.pincode ?? place?.pincode ?? '',
+        landmark: coded?.landmark ?? place?.landmark ?? '',
       );
       if (detected.city.isEmpty && place != null && place!.city.isNotEmpty) {
         place = DetectedPlace(
           latitude: position.latitude,
           longitude: position.longitude,
+          line: place!.line,
           area: place!.area,
           city: place!.city,
           pincode: place!.pincode,
+          landmark: place!.landmark,
         );
       } else {
         place = detected;

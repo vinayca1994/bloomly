@@ -36,7 +36,10 @@ class TodayScreen extends ConsumerWidget {
           placed.day == day.day &&
           order.status != OrderStatus.paymentPending;
     }).length;
-    final low = backend.products.where((product) => !product.forSale).take(6).toList();
+    final low = backend.products
+        .where((product) => !product.forSale)
+        .take(6)
+        .toList();
     final tokens = context.bloom;
     final desk = MediaQuery.sizeOf(context).width >= 1280;
 
@@ -46,19 +49,17 @@ class TodayScreen extends ConsumerWidget {
         Row(
           children: [
             Expanded(
-              child: Text('Today', style: BloomlyType.display(28, color: tokens.text)),
-            ),
-            Container(
-              height: 28,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: tokens.etaBg,
-                borderRadius: BorderRadius.circular(999),
-              ),
               child: Text(
-                backend.store.etaLabel,
-                style: BloomlyType.uiText(12, weight: FontWeight.w800, color: tokens.etaFg),
+                'Today',
+                style: BloomlyType.display(28, color: tokens.text),
+              ),
+            ),
+            Text(
+              backend.store.etaLabel,
+              style: BloomlyType.uiText(
+                14,
+                weight: FontWeight.w600,
+                color: tokens.textSecondary,
               ),
             ),
           ],
@@ -86,7 +87,10 @@ class TodayScreen extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              TextButton(onPressed: () => context.go('/owner/orders'), child: const Text('See all')),
+              TextButton(
+                onPressed: () => context.go('/owner/orders'),
+                child: const Text('See all'),
+              ),
             ],
           ),
         if (desk)
@@ -116,41 +120,49 @@ class TodayScreen extends ConsumerWidget {
               ),
             ),
         if (!desk) ...[
-        const SizedBox(height: 12),
-        Text(
-          'LOW AVAILABILITY',
-          style: BloomlyType.uiText(11, weight: FontWeight.w800, color: tokens.textSecondary),
-        ),
-        const SizedBox(height: 8),
-        DecoratedBox(
-          decoration: BloomlyDecor.card(tokens),
-          child: low.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Everything on the shelf is available.',
-                    style: TextStyle(color: tokens.textSecondary),
-                  ),
-                )
-              : Column(
-                  children: [
-                    for (final product in low)
-                      ListTile(
-                        title: Text(product.name),
-                        trailing: Text(
-                          'Sold out',
-                          style: TextStyle(color: tokens.danger, fontWeight: FontWeight.w800),
+          const SizedBox(height: 12),
+          Text(
+            'LOW AVAILABILITY',
+            style: BloomlyType.uiText(
+              11,
+              weight: FontWeight.w800,
+              color: tokens.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          DecoratedBox(
+            decoration: BloomlyDecor.card(tokens),
+            child: low.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Everything on the shelf is available.',
+                      style: TextStyle(color: tokens.textSecondary),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      for (final product in low)
+                        ListTile(
+                          title: Text(product.name),
+                          trailing: Text(
+                            'Sold out',
+                            style: TextStyle(
+                              color: tokens.danger,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          onTap: () =>
+                              context.go('/owner/catalog/${product.id}'),
                         ),
-                        onTap: () => context.go('/owner/catalog/${product.id}'),
-                      ),
-                  ],
-                ),
-        ),
-        const SizedBox(height: 16),
-        OutlinedButton(
-          onPressed: () => context.go('/owner/settings'),
-          child: const Text('Store settings'),
-        ),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: () => context.go('/owner/settings'),
+            child: const Text('Store settings'),
+          ),
         ],
       ],
     );
@@ -171,7 +183,10 @@ class TodayScreen extends ConsumerWidget {
               const SizedBox(height: 6),
               Text(value, style: BloomlyType.display(22, color: tokens.text)),
               const SizedBox(height: 4),
-              Text(label == 'Awaiting' ? 'UPI to confirm' : 'Today', style: TextStyle(color: accent, fontSize: 12)),
+              Text(
+                label == 'Awaiting' ? 'UPI to confirm' : 'Today',
+                style: TextStyle(color: accent, fontSize: 12),
+              ),
             ],
           ),
         ),
@@ -197,9 +212,15 @@ class _LiveOrdersTable extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
             child: Row(
               children: [
-                Text('Live orders', style: BloomlyType.display(20, color: tokens.text)),
+                Text(
+                  'Live orders',
+                  style: BloomlyType.display(20, color: tokens.text),
+                ),
                 const Spacer(),
-                TextButton(onPressed: () => context.go('/owner/orders'), child: const Text('See all')),
+                TextButton(
+                  onPressed: () => context.go('/owner/orders'),
+                  child: const Text('See all'),
+                ),
               ],
             ),
           ),
@@ -219,9 +240,19 @@ class _LiveOrdersTable extends ConsumerWidget {
                   border: Border(bottom: BorderSide(color: tokens.border)),
                 ),
                 children: [
-                  for (final label in ['Order', 'Customer', 'Items', 'Total', 'Status', ''])
+                  for (final label in [
+                    'Order',
+                    'Customer',
+                    'Items',
+                    'Total',
+                    'Status',
+                    '',
+                  ])
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       child: Text(
                         label.toUpperCase(),
                         style: BloomlyType.uiText(
@@ -238,7 +269,10 @@ class _LiveOrdersTable extends ConsumerWidget {
                   children: [
                     for (var i = 0; i < 6; i++)
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
                         child: Text(
                           i == 0 ? 'No open orders' : '',
                           style: TextStyle(color: tokens.textSecondary),
@@ -252,10 +286,20 @@ class _LiveOrdersTable extends ConsumerWidget {
                     border: Border(bottom: BorderSide(color: tokens.border)),
                   ),
                   children: [
-                    _cell(Text('#${order.id}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                    _cell(
+                      Text(
+                        '#${order.id}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
                     _cell(Text(orderCustomer(order))),
                     _cell(Text('${order.items.length} items')),
-                    _cell(Text(money(order.total), style: const TextStyle(fontWeight: FontWeight.w700))),
+                    _cell(
+                      Text(
+                        money(order.total),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
                     _cell(
                       StatusPill(
                         status: orderStatusKey(order),
@@ -289,8 +333,16 @@ class _LiveOrdersTable extends ConsumerWidget {
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
     final button = order.awaitingPayment
-        ? FilledButton(style: style, onPressed: primary.$2, child: Text(primary.$1))
-        : FilledButton.tonal(style: style, onPressed: primary.$2, child: Text(primary.$1));
+        ? FilledButton(
+            style: style,
+            onPressed: primary.$2,
+            child: Text(primary.$1),
+          )
+        : FilledButton.tonal(
+            style: style,
+            onPressed: primary.$2,
+            child: Text(primary.$1),
+          );
     return Align(alignment: Alignment.centerLeft, child: button);
   }
 }

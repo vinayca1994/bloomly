@@ -31,13 +31,13 @@ class AccountScreen extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: tokens.secondary,
-                  child: Text(
-                    (user == null || user.name.isEmpty)
-                        ? 'B'
-                        : user.name[0].toUpperCase(),
-                    style: BloomlyType.display(24, color: tokens.onSecondary),
-                  ),
+                  backgroundColor: tokens.sunken,
+                  child: user == null || user.name.trim().isEmpty
+                      ? Icon(BloomIcons.userFill, color: tokens.textSecondary)
+                      : Text(
+                          user.name.trim()[0].toUpperCase(),
+                          style: BloomlyType.display(24, color: tokens.text),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -76,32 +76,24 @@ class AccountScreen extends ConsumerWidget {
                 child: const Text('Sign in'),
               ),
             ),
-          _group(context, 'Appearance', [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: SegmentedButton<ThemeMode>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: ThemeMode.system, label: Text('System')),
-                  ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                  ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
-                ],
-                selected: {ref.watch(themeModeProvider).mode},
-                onSelectionChanged: (value) {
-                  ref.read(themeModeProvider).setMode(value.first);
-                },
-              ),
-            ),
-          ]),
           _group(context, 'Autoplay videos', [
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: SegmentedButton<AutoplayChoice>(
                 showSelectedIcon: false,
                 segments: const [
-                  ButtonSegment(value: AutoplayChoice.always, label: Text('Always')),
-                  ButtonSegment(value: AutoplayChoice.wifi, label: Text('Wi-Fi only')),
-                  ButtonSegment(value: AutoplayChoice.never, label: Text('Never')),
+                  ButtonSegment(
+                    value: AutoplayChoice.always,
+                    label: Text('Always'),
+                  ),
+                  ButtonSegment(
+                    value: AutoplayChoice.wifi,
+                    label: Text('Wi-Fi only'),
+                  ),
+                  ButtonSegment(
+                    value: AutoplayChoice.never,
+                    label: Text('Never'),
+                  ),
                 ],
                 selected: {ref.watch(autoplayProvider).choice},
                 onSelectionChanged: (value) {
@@ -111,57 +103,64 @@ class AccountScreen extends ConsumerWidget {
             ),
           ]),
           if (user != null)
-            _group(context,
-              'Orders, addresses and security',
-              [
-                _row(context,
-                  icon: BloomIcons.shoppingBag,
-                  title: 'Your orders',
-                  onTap: () => context.go('/orders'),
-                ),
-                _row(context,
-                  icon: BloomIcons.mapPin,
-                  title: 'Saved addresses',
-                  subtitle: saved == 0
-                      ? 'None saved'
-                      : '$saved saved',
-                  onTap: () => context.push('/account/addresses'),
-                ),
-                if (lock.supported)
-                  _row(context,
-                    icon: BloomIcons.lock,
-                    title: 'App lock',
-                    subtitle: lock.label,
-                    trailing: Switch(
-                      value: lock.enabled,
-                      onChanged: (value) async {
-                        final error = await ref
-                            .read(appLockProvider)
-                            .setEnabled(value);
-                        if (error != null && context.mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(content: Text(error)));
-                        }
-                      },
-                    ),
+            _group(context, 'Orders, addresses and security', [
+              _row(
+                context,
+                icon: BloomIcons.shoppingBag,
+                title: 'Your orders',
+                onTap: () => context.go('/orders'),
+              ),
+              _row(
+                context,
+                icon: BloomIcons.mapPin,
+                title: 'Saved addresses',
+                subtitle: saved == 0 ? 'None saved' : '$saved saved',
+                onTap: () => context.push('/account/addresses'),
+              ),
+              if (lock.supported)
+                _row(
+                  context,
+                  icon: BloomIcons.lock,
+                  title: 'App lock',
+                  subtitle: lock.label,
+                  trailing: Switch(
+                    value: lock.enabled,
+                    onChanged: (value) async {
+                      final error = await ref
+                          .read(appLockProvider)
+                          .setEnabled(value);
+                      if (error != null && context.mounted) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text(error)));
+                      }
+                    },
                   ),
-              ],
-            ),
+                ),
+            ]),
           _group(context, 'Legal', [
-            _row(context,
+            _row(
+              context,
               icon: BloomIcons.info,
               title: 'About bloom',
               onTap: () => context.push('/account/about'),
             ),
-            _row(context,
+            _row(
+              context,
               icon: BloomIcons.shield,
-              title: 'Privacy and terms',
+              title: 'Privacy',
               onTap: () => context.push('/account/privacy'),
+            ),
+            _row(
+              context,
+              icon: BloomIcons.receipt,
+              title: 'Terms',
+              onTap: () => context.push('/account/terms'),
             ),
           ]),
           if (user != null)
             _group(context, 'Account', [
-              _row(context,
+              _row(
+                context,
                 icon: BloomIcons.signOut,
                 title: 'Sign out',
                 danger: true,
@@ -176,7 +175,8 @@ class AccountScreen extends ConsumerWidget {
                 },
               ),
               if (!user.isOwner && !user.isRider)
-                _row(context,
+                _row(
+                  context,
                   icon: BloomIcons.trash,
                   title: 'Delete account',
                   danger: true,
@@ -185,32 +185,29 @@ class AccountScreen extends ConsumerWidget {
             ]),
           _group(context, 'Staff', [
             if (user?.isOwner == true)
-              _row(context,
+              _row(
+                context,
                 icon: BloomIcons.storefront,
                 title: 'Open store console',
                 onTap: () => context.go('/owner'),
               ),
             if (user?.isRider == true)
-              _row(context,
+              _row(
+                context,
                 icon: BloomIcons.moped,
                 title: 'Open deliveries',
                 onTap: () => context.go('/rider'),
               ),
-            _row(context,
+            _row(
+              context,
               icon: BloomIcons.storefront,
               title: 'Store team sign in',
               subtitle: 'Owner and riders',
               onTap: () {
                 if (user?.isOwner == true) {
                   context.go('/owner');
-                } else if (user != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'The store console is for the owner account.',
-                      ),
-                    ),
-                  );
+                } else if (user?.isRider == true) {
+                  context.go('/rider');
                 } else {
                   context.push('/login?next=/owner');
                 }
@@ -241,8 +238,16 @@ class AccountScreen extends ConsumerWidget {
             ),
           ),
           DecoratedBox(
-            decoration: BloomlyDecor.card(tokens),
-            child: Column(children: rows),
+            decoration: BloomlyDecor.card(tokens, radius: 16),
+            child: Column(
+              children: [
+                for (var i = 0; i < rows.length; i++) ...[
+                  rows[i],
+                  if (i != rows.length - 1)
+                    Divider(height: 1, color: tokens.border),
+                ],
+              ],
+            ),
           ),
         ],
       ),
@@ -266,7 +271,8 @@ class AccountScreen extends ConsumerWidget {
     }
   }
 
-  Widget _row(BuildContext context, {
+  Widget _row(
+    BuildContext context, {
     required IconData icon,
     required String title,
     String? subtitle,
@@ -373,7 +379,9 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
             const SizedBox(height: 8),
             TextButton(
               onPressed: _busy ? null : _sendCode,
-              child: Text(_codeSent ? 'Send the code again' : 'Send a code'),
+              child: Text(
+                _codeSent ? 'Send the code again' : 'Send a code on WhatsApp',
+              ),
             ),
           ],
           if (_error != null) ...[
@@ -402,7 +410,7 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
     });
     final started = await ref
         .read(backendProvider)
-        .startPhoneLogin(widget.user.phone, channel: OtpChannel.sms);
+        .startPhoneLogin(widget.user.phone, channel: OtpChannel.whatsapp);
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -434,7 +442,7 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
         .verifyPhoneOtp(
           userId: widget.user.id,
           code: secret,
-          channel: OtpChannel.sms,
+          channel: OtpChannel.whatsapp,
         );
     if (!mounted) return;
     if (error != null) {

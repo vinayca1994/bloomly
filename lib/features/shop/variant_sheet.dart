@@ -11,9 +11,9 @@ void showVariantSheet(BuildContext context, Product product) {
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    backgroundColor: context.bloom.canvas,
+    backgroundColor: context.bloom.raised,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
     builder: (context) => _VariantSheet(product: product),
   );

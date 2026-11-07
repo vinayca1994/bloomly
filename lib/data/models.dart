@@ -1,3 +1,4 @@
+import 'service_area.dart';
 import 'stories.dart';
 
 class StoreSettings {
@@ -6,6 +7,7 @@ class StoreSettings {
     required this.etaLabel,
     required this.deliveryFee,
     required this.freeDeliveryAbove,
+    this.pincode = launchPincode,
     this.upiId = '',
     this.upiName = 'Bloom',
     this.storePhone = '',
@@ -16,6 +18,9 @@ class StoreSettings {
   final String etaLabel;
   final int deliveryFee;
   final int freeDeliveryAbove;
+
+  /// Indian pin the store delivers to. Empty falls back to [launchPincode].
+  final String pincode;
   final String upiId;
   final String upiName;
 
@@ -26,7 +31,7 @@ class StoreSettings {
   final List<Story> promotions;
 
   static const fallback = StoreSettings(
-    city: 'Bengaluru',
+    city: launchCity,
     etaLabel: '15–30 min',
     deliveryFee: 25,
     freeDeliveryAbove: 199,
@@ -37,6 +42,7 @@ class StoreSettings {
     String? etaLabel,
     int? deliveryFee,
     int? freeDeliveryAbove,
+    String? pincode,
     String? upiId,
     String? upiName,
     String? storePhone,
@@ -47,6 +53,7 @@ class StoreSettings {
       etaLabel: etaLabel ?? this.etaLabel,
       deliveryFee: deliveryFee ?? this.deliveryFee,
       freeDeliveryAbove: freeDeliveryAbove ?? this.freeDeliveryAbove,
+      pincode: pincode ?? this.pincode,
       upiId: upiId ?? this.upiId,
       upiName: upiName ?? this.upiName,
       storePhone: storePhone ?? this.storePhone,
@@ -59,6 +66,7 @@ class StoreSettings {
     'etaLabel': etaLabel,
     'deliveryFee': deliveryFee,
     'freeDeliveryAbove': freeDeliveryAbove,
+    'pincode': pincode,
     'upiId': upiId,
     'upiName': upiName,
     'storePhone': storePhone,
@@ -396,6 +404,7 @@ class OrderRecord {
     this.upiTxnRef = '',
     this.riderId = '',
     this.riderName = '',
+    this.customerPhone = '',
     this.destLatitude,
     this.destLongitude,
   });
@@ -414,6 +423,7 @@ class OrderRecord {
   final String upiTxnRef;
   final String riderId;
   final String riderName;
+  final String customerPhone;
   final double? destLatitude;
   final double? destLongitude;
   final DateTime placedAt;
@@ -471,6 +481,7 @@ class OrderRecord {
       upiTxnRef: upiTxnRef ?? this.upiTxnRef,
       riderId: riderId ?? this.riderId,
       riderName: riderName ?? this.riderName,
+      customerPhone: customerPhone,
       destLatitude: destLatitude ?? this.destLatitude,
       destLongitude: destLongitude ?? this.destLongitude,
       placedAt: placedAt,
@@ -492,6 +503,7 @@ class OrderRecord {
     'upiTxnRef': upiTxnRef,
     'riderId': riderId,
     'riderName': riderName,
+    'customerPhone': customerPhone,
     'destLatitude': destLatitude?.toString() ?? '',
     'destLongitude': destLongitude?.toString() ?? '',
     'placedAt': placedAt.toIso8601String(),

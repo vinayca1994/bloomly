@@ -1,24 +1,18 @@
-import '../core/upi.dart';
 import 'models.dart';
 
 class OnlinePayment {
   const OnlinePayment({
     required this.order,
-    required this.upiId,
-    required this.upiName,
     required this.amountRupees,
+    this.keyId = '',
+    this.razorpayOrderId = '',
   });
 
   final OrderRecord order;
-  final String upiId;
-  final String upiName;
   final int amountRupees;
+  final String keyId;
+  final String razorpayOrderId;
 
-  String? get payUri => upiPayUri(
-    vpa: upiId,
-    name: upiName,
-    amountRupees: amountRupees,
-    note: 'Bloom ${order.id}',
-    transactionRef: order.upiTxnRef,
-  );
+  bool get opensGateway =>
+      keyId.startsWith('rzp_') && razorpayOrderId.startsWith('order_');
 }

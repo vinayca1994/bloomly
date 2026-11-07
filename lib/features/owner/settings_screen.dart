@@ -19,6 +19,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _city;
+  late final TextEditingController _pincode;
   late final TextEditingController _eta;
   late final TextEditingController _fee;
   late final TextEditingController _free;
@@ -33,6 +34,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     final store = StoreSettings.fallback;
     _city = TextEditingController(text: store.city);
+    _pincode = TextEditingController(text: store.pincode);
     _eta = TextEditingController(text: store.etaLabel);
     _fee = TextEditingController(text: '${store.deliveryFee}');
     _free = TextEditingController(text: '${store.freeDeliveryAbove}');
@@ -44,6 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void dispose() {
     _city.dispose();
+    _pincode.dispose();
     _eta.dispose();
     _fee.dispose();
     _free.dispose();
@@ -61,6 +64,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!_filled) {
       _filled = true;
       _city.text = backend.store.city;
+      _pincode.text = backend.store.pincode;
       _eta.text = backend.store.etaLabel;
       _fee.text = '${backend.store.deliveryFee}';
       _free.text = '${backend.store.freeDeliveryAbove}';
@@ -78,6 +82,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           TextField(
             controller: _city,
             decoration: const InputDecoration(labelText: 'City'),
+          ),
+          TextField(
+            controller: _pincode,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Delivery pin'),
           ),
           TextField(
             controller: _eta,
@@ -141,13 +150,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               final fee = int.tryParse(_fee.text.trim());
               final free = int.tryParse(_free.text.trim());
               final upiId = _upiId.text.trim();
+              final pin = _pincode.text.trim();
               if (_city.text.trim().isEmpty ||
+                  !RegExp(r'^\d{6}$').hasMatch(pin) ||
                   fee == null ||
                   free == null ||
                   fee < 0 ||
                   free < 0) {
                 setState(() {
-                  _message = 'Check the city and the two amounts.';
+                  _message = 'Check the city, the 6-digit pin, and the two amounts.';
                   _messageIsError = true;
                 });
                 return;
@@ -172,6 +183,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               await backend.updateStore(
                 StoreSettings(
                   city: _city.text.trim(),
+                  pincode: pin,
                   etaLabel: _eta.text.trim().isEmpty
                       ? '15–30 min'
                       : _eta.text.trim(),

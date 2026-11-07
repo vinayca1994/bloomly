@@ -1,9 +1,14 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+
 /// Decisions the payments function can make without Appwrite.
 const maxCartLines = 40;
 const maxLineQty = 99;
 const upiHold = Duration(minutes: 45);
 const deletePageSize = 100;
 const reauthWindow = Duration(minutes: 5);
+const launchPincode = '563130';
 
 final idempotencyKeyPattern = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,35}$');
 final upiReferencePattern = RegExp(r'^[A-Za-z0-9]{1,35}$');
@@ -15,6 +20,14 @@ const confirmWait = 'Wait for the customer’s UPI reference before confirming.'
 const confirmNotWaiting = 'This order is not awaiting a UPI payment.';
 const confirmNotUpi = 'This order was not paid by UPI.';
 const confirmOwner = 'Only the store can confirm a UPI payment.';
+const confirmClosed =
+    'The store does not confirm a UPI reference. Razorpay confirms the payment.';
+const paymentStarting = 'Payment is already starting. Try again.';
+const refundFailed = 'The refund could not be sent. Try again.';
+const accountHasPaidOrders =
+    'Refund the paid UPI orders before deleting the account.';
+const gatewayClaimPrefix = 'claim:';
+const gatewayClaimHold = Duration(seconds: 30);
 const statusChanged = 'This order changed. Refresh and try again.';
 const packFirst = 'Pack the order before sending it out.';
 const notOut = 'This order is not out for delivery.';
@@ -22,6 +35,28 @@ const notYours = 'This delivery is assigned to someone else.';
 const cancelClosed = 'This order can no longer be cancelled.';
 const cancelEarly = 'You can cancel only before the store starts packing.';
 const stepBlocked = 'This order cannot move to that step.';
+
+String deliveryPin(String storePincode) {
+  final pin = storePincode.trim();
+  return pin.isEmpty ? launchPincode : pin;
+}
+
+String deliveryAreaMessage(String storeCity, {String storePincode = ''}) {
+  final name = storeCity.trim().isEmpty ? 'Malur' : storeCity.trim();
+  return 'Bloom delivers in $name, ${deliveryPin(storePincode)} only.';
+}
+
+/// City must match the store, and the pin must match the store pin.
+String? deliveryAreaError({
+  required String city,
+  required String pincode,
+  required String storeCity,
+  String storePincode = '',
+}) {
+  final sameCity = city.trim().toLowerCase() == storeCity.trim().toLowerCase();
+  if (sameCity && pincode.trim() == deliveryPin(storePincode)) return null;
+  return deliveryAreaMessage(storeCity, storePincode: storePincode);
+}
 
 String? cartShapeError({required int lineCount, required Iterable<int> quantities}) {
   if (lineCount < 1) return cartEmpty;
@@ -56,6 +91,7 @@ String? normalizedUpiReference(String raw) {
   return value;
 }
 
+/// A typed UPI reference is never enough. Razorpay capture is the confirmation.
 String? confirmUpiError({
   required bool isOwner,
   required String paymentMethod,
@@ -63,11 +99,38 @@ String? confirmUpiError({
   required String paymentStatus,
   required String reference,
 }) {
-  if (!isOwner) return confirmOwner;
-  if (paymentMethod != 'upi') return confirmNotUpi;
-  if (status != 'payment_pending') return confirmNotWaiting;
-  if (paymentStatus != 'submitted') return confirmWait;
-  if (normalizedUpiReference(reference) == null) return confirmWait;
+  return confirmClosed;
+}
+
+/// Paid or refund-pending UPI still has money at Razorpay.
+bool blocksAccountDelete({
+  required String paymentMethod,
+  required String paymentStatus,
+}) {
+  return paymentMethod == 'upi' &&
+      (paymentStatus == 'paid' || paymentStatus == 'refund_pending');
+}
+
+enum GatewaySlot { empty, freshClaim, staleClaim, ready, unknown }
+
+GatewaySlot classifyGateway(String value, DateTime now) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return GatewaySlot.empty;
+  if (isRazorpayOrderId(trimmed)) return GatewaySlot.ready;
+  if (!trimmed.startsWith(gatewayClaimPrefix)) return GatewaySlot.unknown;
+  final at = DateTime.tryParse(trimmed.substring(gatewayClaimPrefix.length))?.toUtc();
+  if (at == null) return GatewaySlot.staleClaim;
+  final age = now.toUtc().difference(at);
+  if (age.isNegative || age >= gatewayClaimHold) return GatewaySlot.staleClaim;
+  return GatewaySlot.freshClaim;
+}
+
+String gatewayClaimAt(DateTime now) =>
+    '$gatewayClaimPrefix${now.toUtc().toIso8601String()}';
+
+/// `processed` means the money moved. `pending` means Razorpay accepted it.
+String? refundProgress(String status) {
+  if (status == 'processed' || status == 'pending') return status;
   return null;
 }
 
@@ -179,4 +242,208 @@ String? paymentStatusOnDeliver({
 }) {
   if (paymentMethod == 'cod' && paymentStatus == 'pending') return 'paid';
   return null;
+}
+
+const onlinePayNotSetUp = 'Online payment is not set up yet.';
+const paymentNotChecked = 'Payment could not be checked.';
+const paymentNotConfirmed = 'Payment could not be confirmed.';
+const paymentNotCaptured = 'Payment was not captured.';
+const paymentAmountMismatch = 'Payment amount does not match.';
+const paymentOrderMismatch = 'Payment does not match this order.';
+
+final razorpayOrderIdPattern = RegExp(r'^order_[A-Za-z0-9]+$');
+final razorpayPaymentIdPattern = RegExp(r'^pay_[A-Za-z0-9]+$');
+
+bool isRazorpayOrderId(String value) => razorpayOrderIdPattern.hasMatch(value);
+
+bool isRazorpayPaymentId(String value) => razorpayPaymentIdPattern.hasMatch(value);
+
+class RazorpayKeys {
+  const RazorpayKeys({
+    required this.keyId,
+    required this.keySecret,
+    required this.webhookSecret,
+  });
+
+  final String keyId;
+  final String keySecret;
+  final String webhookSecret;
+
+  bool get ready => keyId.startsWith('rzp_') && keySecret.isNotEmpty;
+}
+
+RazorpayKeys razorpayKeys(Map<String, String> env) {
+  return RazorpayKeys(
+    keyId: (env['RAZORPAY_KEY_ID'] ?? '').trim(),
+    keySecret: (env['RAZORPAY_KEY_SECRET'] ?? '').trim(),
+    webhookSecret: (env['RAZORPAY_WEBHOOK_SECRET'] ?? '').trim(),
+  );
+}
+
+String razorpayHex({required String secret, required String message}) {
+  final mac = Hmac(sha256, utf8.encode(secret));
+  return mac.convert(utf8.encode(message)).toString();
+}
+
+bool sameSignature(String left, String right) {
+  final a = utf8.encode(left.trim().toLowerCase());
+  final b = utf8.encode(right.trim().toLowerCase());
+  if (a.length != b.length || a.isEmpty) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i++) {
+    diff |= a[i] ^ b[i];
+  }
+  return diff == 0;
+}
+
+String? checkoutSignatureError({
+  required String secret,
+  required String orderId,
+  required String paymentId,
+  required String signature,
+}) {
+  if (secret.isEmpty ||
+      !isRazorpayOrderId(orderId) ||
+      !isRazorpayPaymentId(paymentId) ||
+      signature.trim().isEmpty) {
+    return paymentNotChecked;
+  }
+  final expected = razorpayHex(secret: secret, message: '$orderId|$paymentId');
+  if (!sameSignature(expected, signature)) return paymentNotChecked;
+  return null;
+}
+
+bool razorpayWebhookMatches({
+  required String secret,
+  required String rawBody,
+  required String signature,
+}) {
+  if (secret.isEmpty || rawBody.isEmpty || signature.trim().isEmpty) return false;
+  final expected = razorpayHex(secret: secret, message: rawBody);
+  return sameSignature(expected, signature);
+}
+
+bool isRazorpayEventBody(String raw) {
+  final trimmed = raw.trim();
+  if (!trimmed.startsWith('{')) return false;
+  try {
+    final decoded = jsonDecode(trimmed);
+    final event = razorpayEventName(decoded);
+    return event != null &&
+        (event.startsWith('payment.') || event.startsWith('refund.'));
+  } on FormatException {
+    return false;
+  }
+}
+
+String? razorpayEventName(Object? decoded) {
+  if (decoded is! Map) return null;
+  final event = decoded['event']?.toString() ?? '';
+  if (event.isEmpty) return null;
+  return event;
+}
+
+class CapturedPaymentNotice {
+  const CapturedPaymentNotice({
+    required this.paymentId,
+    required this.orderId,
+    required this.amountPaise,
+    required this.status,
+    required this.bloomOrderId,
+  });
+
+  final String paymentId;
+  final String orderId;
+  final int amountPaise;
+  final String status;
+  final String bloomOrderId;
+}
+
+int readPaise(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return int.tryParse('${value ?? ''}') ?? -1;
+}
+
+CapturedPaymentNotice? capturedPaymentNotice(Object? decoded) {
+  if (razorpayEventName(decoded) != 'payment.captured') return null;
+  if (decoded is! Map) return null;
+  final payload = decoded['payload'];
+  if (payload is! Map) return null;
+  final payment = payload['payment'];
+  if (payment is! Map) return null;
+  final entity = payment['entity'];
+  if (entity is! Map) return null;
+  final notes = entity['notes'];
+  final bloomOrderId = notes is Map ? '${notes['bloomOrderId'] ?? ''}'.trim() : '';
+  return CapturedPaymentNotice(
+    paymentId: '${entity['id'] ?? ''}'.trim(),
+    orderId: '${entity['order_id'] ?? ''}'.trim(),
+    amountPaise: readPaise(entity['amount']),
+    status: '${entity['status'] ?? ''}'.trim(),
+    bloomOrderId: bloomOrderId,
+  );
+}
+
+class RefundNotice {
+  const RefundNotice({
+    required this.paymentId,
+    required this.refundId,
+    required this.status,
+    required this.bloomOrderId,
+  });
+
+  final String paymentId;
+  final String refundId;
+  final String status;
+  final String bloomOrderId;
+}
+
+RefundNotice? refundProcessedNotice(Object? decoded) {
+  if (razorpayEventName(decoded) != 'refund.processed') return null;
+  if (decoded is! Map) return null;
+  final payload = decoded['payload'];
+  if (payload is! Map) return null;
+  final refund = payload['refund'];
+  final refundEntity = refund is Map ? refund['entity'] : null;
+  if (refundEntity is! Map) return null;
+  final payment = payload['payment'];
+  final paymentEntity = payment is Map ? payment['entity'] : null;
+  final notes = paymentEntity is Map ? paymentEntity['notes'] : null;
+  final bloomOrderId = notes is Map ? '${notes['bloomOrderId'] ?? ''}'.trim() : '';
+  return RefundNotice(
+    paymentId: '${refundEntity['payment_id'] ?? ''}'.trim(),
+    refundId: '${refundEntity['id'] ?? ''}'.trim(),
+    status: '${refundEntity['status'] ?? ''}'.trim(),
+    bloomOrderId: bloomOrderId,
+  );
+}
+
+String? captureAcceptError({
+  required String status,
+  required int amountPaise,
+  required int expectedRupees,
+  required String razorpayOrderId,
+  required String expectedOrderId,
+}) {
+  if (status != 'captured') return paymentNotCaptured;
+  if (expectedRupees < 1 || amountPaise != expectedRupees * 100) {
+    return paymentAmountMismatch;
+  }
+  if (!isRazorpayOrderId(razorpayOrderId) || razorpayOrderId != expectedOrderId) {
+    return paymentOrderMismatch;
+  }
+  return null;
+}
+
+enum CaptureDecision { markPaid, alreadyPaid, lateAfterCancel, ignore }
+
+CaptureDecision captureDecision({
+  required String orderStatus,
+  required String paymentStatus,
+}) {
+  if (paymentStatus == 'paid') return CaptureDecision.alreadyPaid;
+  if (orderStatus == 'cancelled') return CaptureDecision.lateAfterCancel;
+  if (orderStatus == 'payment_pending') return CaptureDecision.markPaid;
+  return CaptureDecision.ignore;
 }

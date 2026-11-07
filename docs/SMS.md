@@ -82,25 +82,21 @@ Twilio is supported the same way if you prefer it over MSG91; pick Twilio in the
 
 ## WhatsApp with MSG91
 
-WhatsApp uses a Meta Authentication template, which is a different approval queue from DLT. Meta may withhold that category until the business is verified. Until the template is approved, customers can still choose SMS.
+The live MSG91 OTP template is `loomWhatsAppOTP`: WhatsApp, 6 digits, a 30-second resend, 15 minutes, Active and Enabled. The app shows WhatsApp only. SMS stays hidden until the DLT template is approved: set the function variable `SMS_LOGIN` to `1` and set `smsLoginLive` to true in `lib/core/phone.dart` in the same release.
 
-1. In MSG91, open WhatsApp and connect a WhatsApp Business number through Meta Business Manager.
-2. Create an **Authentication** template. Put the OTP in the message body and in the copy-code button. Note the template name, language code, and namespace.
-3. Run `dart run tool/seed.dart` so the server-only `otp_challenges` table exists.
-4. On the `phone-login` function in the Appwrite console, set these variables. Do not put them in `.env`, `dart_defines.json`, or the app:
+1. In MSG91, keep `loomWhatsAppOTP` enabled on the connected WhatsApp number.
+2. Run `dart run tool/seed.dart` so the server-only `otp_challenges` table exists.
+3. On the `phone-login` function in the Appwrite console, set these variables. Do not put them in `.env`, `dart_defines.json`, or the app:
 
    - `OTP_PEPPER` — at least 32 random characters, used to hash codes
    - `OTP_MOCK` — set to `1` only on a development function. Leave it unset in production.
    - `MSG91_AUTH_KEY`
-   - `MSG91_WHATSAPP_NUMBER` — the connected WhatsApp number
-   - `MSG91_WHATSAPP_TEMPLATE`
-   - `MSG91_WHATSAPP_NAMESPACE`
-   - `MSG91_WHATSAPP_LANGUAGE` — for example `en`
+   - `MSG91_WHATSAPP_TEMPLATE` — optional. Empty uses `loomWhatsAppOTP`.
 
-5. Deploy `phone-login` (`appwrite push functions`). Its scopes are `users.read`, `users.write`, `rows.read`, and `rows.write`.
-6. If any variable is missing, the app says WhatsApp is not set up yet and SMS still works.
+4. Deploy `phone-login` (`appwrite push functions`). Its scopes are `users.read`, `users.write`, `rows.read`, and `rows.write`.
+5. If the pepper or auth key is missing, the app says WhatsApp is not set up yet.
 
-The function calls MSG91 `POST /api/v5/whatsapp/whatsapp-outbound-message/bulk/` with the code in `body_1` and `button_1`. Codes expire after 10 minutes, a resend waits 30 seconds, and five wrong tries invalidate the code.
+The function calls MSG91 `POST https://control.msg91.com/api/v5/otp` with that template id, the 6-digit code, and a 15-minute expiry. A resend waits 30 seconds, and five wrong tries invalidate the code.
 
 ## Verify
 

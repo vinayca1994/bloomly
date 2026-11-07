@@ -14,12 +14,7 @@ List<OrderAction> orderActions(BuildContext context, WidgetRef ref, OrderRecord 
   final backend = ref.read(backendProvider);
   final next = OrderStatus.next(order.status);
   final actions = <OrderAction>[];
-  if (order.paymentMethod == PaymentMethod.upi && order.awaitingPayment) {
-    actions.add((
-      'Confirm UPI received',
-      () => runOrderAction(context, backend.confirmUpiPayment(order.id)),
-    ));
-  } else if (order.status == OrderStatus.packing) {
+  if (order.status == OrderStatus.packing) {
     actions.add(('Assign rider', () => assignRider(context, ref, order)));
   } else if (next != null) {
     actions.add((
@@ -31,7 +26,7 @@ List<OrderAction> orderActions(BuildContext context, WidgetRef ref, OrderRecord 
     actions.add(('Change rider', () => assignRider(context, ref, order)));
   }
   if (order.paymentStatus == PaymentStatus.refundPending) {
-    actions.add(('Refund sent', () => runOrderAction(context, backend.markRefunded(order.id))));
+    actions.add(('Send refund', () => runOrderAction(context, backend.markRefunded(order.id))));
   }
   if (OrderStatus.canCancel(order.status)) {
     actions.add(('Cancel', () => runOrderAction(context, backend.cancelOrder(order.id))));

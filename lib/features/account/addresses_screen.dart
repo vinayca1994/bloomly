@@ -20,6 +20,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
   final _area = TextEditingController();
   final _city = TextEditingController();
   final _pincode = TextEditingController();
+  final _lineFocus = FocusNode();
   String? _editingId;
   String? _error;
   var _form = false;
@@ -32,6 +33,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
     _area.dispose();
     _city.dispose();
     _pincode.dispose();
+    _lineFocus.dispose();
     super.dispose();
   }
 
@@ -46,9 +48,12 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
     _error = null;
   }
 
-  void _openNew(String city) {
-    _clearForm(city: city);
-    _form = true;
+  Future<void> _openNew(String city) async {
+    setState(() {
+      _clearForm(city: city);
+      _form = true;
+    });
+    await _useLocation();
   }
 
   void _fillForm(Address address) {
@@ -111,7 +116,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                   const SizedBox(height: 12),
                 ],
                 OutlinedButton.icon(
-                  onPressed: () => setState(() => _openNew(backend.store.city)),
+                  onPressed: () => _openNew(backend.store.city),
                   icon: const Icon(BloomIcons.add),
                   label: const Text('Add new address'),
                 ),
@@ -171,6 +176,8 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
         const SizedBox(height: 16),
         TextField(
           controller: _line,
+          focusNode: _lineFocus,
+          textInputAction: TextInputAction.next,
           decoration: const InputDecoration(labelText: 'House, flat or floor'),
         ),
         const SizedBox(height: 8),
@@ -235,11 +242,18 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
     final detected = await ref.read(placeProvider).detect(announceLookupFailure: true);
     if (!mounted || detected == null || detected.city.isEmpty) return;
     setState(() {
+      if (detected.line.isNotEmpty) _line.text = detected.line;
       if (detected.area.isNotEmpty) _area.text = detected.area;
       _city.text = detected.city;
       if (detected.pincode.isNotEmpty) _pincode.text = detected.pincode;
+      if (detected.landmark.isNotEmpty) _landmark.text = detected.landmark;
       _error = null;
     });
+    if (_line.text.trim().isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _lineFocus.requestFocus();
+      });
+    }
   }
 
   Future<void> _save(String userId) async {

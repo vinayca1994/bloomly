@@ -2,7 +2,7 @@
 
 Bloom is a quick shop for vegetables, fruit, and regional flowers. One Flutter codebase runs on Android, iPhone, and in the browser. Customers browse like a quick-commerce app. The store owner updates prices, availability, and order status.
 
-Without Appwrite credentials the app runs on an in-memory catalog, so you can click through the whole shop immediately. Phone sign-in accepts the code `123456` in that demo. Until the store saves a UPI ID, online pay confirms in a demo dialog and does not charge a bank. Neither shortcut is shown in a release build.
+Without Appwrite credentials the app runs on an in-memory catalog, so you can click through the whole shop immediately. Email and phone sign-in accept the code `123456` in that demo. Online pay confirms in a demo dialog and does not charge a bank. Neither shortcut is shown in a release build.
 
 ## Run the shop
 
@@ -13,11 +13,11 @@ flutter run
 
 Debug builds without Appwrite use the in-memory shop. Demo customer, owner, and rider emails, and the demo password, live in `MemoryBackend`. A release build without Appwrite defines does not open that shop.
 
-Delivery is ₹25, and free from ₹199. The service city starts as Bengaluru. The owner can change the city, the fee, and the free-delivery threshold.
+Delivery is ₹25, and free from ₹199. The service area starts as Malur, pin 563130. The owner can change the city, the fee, and the free-delivery threshold. The live store row keeps its saved city until that is saved again from owner Settings.
 
 The owner can add riders. A live rider gets an email code and signs in with Forgot password, then shares a pin while a delivery is out. Customers can review a delivered order. The map uses OpenStreetMap tiles unless `BLOOMLY_MAP_TILES` points at a host whose terms allow the traffic. The web Content-Security-Policy allows the public OSM host; add another host there if you change the tile URL.
 
-Customers can also sign in with a mobile number. Email and password stay available, including forgot password. After sign-in, Account can turn on Face ID or fingerprint unlock for the next time the app opens.
+Customers sign in with a 6-digit code emailed by Appwrite. A mobile number still works on WhatsApp or SMS. A password stays available for the store owner and riders, including forgot password. After sign-in, Account can turn on Face ID or fingerprint unlock for the next time the app opens.
 
 ## Appwrite
 
@@ -38,19 +38,12 @@ Deploy the Dart functions with `appwrite push functions --all --force` (see `app
 
 | Id | Scopes | Variables |
 | --- | --- | --- |
-| `phone-login` | users.read, users.write, rows.read, rows.write | secret `APPWRITE_API_KEY` (same key as seed; dynamic function keys can arrive empty). WhatsApp also needs `OTP_PEPPER`, `MSG91_AUTH_KEY`, `MSG91_WHATSAPP_NUMBER`, `MSG91_WHATSAPP_TEMPLATE`, `MSG91_WHATSAPP_NAMESPACE`, and `MSG91_WHATSAPP_LANGUAGE` on the function. Leave them unset to keep SMS only. |
-| `payments` | rows.read, rows.write, users.read, users.write | secret `APPWRITE_API_KEY`, plus `BLOOMLY_UPI_ID`, `BLOOMLY_UPI_NAME` |
+| `phone-login` | users.read, users.write, rows.read, rows.write | secret `APPWRITE_API_KEY` (same key as seed; dynamic function keys can arrive empty). WhatsApp also needs `OTP_PEPPER` and `MSG91_AUTH_KEY`. The template defaults to `loomWhatsAppOTP` (6 digits, 30-second resend, 15 minutes). Set `MSG91_WHATSAPP_TEMPLATE` only to override it. SMS stays off until `SMS_LOGIN` is `1` and the app’s `smsLoginLive` flag is turned on. |
+| `payments` | rows.read, rows.write, users.read, users.write | secret `APPWRITE_API_KEY`, plus `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET`. `BLOOMLY_UPI_ID` and `BLOOMLY_UPI_NAME` are no longer used at checkout. |
 
 `dart run tool/seed.dart` reads those values from the environment or from `.env`. The API key stays out of the app. If the Appwrite defines are absent, Bloom uses the in-memory shop.
 
-Promo loops, Lottie files, and posters live in one storage bucket, `promo-media` (also listed in `appwrite.config.json`). Create it with `appwrite push buckets` or in the console:
-
-| Setting | Value |
-| --- | --- |
-| Bucket id | `promo-media` |
-| Maximum file size | 5 MB (5,000,000 bytes) |
-| Extensions | `mp4`, `webm`, `json`, `jpg`, `jpeg`, `png`, `webp` |
-| Permissions | read for anyone; create, update, and delete for signed-in users |
+Promo loops, Lottie files, and posters are stored in the existing `product-images` bucket. The project plan allows one bucket, and that bucket already lets anyone read a file while only the owner label can create, update, or delete. The app still refuses a promo file over 5 MB.
 
 The promotions collection does not change. A banner stores the file id or view URL, plus an optional poster URL, inside the existing promotions JSON (`mediaKind`, `mediaUrl`, `posterUrl`). Home, category, clip, tile, and splash placements read those fields. The in-memory shop has no bucket: the owner editor offers two sample files under `assets/media/` (a short silent MP4 and a small Lottie). Those loops were generated for this repo and are not third-party assets.
 
@@ -75,9 +68,11 @@ flutter run -d chrome \
 
 ## Payments
 
-Checkout offers cash on delivery, or UPI through the customer’s own app: BHIM, GPay, PhonePe, or Paytm. There is no payment-gateway fee. The payments function recomputes the bill from the catalog and returns a `upi://pay` link for the store’s UPI ID. The customer pays in their UPI app and taps “I have paid”. The order stays Awaiting payment until the owner taps “Payment received” after the credit shows in the store’s UPI app. A customer cannot mark their own order paid.
+Checkout offers cash on delivery, or UPI through Razorpay: GPay, PhonePe, Paytm, or BHIM. The payments function recomputes the bill from the catalog and creates a Razorpay order for that amount. The key secret never leaves the function. Checkout returns only the public key id and the Razorpay order id. A captured payment, from the signed checkout result or from Razorpay’s `payment.captured` webhook, sets the order to Placed and Paid. The customer does not tap “I have paid”, and the store does not confirm the credit. A paid cancel, and a capture that arrives after cancel, asks Razorpay for a refund. `RAZORPAY_WEBHOOK_SECRET` in the local environment is the same value the Razorpay webhook must send. Cash stays unpaid until delivery.
 
-Set the UPI ID in the owner console under Today, or with `BLOOMLY_UPI_ID` on the payments function. Use an ID you control, such as `bloom@oksbi`. Leave it blank in the demo and online pay does not contact a bank.
+Settlement goes to the bank account on the Razorpay account, not to a personal UPI ID. Test keys (`rzp_test_…`) use Razorpay test mode and do not move real money. Leave `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` empty and the in-memory shop keeps a demo dialog that does not charge a bank.
+
+The webhook URL is the payments function’s public domain in the Appwrite console, not the executions API. Razorpay cannot send the `X-Appwrite-Project` header that the executions API requires. Set `RAZORPAY_WEBHOOK_SECRET` to the secret shown when that webhook is created. Checkout can still verify a payment while the app is open if the webhook secret is not set yet. Unpaid UPI orders cancel after 45 minutes. A capture that arrives after that cancel is recorded and does not place the order again.
 
 ## Release
 
@@ -106,7 +101,7 @@ flutter build ipa --obfuscate --split-debug-info=build/debug-info \
   --dart-define=BLOOMLY_UPI_NAME="$BLOOMLY_UPI_NAME"
 ```
 
-Before the stores will accept the build you still need a Play Console app, an Apple Developer team, a public privacy URL (the in-app page is at Account → Privacy), a UPI ID for the store, and an SMS account for phone sign-in. The iOS bundle id and Android application id are `com.bloomly.bloomly`.
+The web shop is published at https://vinayca1994.github.io/bloomly/ and the public privacy page is https://vinayca1994.github.io/bloomly/privacy.html. Before the stores will accept a build you still need a Play Console app, an Apple Developer team, that privacy URL, a UPI ID for the store, and an SMS account for phone sign-in. The iOS bundle id and Android application id are `com.bloomly.bloomly`.
 
 ## Tests
 

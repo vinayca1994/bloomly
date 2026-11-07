@@ -7,12 +7,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/format.dart';
 import '../../core/phone.dart';
 import '../../core/theme.dart';
-import '../../core/upi.dart';
 import '../../core/widgets.dart';
 import '../../data/models.dart';
-import '../../data/online_payment.dart';
 import '../../data/providers.dart';
-import '../cart/upi_sheet.dart';
+import '../cart/pay_online.dart';
 import 'delivery_map.dart';
 import 'review_panel.dart';
 import '../../core/bloom_icons.dart';
@@ -129,24 +127,36 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                       ? _AwaitingUpi(
                           order: order,
                           busy: _busy,
-                          onEnterUtr: isCustomer ? () => _enterUtr(order) : null,
-                          onOpenPay: isCustomer ? () => _openPayAgain(order) : null,
+                          onPay: isCustomer &&
+                                  order.paymentStatus != PaymentStatus.submitted
+                              ? () => _payAgain(order)
+                              : null,
                         )
                       : _Steps(status: order.status),
                 ),
                 if (order.status == OrderStatus.outForDelivery) ...[
                   const SizedBox(height: 14),
-                  if (order.riderName.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        '${order.riderName} is on the way',
-                        style: TextStyle(
-                          color: context.bloom.link,
-                          fontWeight: FontWeight.w800,
+                  _Panel(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          order.riderName.isEmpty
+                              ? 'On the way'
+                              : '${order.riderName} is on the way',
+                          style: BloomlyType.display(18, color: tokens.link),
                         ),
-                      ),
+                        if (backend.store.storePhone.trim().isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          _StoreContact(
+                            phone: backend.store.storePhone,
+                            orderId: order.id,
+                          ),
+                        ],
+                      ],
                     ),
+                  ),
+                  const SizedBox(height: 14),
                   DeliveryMap(
                     rider: backend.locationFor(order.id),
                     destLatitude: order.destLatitude,
@@ -165,7 +175,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                     child: const Text('Cancel order'),
                   ),
                 ],
-                if (backend.store.storePhone.trim().isNotEmpty) ...[
+                if (backend.store.storePhone.trim().isNotEmpty &&
+                    order.status != OrderStatus.outForDelivery) ...[
                   const SizedBox(height: 12),
                   _StoreContact(phone: backend.store.storePhone, orderId: order.id),
                 ],
@@ -270,73 +281,41 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     });
   }
 
-  Future<void> _enterUtr(OrderRecord order) async {
-    final controller = TextEditingController(text: order.gatewayPaymentId);
-    final value = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('UPI reference'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'UTR / UPI reference',
-            hintText: 'Optional letters and numbers',
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (value == null || !mounted) return;
-    final cleaned = normalizeUpiReference(value);
-    if (cleaned == null) {
-      setState(() => _actionError = 'Enter the UPI reference as letters and numbers only.');
-      return;
-    }
-    setState(() {
-      _busy = true;
-      _actionError = null;
-    });
-    final error = await ref.read(backendProvider).noteUpiPayment(
-      orderId: order.id,
-      reference: cleaned,
-    );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _actionError = error;
-    });
-  }
-
-  Future<void> _openPayAgain(OrderRecord order) async {
+  Future<void> _payAgain(OrderRecord order) async {
     final backend = ref.read(backendProvider);
-    final upiId = order.gatewayOrderId.trim().isNotEmpty
-        ? order.gatewayOrderId.trim()
-        : backend.store.upiId.trim();
-    final payment = OnlinePayment(
-      order: order,
-      upiId: upiId,
-      upiName: backend.store.upiName,
-      amountRupees: order.total,
-    );
-    final reference = await showUpiPaymentSheet(context, payment: payment);
-    if (reference == null || !mounted) return;
     setState(() {
       _busy = true;
       _actionError = null;
     });
-    final error = await backend.noteUpiPayment(orderId: order.id, reference: reference);
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _actionError = error;
-    });
+    try {
+      if (backend.usesTestCheckout) {
+        final error = await backend.completeTestPayment(order.id);
+        if (!mounted) return;
+        setState(() {
+          _busy = false;
+          _actionError = error;
+        });
+        return;
+      }
+      final payment = await backend.resumeOnlinePayment(order.id);
+      if (!mounted) return;
+      final error = await payWithRazorpay(
+        backend: backend,
+        payment: payment,
+        user: backend.currentUser,
+      );
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _actionError = error;
+      });
+    } on BloomlyException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _actionError = error.message;
+      });
+    }
   }
 }
 
@@ -371,14 +350,12 @@ class _AwaitingUpi extends StatelessWidget {
   const _AwaitingUpi({
     required this.order,
     required this.busy,
-    this.onEnterUtr,
-    this.onOpenPay,
+    this.onPay,
   });
 
   final OrderRecord order;
   final bool busy;
-  final VoidCallback? onEnterUtr;
-  final VoidCallback? onOpenPay;
+  final VoidCallback? onPay;
 
   @override
   Widget build(BuildContext context) {
@@ -404,27 +381,15 @@ class _AwaitingUpi extends StatelessWidget {
           SizedBox(height: 8),
           Text(
             submitted
-                ? 'You marked this as paid. The store confirms the credit in their UPI app before packing. UTR: ${order.gatewayPaymentId.isEmpty ? 'not entered' : order.gatewayPaymentId}.'
-                : 'Pay with BHIM, GPay, PhonePe, or Paytm, then save your UTR. This order expires in about $mins min if unpaid.',
+                ? 'This older payment still needs the store to confirm the reference before packing.'
+                : 'Pay with GPay, PhonePe, Paytm, or BHIM. Bloom places the order when the payment is captured. It expires in about $mins min if unpaid.',
             style: TextStyle(color: context.bloom.textSecondary),
           ),
-          if (onOpenPay != null || onEnterUtr != null) ...[
+          if (onPay != null) ...[
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (onOpenPay != null)
-                  FilledButton(
-                    onPressed: busy ? null : onOpenPay,
-                    child: const Text('Open UPI again'),
-                  ),
-                if (onEnterUtr != null)
-                  OutlinedButton(
-                    onPressed: busy ? null : onEnterUtr,
-                    child: Text(submitted ? 'Update UTR' : 'I have paid · add UTR'),
-                  ),
-              ],
+            FilledButton(
+              onPressed: busy ? null : onPay,
+              child: const Text('Pay with UPI'),
             ),
           ],
         ],
@@ -504,75 +469,84 @@ class _Steps extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final index = OrderStatus.flow.indexOf(status);
+    final tokens = context.bloom;
     const captions = [
       'We got your order',
       'The store is packing your items',
       'On the way to you',
       'Enjoy the freshness',
     ];
-    const icons = [
-      BloomIcons.receipt,
-      BloomIcons.package,
-      BloomIcons.moped,
-      BloomIcons.plant,
-    ];
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 0; i < OrderStatus.flow.length; i++)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: i <= index ? context.bloom.primary : context.bloom.sunken,
-                    ),
-                    child: Icon(
-                      i < index ? BloomIcons.check : icons[i],
-                      size: 16,
-                      color: i <= index ? context.bloom.onPrimary : context.bloom.textSecondary,
-                    ),
-                  ),
-                  if (i != OrderStatus.flow.length - 1)
-                    Container(
-                      width: 2,
-                      height: 28,
-                      color: i < index ? context.bloom.primary : context.bloom.border,
-                    ),
-                ],
-              ),
-              const SizedBox(width: 12),
+        Row(
+          children: [
+            for (var i = 0; i < OrderStatus.flow.length; i++)
               Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(top: 4, bottom: 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        statusLabel(OrderStatus.flow[i]),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: i == index
-                              ? context.bloom.link
-                              : i < index
-                              ? context.bloom.text
-                              : context.bloom.textSecondary,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 2,
+                            color: i == 0
+                                ? Colors.transparent
+                                : (i <= index ? tokens.primary : tokens.border),
+                          ),
                         ),
+                        Container(
+                          width: 22,
+                          height: 22,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: i <= index ? tokens.primary : tokens.sunken,
+                          ),
+                          child: i < index
+                              ? Icon(
+                                  BloomIcons.check,
+                                  size: 12,
+                                  color: tokens.onPrimary,
+                                )
+                              : null,
+                        ),
+                        Expanded(
+                          child: Container(
+                            height: 2,
+                            color: i == OrderStatus.flow.length - 1
+                                ? Colors.transparent
+                                : (i < index ? tokens.primary : tokens.border),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      statusLabel(OrderStatus.flow[i]),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: BloomlyType.uiText(
+                        10,
+                        weight: i == index ? FontWeight.w800 : FontWeight.w600,
+                        color: i == index ? tokens.link : tokens.textSecondary,
+                        height: 1.15,
                       ),
-                      Text(
-                        captions[i],
-                        style: TextStyle(color: context.bloom.textSecondary, fontSize: 12),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+          ],
+        ),
+        if (index >= 0) ...[
+          const SizedBox(height: 10),
+          Text(
+            captions[index],
+            style: BloomlyType.uiText(13, color: tokens.text),
           ),
+        ],
+        const SizedBox(height: 8),
       ],
     );
   }

@@ -6,27 +6,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Light is Petal Pop and dark stays Basil and Lime', () {
+  test('The shop uses one light paper and leaf palette', () {
     final light = BloomlyTheme.light();
-    final dark = BloomlyTheme.dark();
+    final tokens = light.extension<BloomTokens>();
 
     expect(light.brightness, Brightness.light);
-    expect(dark.brightness, Brightness.dark);
-    expect(light.extension<BloomTokens>()?.primary, Petal.s600);
-    expect(light.extension<BloomTokens>()?.canvas, Plum.s50);
-    expect(light.extension<BloomTokens>()?.text, Plum.s900);
-    expect(light.extension<BloomTokens>()?.onPrimary, bloomWhite);
-    expect(light.extension<BloomTokens>()?.discountBg, Basil.s700);
-    expect(light.extension<BloomTokens>()?.discountFg, bloomWhite);
-    expect(light.extension<BloomTokens>()?.link, Petal.s700);
-    expect(dark.extension<BloomTokens>()?.primary, BloomBrand.basilDark);
-    expect(dark.extension<BloomTokens>()?.canvas, BloomBrand.night);
-    expect(dark.extension<BloomTokens>()?.text, BloomBrand.textDark);
-    expect(dark.extension<BloomTokens>()?.onPrimary, BloomBrand.onBasilDark);
-    expect(dark.extension<BloomTokens>()?.discountBg, BloomBrand.lime);
-    expect(dark.extension<BloomTokens>()?.discountFg, BloomBrand.ink);
-    expect(dark.extension<BloomTokens>()?.success, BloomBrand.successDark);
-    expect(dark.extension<BloomTokens>()?.danger, BloomBrand.dangerDark);
+    expect(tokens?.primary, Market.green);
+    expect(tokens?.canvas, Market.canvas);
+    expect(tokens?.text, Market.ink);
+    expect(tokens?.onPrimary, bloomWhite);
+    expect(tokens?.discountBg, Market.offer);
+    expect(tokens?.discountFg, Market.offerInk);
+    expect(tokens?.link, Market.green);
+    expect(light.textTheme.bodyLarge?.fontSize, 17);
+    expect(light.textTheme.labelLarge?.fontWeight, FontWeight.w600);
     expect(BloomIcons.house.fontFamily, 'MaterialIcons');
     expect(BloomIcons.houseFill, Icons.home_rounded);
     expect(light.textTheme.bodyMedium?.fontFamily, BloomlyType.ui);
@@ -37,7 +30,6 @@ void main() {
       light.textTheme.bodyMedium,
       light.textTheme.labelLarge,
       light.textTheme.titleMedium,
-      dark.textTheme.bodyMedium,
     ]) {
       expect(style?.fontFamily, isNot('Roboto'));
     }

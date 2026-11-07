@@ -11,7 +11,9 @@ import '../../data/auth_result.dart';
 import '../../data/cart_controller.dart';
 import '../../data/models.dart';
 import '../../data/providers.dart';
-import 'upi_sheet.dart';
+import '../../data/service_area.dart';
+import 'pay_online.dart';
+import 'payment_done_screen.dart';
 import '../../core/bloom_icons.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -34,20 +36,33 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final backend = ref.watch(backendProvider);
     final summary = ref.watch(cartSummaryProvider);
     final user = backend.currentUser;
-    final addresses = user == null ? <Address>[] : backend.addressesFor(user.id);
-    _selectedId ??= addresses.where((item) => item.isDefault).firstOrNull?.id ??
+    final addresses = user == null
+        ? <Address>[]
+        : backend.addressesFor(user.id);
+    _selectedId ??=
+        addresses.where((item) => item.isDefault).firstOrNull?.id ??
         addresses.firstOrNull?.id;
-    final selected = addresses.where((item) => item.id == _selectedId).firstOrNull;
-    final outside = selected != null &&
-        selected.city.trim().toLowerCase() !=
-            backend.store.city.trim().toLowerCase();
+    final selected = addresses
+        .where((item) => item.id == _selectedId)
+        .firstOrNull;
+    final outside =
+        selected != null &&
+        !inDeliveryArea(
+          city: selected.city,
+          pincode: selected.pincode,
+          storeCity: backend.store.city,
+          storePincode: backend.store.pincode,
+        );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
       body: ListView(
         padding: EdgeInsets.all(16),
         children: [
-          Text('Deliver to', style: BloomlyType.display(24, color: context.bloom.text)),
+          Text(
+            'Deliver to',
+            style: BloomlyType.display(18, color: context.bloom.text),
+          ),
           const SizedBox(height: 8),
           if (user == null)
             const _GuestSignIn()
@@ -67,7 +82,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       color: context.bloom.surface,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(14),
                         side: BorderSide(
                           color: address.id == _selectedId
                               ? context.bloom.borderFocus
@@ -106,11 +121,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             Padding(
               padding: EdgeInsets.only(bottom: 12),
               child: Text(
-                'This address is outside the delivery area.',
-                style: TextStyle(color: context.bloom.danger, fontWeight: FontWeight.w600),
+                deliveryAreaMessage(
+                  backend.store.city,
+                  pincode: backend.store.pincode,
+                ),
+                style: TextStyle(
+                  color: context.bloom.danger,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          Text('Payment', style: BloomlyType.display(24, color: context.bloom.text)),
+          Text(
+            'Payment',
+            style: BloomlyType.display(18, color: context.bloom.text),
+          ),
           const SizedBox(height: 8),
           RadioGroup<String>(
             groupValue: _payment,
@@ -130,8 +154,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   icon: BloomIcons.wallet,
                   title: 'UPI',
                   subtitle: backend.usesTestCheckout
-                      ? 'Demo only, until the store adds a UPI ID. No bank is charged.'
-                      : 'BHIM, GPay, PhonePe, or Paytm',
+                      ? 'Demo only. No bank is charged.'
+                      : 'GPay, PhonePe, Paytm, or BHIM',
                 ),
               ],
             ),
@@ -149,22 +173,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ],
         ],
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: FilledButton(
-          onPressed: _busy || summary.count == 0 || outside
-              ? null
-              : () => _payment == PaymentMethod.cod
-                    ? _place(user, selected)
-                    : _payOnline(user, selected),
-          child: Text(
-            _busy
-                ? 'Please wait…'
-                : _payment == PaymentMethod.cod
-                ? 'Place order'
-                : backend.usesTestCheckout
-                ? 'Pay (demo)'
-                : 'Pay with UPI',
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: FilledButton(
+            onPressed: _busy || summary.count == 0 || outside
+                ? null
+                : () => _payment == PaymentMethod.cod
+                      ? _place(user, selected)
+                      : _payOnline(user, selected),
+            child: Text(
+              _busy
+                  ? 'Please wait…'
+                  : _payment == PaymentMethod.cod
+                  ? 'Place order · ${money(summary.total)}'
+                  : backend.usesTestCheckout
+                  ? 'Pay (demo) · ${money(summary.total)}'
+                  : 'Pay with UPI · ${money(summary.total)}',
+            ),
           ),
         ),
       ),
@@ -183,7 +209,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       color: tokens.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         side: BorderSide(
           color: selected ? tokens.borderFocus : tokens.border,
           width: selected ? 1.6 : 1,
@@ -221,15 +247,42 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         idempotencyKey: _idempotency(address, lines),
       );
       if (!mounted) return;
+      if (payment.order.paymentStatus == PaymentStatus.paid &&
+          payment.order.status == OrderStatus.placed) {
+        await _showPaid(payment.order.id);
+        return;
+      }
+      if (payment.opensGateway) {
+        final error = await payWithRazorpay(
+          backend: backend,
+          payment: payment,
+          user: user,
+        );
+        if (!mounted) return;
+        if (error != null) {
+          setState(() => _error = error);
+          return;
+        }
+        await _showPaid(payment.order.id);
+        return;
+      }
       if (backend.usesTestCheckout) {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('UPI demo'),
-            content: Text('Mark ${money(payment.order.total)} as paid? No bank is charged until the store adds a UPI ID.'),
+            content: Text(
+              'Mark ${money(payment.order.total)} as paid? No bank is charged.',
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Pay')),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Pay'),
+              ),
             ],
           ),
         );
@@ -242,29 +295,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           if (mounted) setState(() => _error = error);
           return;
         }
-        _finish(payment.order.id);
+        await _showPaid(payment.order.id);
         return;
       }
-      if (payment.payUri == null) {
-        setState(() => _error = 'Add a valid store UPI ID before taking UPI payments.');
-        return;
-      }
-      final reference = await showUpiPaymentSheet(context, payment: payment);
-      if (!mounted) return;
-      if (reference == null) {
-        setState(() => _error = 'Payment cancelled.');
-        return;
-      }
-      final error = await backend.noteUpiPayment(
-        orderId: payment.order.id,
-        reference: reference,
-      );
-      if (!mounted) return;
-      if (error != null) {
-        setState(() => _error = error);
-        return;
-      }
-      _finish(payment.order.id);
+      setState(() => _error = 'Online payment is not set up yet.');
     } on BloomlyException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {
@@ -275,9 +309,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   String _idempotency(Address address, List<CartLine> lines) {
-    final fingerprint = '${address.id}|$_payment|${[
-      for (final line in lines) '${line.productId}:${line.variantId}:${line.qty}',
-    ].join(',')}';
+    final fingerprint =
+        '${address.id}|$_payment|${[for (final line in lines) '${line.productId}:${line.variantId}:${line.qty}'].join(',')}';
     if (_checkoutFingerprint != fingerprint || _checkoutKey == null) {
       _checkoutFingerprint = fingerprint;
       final micros = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
@@ -286,6 +319,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       _checkoutKey = key.length <= 36 ? key : key.substring(0, 36);
     }
     return _checkoutKey!;
+  }
+
+  Future<void> _showPaid(String orderId) async {
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (context) => const PaymentDoneScreen()),
+    );
+    _finish(orderId);
   }
 
   void _finish(String orderId) {
@@ -309,12 +350,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     });
     try {
       final lines = ref.read(cartProvider);
-      final order = await ref.read(backendProvider).placeOrder(
-        userId: user.id,
-        address: address,
-        lines: lines,
-        idempotencyKey: _idempotency(address, lines),
-      );
+      final order = await ref
+          .read(backendProvider)
+          .placeOrder(
+            userId: user.id,
+            address: address,
+            lines: lines,
+            idempotencyKey: _idempotency(address, lines),
+          );
       _finish(order.id);
     } on BloomlyException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -376,12 +419,14 @@ class _GuestSignIn extends ConsumerStatefulWidget {
 }
 
 class _GuestSignInState extends ConsumerState<_GuestSignIn> {
+  final _email = TextEditingController();
   final _phone = TextEditingController();
   String? _error;
   bool _busy = false;
 
   @override
   void dispose() {
+    _email.dispose();
     _phone.dispose();
     super.dispose();
   }
@@ -416,7 +461,10 @@ class _GuestSignInState extends ConsumerState<_GuestSignIn> {
                     ),
                     Text(
                       'Your cart stays as it is.',
-                      style: BloomlyType.uiText(13, color: tokens.textSecondary),
+                      style: BloomlyType.uiText(
+                        13,
+                        color: tokens.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -427,41 +475,77 @@ class _GuestSignInState extends ConsumerState<_GuestSignIn> {
           TextField(
             controller: _phone,
             keyboardType: TextInputType.phone,
+            autofillHints: const [AutofillHints.telephoneNumber],
             decoration: const InputDecoration(
               prefixText: '+91  ',
-              hintText: 'Phone number',
+              hintText: 'Mobile number',
             ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              backgroundColor: tokens.strong,
+              foregroundColor: tokens.onStrong,
+              minimumSize: const Size.fromHeight(48),
+            ),
+            onPressed: _busy ? null : () => _send(OtpChannel.whatsapp),
+            child: const Text('Get code on WhatsApp'),
+          ),
+          if (smsLoginLive) ...[
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _busy ? null : () => _send(OtpChannel.sms),
+              child: const Text('Get code by SMS'),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Text(
+            'Or get a code by email',
+            style: BloomlyType.uiText(13, color: tokens.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            autofillHints: const [AutofillHints.email],
+            decoration: const InputDecoration(hintText: 'Email'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: _busy ? null : _sendEmail,
+            child: const Text('Send email code'),
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
             Text(_error!, style: TextStyle(color: tokens.danger)),
           ],
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.tonal(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: tokens.strong,
-                    foregroundColor: tokens.onStrong,
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  onPressed: _busy ? null : () => _send(OtpChannel.whatsapp),
-                  child: const Text('WhatsApp'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _busy ? null : () => _send(OtpChannel.sms),
-                  child: const Text('SMS'),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
+  }
+
+  Future<void> _sendEmail() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final result = await ref.read(backendProvider).startEmailLogin(_email.text);
+    if (!mounted) return;
+    if (!result.ok || result.userId == null) {
+      setState(() {
+        _busy = false;
+        _error = result.error ?? 'Could not send the code.';
+      });
+      return;
+    }
+    final email = normalizeLoginEmail(_email.text) ?? _email.text.trim();
+    final next = Uri.encodeComponent('/checkout');
+    final userId = Uri.encodeComponent(result.userId!);
+    context.push(
+      '/login?next=$next&step=otp&userId=$userId&channel=email&email=${Uri.encodeComponent(email)}',
+    );
+    setState(() => _busy = false);
   }
 
   Future<void> _send(OtpChannel channel) async {
@@ -474,10 +558,9 @@ class _GuestSignInState extends ConsumerState<_GuestSignIn> {
       _busy = true;
       _error = null;
     });
-    final result = await ref.read(backendProvider).startPhoneLogin(
-      _phone.text,
-      channel: channel,
-    );
+    final result = await ref
+        .read(backendProvider)
+        .startPhoneLogin(_phone.text, channel: channel);
     if (!mounted) return;
     if (!result.ok || result.userId == null) {
       setState(() {

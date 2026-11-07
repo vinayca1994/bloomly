@@ -15,7 +15,7 @@ class PrivacyScreen extends StatelessWidget {
           Text('What Bloom keeps', style: BloomlyType.display(28)),
           const SizedBox(height: 12),
           Text(
-            'Your mobile number or email is used to sign in. A one-time code is sent when you choose phone sign-in. Passwords are stored by the account service, not on this phone for Face ID.',
+            'Your email or mobile number is used to sign in. A one-time code is emailed to you, or sent on WhatsApp when you sign in with a mobile number. Passwords are stored by the account service, not on this phone for Face ID.',
           ),
           SizedBox(height: 12),
           Text(
@@ -23,7 +23,7 @@ class PrivacyScreen extends StatelessWidget {
           ),
           SizedBox(height: 12),
           Text(
-            'UPI opens in BHIM, GPay, PhonePe, or Paytm. Bloom stores the payment status and an optional reference number, not your UPI PIN. The store confirms the money arrived before packing. Cash on delivery stays unpaid until the order arrives.',
+            'UPI opens in GPay, PhonePe, Paytm, or BHIM through Razorpay. Bloom stores the payment status and the payment id, not your UPI PIN. A captured payment places the order. Cash on delivery stays unpaid until the order arrives.',
           ),
           SizedBox(height: 12),
           Text(
@@ -31,7 +31,7 @@ class PrivacyScreen extends StatelessWidget {
           ),
           SizedBox(height: 12),
           Text(
-            'Delete account removes your sign-in, saved addresses, and orders. Store listings also need a public copy of this note, hosted by the store.',
+            'Delete account removes your sign-in, saved addresses, and orders. A paid UPI order has to be refunded first. A public copy of this note is at vinayca1994.github.io/bloomly/privacy.html.',
             style: TextStyle(color: context.bloom.textSecondary),
           ),
         ],

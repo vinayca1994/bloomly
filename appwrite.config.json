@@ -22,7 +22,7 @@
                 "phone": true,
                 "invites": false,
                 "anonymous": false,
-                "email-otp": false,
+                "email-otp": true,
                 "magic-url": false,
                 "email-password": true
             },
@@ -69,7 +69,7 @@
             "runtime": "dart-3.5",
             "specification": "s-0.5vcpu-512mb",
             "execute": [
-                "users"
+                "any"
             ],
             "scopes": [
                 "rows.read",
@@ -78,7 +78,8 @@
                 "users.write"
             ],
             "events": [],
-            "schedule": "*/15 * * * *",
+            "schedule": "",
+            "interval": 60,
             "timeout": 30,
             "enabled": true,
             "logging": false,
@@ -94,25 +95,6 @@
                     "key": "BLOOMLY_UPI_NAME",
                     "value": "Bloom"
                 }
-            ]
-        }
-    ],
-    "buckets": [
-        {
-            "$id": "promo-media",
-            "name": "Promo media",
-            "enabled": true,
-            "fileSecurity": false,
-            "maximumFileSize": 5000000,
-            "allowedFileExtensions": ["mp4", "webm", "json", "jpg", "jpeg", "png", "webp"],
-            "compression": "none",
-            "encryption": false,
-            "antivirus": false,
-            "$permissions": [
-                "read(\"any\")",
-                "create(\"users\")",
-                "update(\"users\")",
-                "delete(\"users\")"
             ]
         }
     ]

@@ -1,3 +1,7 @@
+/// SMS stays off until the DLT template is approved.
+/// Set this to true in the same release that turns SMS sending on.
+bool get smsLoginLive => false;
+
 /// Indian mobile numbers stored as E.164, for example +919876543210.
 class PhoneNumber {
   static final _mobile = RegExp(r'^[6-9]\d{9}$');

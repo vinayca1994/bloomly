@@ -1,131 +1,49 @@
 import 'package:flutter/material.dart';
 
-/// Basil & Lime, palette A. Lime is a fill behind ink text only.
-abstract final class BloomBrand {
-  static const basil = Color(0xFF0B6B4B);
-  static const basilDark = Color(0xFF4FD39A);
-  static const onBasilDark = Color(0xFF06231A);
-  static const basilPressed = Color(0xFF08543B);
-  static const lime = Color(0xFFC8F25A);
-  static const marigold = Color(0xFFF4A21A);
-  static const ink = Color(0xFF0F1F17);
-  static const paper = Color(0xFFF5F8F2);
-  static const night = Color(0xFF0C1511);
-  static const cardDark = Color(0xFF15211B);
-  static const textDark = Color(0xFFEAF2EC);
-  static const secondaryText = Color(0xFF4E5F55);
-  static const secondaryTextDark = Color(0xFFA3B4AA);
-  static const success = Color(0xFF1E7A3C);
-  static const successDark = Color(0xFF5FD58A);
+/// Paper shop. Leaf is the action. Ink is the price. Red is an error.
+abstract final class Market {
+  static const canvas = Color(0xFFF4F2ED);
+  static const tray = Color(0xFFEBE8E1);
+  static const ink = Color(0xFF1B1A17);
+  static const secondary = Color(0xFF5C5952);
+  static const tertiary = Color(0xFF8A867C);
+  static const hairline = Color(0xFFE4E0D8);
+  static const line = Color(0xFFC9C4B8);
+  static const green = Color(0xFF146C36);
+  static const greenPressed = Color(0xFF0E5228);
+  static const greenWash = Color(0xFFE5F2EA);
+  static const red = Color(0xFFB42318);
+  static const offer = greenWash;
+  static const offerInk = greenPressed;
+  static const fruit = Color(0xFFFFF1E4);
+  static const flower = Color(0xFFFDE8F1);
+}
+
+/// Status hues stay off the brand so Delivered is not the accent.
+abstract final class Status {
+  static const dangerBg = Color(0xFFFDECEA);
   static const warning = Color(0xFF8A5A00);
-  static const warningDark = Color(0xFFF2B84B);
-  static const danger = Color(0xFFC2352B);
-  static const dangerDark = Color(0xFFFF8A7E);
+  static const warningBg = Color(0xFFFFF6E2);
+  static const star = Color(0xFFB7810A);
+  static const packingBg = Color(0xFFFFF1E6);
+  static const packingFg = Color(0xFF9A4B12);
 }
 
-abstract final class Basil {
-  static const s50 = Color(0xFFECFCEA);
-  static const s100 = Color(0xFFD7F8D3);
-  static const s200 = Color(0xFFB3EFAC);
-  static const s300 = Color(0xFF85DF7C);
-  static const s400 = Color(0xFF5AC950);
-  static const s500 = Color(0xFF45AE3C);
-  static const s600 = Color(0xFF389230);
-  static const s700 = Color(0xFF2B7724);
-  static const s800 = Color(0xFF225D1C);
-  static const s900 = Color(0xFF194415);
-  static const s950 = Color(0xFF0D2A0B);
-}
-
-abstract final class Mango {
-  static const s50 = Color(0xFFFFF5ED);
-  static const s100 = Color(0xFFFFE8D6);
-  static const s200 = Color(0xFFFFD3AD);
-  static const s300 = Color(0xFFFEB36F);
-  static const s400 = Color(0xFFF68F08);
-  static const s500 = Color(0xFFD47A05);
-  static const s600 = Color(0xFFB36602);
-  static const s700 = Color(0xFF925301);
-  static const s800 = Color(0xFF734001);
-  static const s900 = Color(0xFF562E00);
-  static const s950 = Color(0xFF371B00);
-}
-
-/// Petal Pop brand. Light mode only; dark mode stays Basil and Lime.
-abstract final class Petal {
-  static const s50 = Color(0xFFFFF3F8);
-  static const s100 = Color(0xFFFEE5EF);
-  static const s200 = Color(0xFFFFCCE1);
-  static const s300 = Color(0xFFFEA7CD);
-  static const s400 = Color(0xFFFB7AB8);
-  static const s500 = Color(0xFFEB50A1);
-  static const s600 = Color(0xFFD22B89);
-  static const s700 = Color(0xFFAE1E70);
-  static const s800 = Color(0xFF891557);
-  static const s900 = Color(0xFF641440);
-  static const s950 = Color(0xFF400927);
-}
-
-/// Plum neutrals from the Petal Pop light ramp.
-abstract final class Plum {
-  static const s50 = Color(0xFFF9F8FC);
-  static const s100 = Color(0xFFF1F0F6);
-  static const s200 = Color(0xFFE3E0EA);
-  static const s300 = Color(0xFFD0CCDA);
-  static const s400 = Color(0xFFA6A1B4);
-  static const s500 = Color(0xFF827C93);
-  static const s600 = Color(0xFF665E79);
-  static const s700 = Color(0xFF4D4561);
-  static const s800 = Color(0xFF332B46);
-  static const s900 = Color(0xFF1E172E);
-  static const s950 = Color(0xFF100B1B);
-}
-
-abstract final class Chili {
-  static const s50 = Color(0xFFFEF4F3);
-  static const s100 = Color(0xFFFFE6E4);
-  static const s200 = Color(0xFFFED0CB);
-  static const s300 = Color(0xFFFEAEA6);
-  static const s400 = Color(0xFFF8867F);
-  static const s500 = Color(0xFFE9615C);
-  static const s600 = Color(0xFFD14241);
-  static const s700 = Color(0xFFAF2F30);
-  static const s800 = Color(0xFF8B2324);
-  static const s900 = Color(0xFF67191A);
-  static const s950 = Color(0xFF420E0E);
-}
-
-abstract final class Sky {
-  static const s50 = Color(0xFFF1F8FE);
-  static const s100 = Color(0xFFE0EFFE);
-  static const s200 = Color(0xFFC3E0FE);
-  static const s300 = Color(0xFF99CBFE);
-  static const s400 = Color(0xFF6FB2F5);
-  static const s500 = Color(0xFF4898E6);
-  static const s600 = Color(0xFF217FD0);
-  static const s700 = Color(0xFF0767B0);
-  static const s800 = Color(0xFF01508D);
-  static const s900 = Color(0xFF033B68);
-  static const s950 = Color(0xFF012443);
-}
-
-abstract final class Sun {
-  static const s50 = Color(0xFFFFF6E2);
-  static const s100 = Color(0xFFFFEBBD);
-  static const s200 = Color(0xFFFBD985);
-  static const s300 = Color(0xFFEDBF44);
-  static const s400 = Color(0xFFD4A502);
-  static const s500 = Color(0xFFB68E05);
-  static const s600 = Color(0xFF997600);
-  static const s700 = Color(0xFF7D6004);
-  static const s800 = Color(0xFF624B02);
-  static const s900 = Color(0xFF483601);
-  static const s950 = Color(0xFF2E2100);
+/// Festival poster grounds. These are not the shop chrome.
+abstract final class Poster {
+  static const pine = Color(0xFF145C38);
+  static const harvest = Color(0xFFE39B2B);
+  static const cream = Color(0xFFFFF6E4);
+  static const citrus = Color(0xFFC46A12);
+  static const red = Color(0xFFDC2626);
+  static const night = Color(0xFF101412);
+  static const nightInk = Color(0xFFF3F7F4);
+  static const lime = Color(0xFF3DDC7A);
 }
 
 const bloomWhite = Color(0xFFFFFFFF);
 
-/// Semantic Basil & Lime colours for one brightness.
+/// Semantic market colours for one brightness.
 class BloomTokens extends ThemeExtension<BloomTokens> {
   const BloomTokens({
     required this.brightness,
@@ -174,8 +92,6 @@ class BloomTokens extends ThemeExtension<BloomTokens> {
     required this.cancelledBg,
     required this.cancelledFg,
     required this.star,
-    required this.etaBg,
-    required this.etaFg,
   });
 
   final Brightness brightness;
@@ -224,111 +140,54 @@ class BloomTokens extends ThemeExtension<BloomTokens> {
   final Color cancelledBg;
   final Color cancelledFg;
   final Color star;
-  final Color etaBg;
-  final Color etaFg;
-
-  bool get isDark => brightness == Brightness.dark;
 
   static const light = BloomTokens(
     brightness: Brightness.light,
-    canvas: Plum.s50,
+    canvas: Market.canvas,
     surface: bloomWhite,
     raised: bloomWhite,
-    sunken: Plum.s100,
-    inverse: Plum.s900,
-    text: Plum.s900,
-    textSecondary: Plum.s600,
-    textDisabled: Plum.s400,
-    link: Petal.s700,
+    sunken: Market.tray,
+    inverse: Market.ink,
+    text: Market.ink,
+    textSecondary: Market.secondary,
+    textDisabled: Market.tertiary,
+    link: Market.green,
     textInverse: bloomWhite,
-    border: Plum.s200,
-    borderStrong: Plum.s500,
-    borderFocus: Petal.s600,
-    primary: Petal.s600,
-    primaryPressed: Petal.s700,
+    border: Market.hairline,
+    borderStrong: Market.line,
+    borderFocus: Market.green,
+    primary: Market.green,
+    primaryPressed: Market.greenPressed,
     onPrimary: bloomWhite,
-    secondary: Petal.s100,
-    onSecondary: Petal.s800,
-    strong: Plum.s900,
+    secondary: Market.greenWash,
+    onSecondary: Market.greenPressed,
+    strong: Market.ink,
     onStrong: bloomWhite,
-    danger: Chili.s700,
-    success: Basil.s700,
-    successBg: Basil.s50,
-    warning: Sun.s800,
-    warningBg: Sun.s50,
-    info: Sky.s700,
-    infoBg: Sky.s50,
-    discountBg: Basil.s700,
-    discountFg: bloomWhite,
-    washVeg: Basil.s50,
-    washFruit: Mango.s50,
-    washFlower: Petal.s50,
-    awaitingBg: Sun.s100,
-    awaitingFg: Sun.s800,
-    placedBg: Sky.s100,
-    placedFg: Sky.s800,
-    packingBg: Mango.s100,
-    packingFg: Mango.s800,
-    outBg: Petal.s100,
-    outFg: Petal.s800,
-    deliveredBg: Basil.s100,
-    deliveredFg: Basil.s800,
-    cancelledBg: Chili.s100,
-    cancelledFg: Chili.s800,
-    star: Sun.s700,
-    etaBg: Petal.s100,
-    etaFg: Petal.s800,
-  );
-
-  static const dark = BloomTokens(
-    brightness: Brightness.dark,
-    canvas: BloomBrand.night,
-    surface: BloomBrand.cardDark,
-    raised: Color(0xFF1C2B24),
-    sunken: BloomBrand.night,
-    inverse: BloomBrand.textDark,
-    text: BloomBrand.textDark,
-    textSecondary: BloomBrand.secondaryTextDark,
-    textDisabled: Color(0xFF6E8076),
-    link: BloomBrand.basilDark,
-    textInverse: BloomBrand.night,
-    border: Color(0xFF24362E),
-    borderStrong: BloomBrand.secondaryTextDark,
-    borderFocus: BloomBrand.basilDark,
-    primary: BloomBrand.basilDark,
-    primaryPressed: Color(0xFF8AE8C0),
-    onPrimary: BloomBrand.onBasilDark,
-    secondary: Color(0xFF0E3326),
-    onSecondary: BloomBrand.basilDark,
-    strong: BloomBrand.textDark,
-    onStrong: BloomBrand.night,
-    danger: BloomBrand.dangerDark,
-    success: BloomBrand.successDark,
-    successBg: Color(0xFF0E2A1A),
-    warning: BloomBrand.warningDark,
-    warningBg: Color(0xFF2A2110),
-    info: BloomBrand.basilDark,
-    infoBg: Color(0xFF0E3326),
-    discountBg: BloomBrand.lime,
-    discountFg: BloomBrand.ink,
-    washVeg: Color(0xFF10281C),
-    washFruit: Color(0xFF2A2110),
-    washFlower: Color(0xFF2A2414),
-    awaitingBg: Color(0xFF2A2110),
-    awaitingFg: BloomBrand.warningDark,
-    placedBg: Color(0xFF0E3326),
-    placedFg: BloomBrand.basilDark,
-    packingBg: Color(0xFF2A2110),
-    packingFg: BloomBrand.marigold,
-    outBg: Color(0xFF0E3326),
-    outFg: BloomBrand.basilDark,
-    deliveredBg: Color(0xFF0E2A1A),
-    deliveredFg: BloomBrand.successDark,
-    cancelledBg: Color(0xFF2A1412),
-    cancelledFg: BloomBrand.dangerDark,
-    star: BloomBrand.marigold,
-    etaBg: BloomBrand.lime,
-    etaFg: BloomBrand.ink,
+    danger: Market.red,
+    success: Market.green,
+    successBg: Market.greenWash,
+    warning: Status.warning,
+    warningBg: Status.warningBg,
+    info: Market.ink,
+    infoBg: Market.tray,
+    discountBg: Market.offer,
+    discountFg: Market.offerInk,
+    washVeg: Market.greenWash,
+    washFruit: Market.fruit,
+    washFlower: Market.flower,
+    awaitingBg: Status.warningBg,
+    awaitingFg: Status.warning,
+    placedBg: Market.tray,
+    placedFg: Market.ink,
+    packingBg: Status.packingBg,
+    packingFg: Status.packingFg,
+    outBg: Market.greenWash,
+    outFg: Market.greenPressed,
+    deliveredBg: Market.greenWash,
+    deliveredFg: Market.greenPressed,
+    cancelledBg: Status.dangerBg,
+    cancelledFg: Market.red,
+    star: Status.star,
   );
 
   static const fast = Duration(milliseconds: 150);
@@ -344,25 +203,11 @@ class BloomTokens extends ThemeExtension<BloomTokens> {
   static const radiusXl = 24.0;
   static const radius2xl = 32.0;
 
-  List<BoxShadow> get cardShadow => isDark
-      ? const []
-      : const [
-          BoxShadow(
-            color: Color(0x141E172E),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ];
+  List<BoxShadow> get cardShadow => const [];
 
-  List<BoxShadow> get raisedShadow => isDark
-      ? const []
-      : const [
-          BoxShadow(
-            color: Color(0x1F0F1F17),
-            blurRadius: 32,
-            offset: Offset(0, 12),
-          ),
-        ];
+  List<BoxShadow> get raisedShadow => const [
+    BoxShadow(color: Color(0x141C1C1E), blurRadius: 24, offset: Offset(0, 8)),
+  ];
 
   (Color bg, Color fg) status(String status) {
     return switch (status) {
@@ -386,9 +231,7 @@ class BloomTokens extends ThemeExtension<BloomTokens> {
 
   static BloomTokens of(BuildContext context) {
     final tokens = Theme.of(context).extension<BloomTokens>();
-    if (tokens != null) return tokens;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return dark ? BloomTokens.dark : BloomTokens.light;
+    return tokens ?? BloomTokens.light;
   }
 
   @override
@@ -439,8 +282,6 @@ class BloomTokens extends ThemeExtension<BloomTokens> {
     Color? cancelledBg,
     Color? cancelledFg,
     Color? star,
-    Color? etaBg,
-    Color? etaFg,
   }) {
     return BloomTokens(
       brightness: brightness ?? this.brightness,
@@ -489,8 +330,6 @@ class BloomTokens extends ThemeExtension<BloomTokens> {
       cancelledBg: cancelledBg ?? this.cancelledBg,
       cancelledFg: cancelledFg ?? this.cancelledFg,
       star: star ?? this.star,
-      etaBg: etaBg ?? this.etaBg,
-      etaFg: etaFg ?? this.etaFg,
     );
   }
 
@@ -545,8 +384,6 @@ class BloomTokens extends ThemeExtension<BloomTokens> {
       cancelledBg: mix(cancelledBg, other.cancelledBg),
       cancelledFg: mix(cancelledFg, other.cancelledFg),
       star: mix(star, other.star),
-      etaBg: mix(etaBg, other.etaBg),
-      etaFg: mix(etaFg, other.etaFg),
     );
   }
 }

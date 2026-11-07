@@ -54,6 +54,11 @@ Future<_Reply> _dispatch(String body, DateTime now) async {
 }
 
 Future<_Reply> _startSms(Map<String, dynamic> payload) async {
+  if (Platform.environment['SMS_LOGIN'] != '1') {
+    return const _Reply({
+      'error': 'SMS sign-in is not available yet. Use WhatsApp.',
+    }, 400);
+  }
   final phone = payload['phone']?.toString() ?? '';
   if (!mobilePattern.hasMatch(phone)) {
     return const _Reply({'error': otpBadPhone}, 400);
@@ -259,7 +264,30 @@ String _sixDigits(Random random) =>
 String _stamp(Random random) => '${_sixDigits(random)}${_sixDigits(random)}';
 
 Future<String?> _claimSend(TablesDB tables, String phone, DateTime now) async {
-  final rowId = sendLimitId(phone);
+  final global = await _claimOne(
+    tables,
+    rowId: globalSendLimitId,
+    phone: 'global',
+    now: now,
+    limit: otpGlobalSendLimit,
+  );
+  if (global != null) return global;
+  return _claimOne(
+    tables,
+    rowId: sendLimitId(phone),
+    phone: phone,
+    now: now,
+    limit: otpSendLimit,
+  );
+}
+
+Future<String?> _claimOne(
+  TablesDB tables, {
+  required String rowId,
+  required String phone,
+  required DateTime now,
+  required int limit,
+}) async {
   Map<String, dynamic>? row;
   try {
     final existing = await tables.getRow(
@@ -275,6 +303,7 @@ Future<String?> _claimSend(TablesDB tables, String phone, DateTime now) async {
     windowStart: epochMillis(row?['windowStart']),
     sendCount: readAttempts(row?['sendCount']),
     nowMillis: now.millisecondsSinceEpoch,
+    limit: limit,
   );
   if (!claim.allowed) return otpSendLimited;
   final data = {
@@ -344,19 +373,15 @@ class WhatsAppSendException implements Exception {
 
 Future<void> _sendWhatsApp(
     Map<String, String> env, String phone, String code) async {
-  final payload = whatsAppBody(
-    integratedNumber: env['MSG91_WHATSAPP_NUMBER']!.trim(),
-    template: env['MSG91_WHATSAPP_TEMPLATE']!.trim(),
-    namespace: env['MSG91_WHATSAPP_NAMESPACE']!.trim(),
-    language: env['MSG91_WHATSAPP_LANGUAGE']!.trim(),
+  final payload = msg91OtpBody(
+    template: whatsAppTemplate(env),
     phone: phone,
     code: code,
   );
   final client = HttpClient();
   try {
     final request = await client.postUrl(
-      Uri.parse(
-          'https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/'),
+      Uri.parse('https://control.msg91.com/api/v5/otp'),
     );
     request.followRedirects = false;
     request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');

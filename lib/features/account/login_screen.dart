@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/phone.dart';
+import '../../core/sign_in_route.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/auth_result.dart';
 import '../../data/providers.dart';
 
-enum _Step { phone, otp, name, email, recover, reset }
+enum _Step { mail, phone, otp, name, email, recover, reset }
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -47,9 +49,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (query['step'] == 'otp' && (query['userId'] ?? '').isNotEmpty) {
       _userId = query['userId'];
       _phone.text = query['phone'] ?? _phone.text;
-      _channel = query['channel'] == 'sms' ? OtpChannel.sms : OtpChannel.whatsapp;
+      _email.text = query['email'] ?? _email.text;
+      _channel = switch (query['channel']) {
+        'email' => OtpChannel.email,
+        'sms' when smsLoginLive => OtpChannel.sms,
+        _ => OtpChannel.whatsapp,
+      };
       _step = _Step.otp;
       _armResend();
+      return;
+    }
+    final next = query['next'] ?? '';
+    if (next.startsWith('/owner') || next.startsWith('/rider')) {
+      _step = _Step.email;
+      _create = false;
     }
   }
 
@@ -93,57 +106,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
               children: [
-                  if (kDebugMode && showDemo) ...[
-                    Text(
-                      'Continue as',
-                      style: BloomlyType.uiText(14, weight: FontWeight.w800, color: tokens.text),
+                if (kDebugMode && showDemo) ...[
+                  Text(
+                    'Continue as',
+                    style: BloomlyType.uiText(
+                      14,
+                      weight: FontWeight.w800,
+                      color: tokens.text,
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _demoChip(
-                          'Customer',
-                          tokens.washVeg,
-                          tokens.success,
-                          _busy ? null : () => _signInDemo('customer'),
-                        ),
-                        _demoChip(
-                          'Store owner',
-                          tokens.washFruit,
-                          tokens.warning,
-                          _busy ? null : () => _signInDemo('owner'),
-                        ),
-                        _demoChip(
-                          'Rider',
-                          tokens.awaitingBg,
-                          tokens.awaitingFg,
-                          _busy ? null : () => _signInDemo('rider'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                  ],
-                  ..._fields(showDemo),
-                  if (_error != null) ...[
-                    SizedBox(height: 12),
-                    Text(
-                      _error!,
-                      style: TextStyle(color: context.bloom.danger),
-                    ),
-                  ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _demoChip(
+                        'Customer',
+                        tokens.washVeg,
+                        tokens.success,
+                        _busy ? null : () => _signInDemo('customer'),
+                      ),
+                      _demoChip(
+                        'Store owner',
+                        tokens.washFruit,
+                        tokens.warning,
+                        _busy ? null : () => _signInDemo('owner'),
+                      ),
+                      _demoChip(
+                        'Rider',
+                        tokens.awaitingBg,
+                        tokens.awaitingFg,
+                        _busy ? null : () => _signInDemo('rider'),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 18),
-                  if (_step == _Step.phone)
-                    ..._sendButtons()
-                  else
-                    _primaryButton(
-                      _busy ? 'Please wait…' : _action,
-                      _busy ? null : _submit,
-                    ),
-                  ..._links(),
                 ],
-              ),
+                ..._fields(showDemo),
+                if (_error != null) ...[
+                  SizedBox(height: 12),
+                  Text(_error!, style: TextStyle(color: context.bloom.danger)),
+                ],
+                const SizedBox(height: 18),
+                if (_step == _Step.phone)
+                  ..._sendButtons()
+                else ...[
+                  _primaryButton(
+                    _busy ? 'Please wait…' : _action,
+                    _busy ? null : _submit,
+                  ),
+                  if (_step == _Step.mail) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _busy ? null : _continueGuest,
+                      child: const Text('Continue as guest'),
+                    ),
+                    _legalLine(),
+                  ],
+                ],
+                ..._links(),
+              ],
+            ),
           ),
         ],
       ),
@@ -152,6 +175,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   String get _title {
     switch (_step) {
+      case _Step.mail:
+        return 'Welcome to bloom';
       case _Step.phone:
         return 'Welcome to bloom';
       case _Step.otp:
@@ -159,7 +184,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       case _Step.name:
         return 'What should we call you?';
       case _Step.email:
-        return _create ? 'Create an account' : 'Sign in with email';
+        return _create ? 'Create an account' : 'Sign in with a password';
       case _Step.recover:
         return 'Reset your password';
       case _Step.reset:
@@ -169,9 +194,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   String get _subtitle {
     switch (_step) {
+      case _Step.mail:
+        return 'We will email a 6-digit code.';
       case _Step.phone:
         return 'Fresh vegetables, fruit and flowers in minutes.';
       case _Step.otp:
+        if (_channel == OtpChannel.email) {
+          return 'We sent a 6-digit code to ${_email.text.trim()}.';
+        }
         final where = _channel == OtpChannel.whatsapp
             ? 'on WhatsApp'
             : 'by SMS';
@@ -189,6 +219,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   String get _action {
     switch (_step) {
+      case _Step.mail:
       case _Step.phone:
         return 'Send code';
       case _Step.otp:
@@ -206,6 +237,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   List<Widget> _fields(bool showDemo) {
     switch (_step) {
+      case _Step.mail:
+        return [
+          TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            autofillHints: const [AutofillHints.email],
+            decoration: _field('Email'),
+          ),
+        ];
       case _Step.phone:
         return [
           TextField(
@@ -215,7 +256,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ];
       case _Step.otp:
-        final clock = '${_resendLeft ~/ 60}:${(_resendLeft % 60).toString().padLeft(2, '0')}';
+        final clock =
+            '${_resendLeft ~/ 60}:${(_resendLeft % 60).toString().padLeft(2, '0')}';
         return [
           OtpBoxes(controller: _code, focusNode: _otpFocus),
           SizedBox(
@@ -255,7 +297,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               padding: EdgeInsets.only(top: 8),
               child: Text(
                 'Demo code 123456',
-                style: BloomlyType.uiText(12, color: context.bloom.textSecondary),
+                style: BloomlyType.uiText(
+                  12,
+                  color: context.bloom.textSecondary,
+                ),
               ),
             ),
         ];
@@ -317,7 +362,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               padding: EdgeInsets.only(top: 8),
               child: Text(
                 'Demo code 123456',
-                style: BloomlyType.uiText(12, color: context.bloom.textSecondary),
+                style: BloomlyType.uiText(
+                  12,
+                  color: context.bloom.textSecondary,
+                ),
               ),
             ),
         ];
@@ -363,39 +411,63 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   List<Widget> _links() {
     switch (_step) {
+      case _Step.mail:
+        return [
+          TextButton(
+            onPressed: _busy ? null : () => _go(_Step.phone),
+            child: const Text('Use a mobile number'),
+          ),
+          TextButton(
+            onPressed: () => _go(_Step.email),
+            child: const Text('Sign in with a password'),
+          ),
+        ];
       case _Step.phone:
         return [
           TextButton(
+            onPressed: () => _go(_Step.mail),
+            child: const Text('Get a code by email'),
+          ),
+          TextButton(
             onPressed: () => _go(_Step.email),
-            child: const Text('Sign in with email'),
+            child: const Text('Sign in with a password'),
           ),
         ];
       case _Step.otp:
         final other = _channel == OtpChannel.whatsapp
             ? OtpChannel.sms
             : OtpChannel.whatsapp;
+        final resendLabel = _resendLeft > 0
+            ? 'Resend in 0:${_resendLeft.toString().padLeft(2, '0')}'
+            : _channel == OtpChannel.email
+            ? 'Resend email'
+            : _channel == OtpChannel.whatsapp
+            ? 'Resend on WhatsApp'
+            : 'Resend by SMS';
         return [
           TextButton(
-            onPressed: _busy || _resendLeft > 0 ? null : () => _submitPhone(_channel),
-            child: Text(
-              _resendLeft > 0
-                  ? 'Resend in 0:${_resendLeft.toString().padLeft(2, '0')}'
-                  : _channel == OtpChannel.whatsapp
-                  ? 'Resend on WhatsApp'
-                  : 'Resend by SMS',
-            ),
+            onPressed: _busy || _resendLeft > 0
+                ? null
+                : () => _channel == OtpChannel.email
+                      ? _submitEmailCode()
+                      : _submitPhone(_channel),
+            child: Text(resendLabel),
           ),
-          TextButton(
-            onPressed: _busy ? null : () => _submitPhone(other),
-            child: Text(
-              other == OtpChannel.whatsapp
-                  ? 'Get code on WhatsApp'
-                  : 'Get code by SMS',
+          if (smsLoginLive && _channel != OtpChannel.email)
+            TextButton(
+              onPressed: _busy ? null : () => _submitPhone(other),
+              child: Text(
+                other == OtpChannel.whatsapp
+                    ? 'Get code on WhatsApp'
+                    : 'Get code by SMS',
+              ),
             ),
-          ),
           TextButton(
-            onPressed: () => _go(_Step.phone),
-            child: const Text('Change number'),
+            onPressed: () =>
+                _go(_channel == OtpChannel.email ? _Step.mail : _Step.phone),
+            child: Text(
+              _channel == OtpChannel.email ? 'Change email' : 'Change number',
+            ),
           ),
         ];
       case _Step.name:
@@ -417,6 +489,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: const Text('Forgot password'),
             ),
           TextButton(
+            onPressed: () => _go(_Step.mail),
+            child: const Text('Get a code by email'),
+          ),
+          TextButton(
             onPressed: () => _go(_Step.phone),
             child: const Text('Use a mobile number'),
           ),
@@ -426,7 +502,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return [
           TextButton(
             onPressed: () => _go(_Step.email),
-            child: const Text('Back to email sign in'),
+            child: const Text('Back to password sign in'),
           ),
         ];
     }
@@ -442,19 +518,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    switch (_step) {
-      case _Step.phone:
-        return;
-      case _Step.otp:
-        await _submitOtp();
-      case _Step.name:
-        await _submitName();
-      case _Step.email:
-        await _submitEmail();
-      case _Step.recover:
-        await _submitRecover();
-      case _Step.reset:
-        await _submitReset();
+    try {
+      switch (_step) {
+        case _Step.mail:
+          await _submitEmailCode();
+        case _Step.phone:
+          return;
+        case _Step.otp:
+          await _submitOtp();
+        case _Step.name:
+          await _submitName();
+        case _Step.email:
+          await _submitEmail();
+        case _Step.recover:
+          await _submitRecover();
+        case _Step.reset:
+          await _submitReset();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = 'Could not sign in. Try again.';
+      });
     }
   }
 
@@ -468,27 +554,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         onPressed: _busy ? null : () => _submitPhone(OtpChannel.whatsapp),
         child: Text(_pendingLabel(OtpChannel.whatsapp, 'Get code on WhatsApp')),
       ),
-      const SizedBox(height: 10),
-      OutlinedButton(
-        onPressed: _busy ? null : () => _submitPhone(OtpChannel.sms),
-        child: Text(_pendingLabel(OtpChannel.sms, 'Get code by SMS')),
-      ),
+      if (smsLoginLive) ...[
+        const SizedBox(height: 10),
+        OutlinedButton(
+          onPressed: _busy ? null : () => _submitPhone(OtpChannel.sms),
+          child: Text(_pendingLabel(OtpChannel.sms, 'Get code by SMS')),
+        ),
+      ],
       const SizedBox(height: 8),
       TextButton(
         onPressed: _busy ? null : _continueGuest,
         child: const Text('Continue as guest'),
       ),
-      Text(
-        'By continuing you agree to the Terms and Privacy policy.',
-        textAlign: TextAlign.center,
-        style: BloomlyType.uiText(12, color: context.bloom.textSecondary),
-      ),
+      _legalLine(),
     ];
   }
 
+  Widget _legalLine() {
+    final style = BloomlyType.uiText(12, color: context.bloom.textSecondary);
+    final link = style.copyWith(
+      color: context.bloom.strong,
+      decoration: TextDecoration.underline,
+    );
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text('By continuing you agree to the ', style: style),
+        GestureDetector(
+          onTap: () => context.push('/account/terms'),
+          child: Text('Terms', style: link),
+        ),
+        Text(' and ', style: style),
+        GestureDetector(
+          onTap: () => context.push('/account/privacy'),
+          child: Text('Privacy policy', style: link),
+        ),
+        Text('.', style: style),
+      ],
+    );
+  }
+
   void _continueGuest() {
-    final next = GoRouterState.of(context).uri.queryParameters['next'];
-    if (next != null && next.isNotEmpty) {
+    final next = safeReturnPath(
+      GoRouterState.of(context).uri.queryParameters['next'],
+    );
+    if (next != null &&
+        !next.startsWith('/owner') &&
+        !next.startsWith('/rider')) {
       context.go(next);
       return;
     }
@@ -500,15 +613,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _primaryButton(String label, VoidCallback? onPressed) {
-    return FilledButton(
-      onPressed: onPressed,
-      child: Text(label),
-    );
+    return FilledButton(onPressed: onPressed, child: Text(label));
   }
 
   String _pendingLabel(OtpChannel channel, String label) {
     if (_busy && _pendingChannel == channel) return 'Please wait…';
     return label;
+  }
+
+  Future<void> _submitEmailCode() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final result = await ref.read(backendProvider).startEmailLogin(_email.text);
+    if (!mounted) return;
+    if (!result.ok) {
+      setState(() {
+        _busy = false;
+        _error = result.error;
+      });
+      return;
+    }
+    setState(() {
+      _busy = false;
+      _channel = OtpChannel.email;
+      _userId = result.userId;
+      _code.clear();
+      _step = _Step.otp;
+      _armResend();
+    });
   }
 
   Future<void> _submitPhone(OtpChannel channel) async {
@@ -554,9 +688,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _busy = true;
       _error = null;
     });
-    final error = await ref
-        .read(backendProvider)
-        .verifyPhoneOtp(userId: userId, code: _code.text, channel: _channel);
+    final backend = ref.read(backendProvider);
+    final error = _channel == OtpChannel.email
+        ? await backend.verifyEmailOtp(userId: userId, code: _code.text)
+        : await backend.verifyPhoneOtp(
+            userId: userId,
+            code: _code.text,
+            channel: _channel,
+          );
     if (!mounted) return;
     if (error != null) {
       setState(() {
@@ -687,23 +826,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _leave() {
-    final backend = ref.read(backendProvider);
-    final profile = backend.currentUser;
-    final next = GoRouterState.of(context).uri.queryParameters['next'];
-    if (profile?.isRider == true) {
-      context.go('/rider');
+    final profile = ref.read(backendProvider).currentUser;
+    if (profile == null) {
+      setState(() {
+        _busy = false;
+        _error = 'Could not sign in. Try again.';
+      });
       return;
     }
-    if (profile?.isOwner == true &&
-        (next == null || next.startsWith('/owner'))) {
-      context.go(next ?? '/owner');
-      return;
+    final landing = landingAfterSignIn(
+      role: profile.role,
+      next: GoRouterState.of(context).uri.queryParameters['next'],
+    );
+    final notice = landing.notice;
+    if (notice != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(notice)));
     }
-    if (next != null && next.startsWith('/') && !next.startsWith('/owner')) {
-      context.go(next);
-      return;
-    }
-    context.go('/');
+    context.go(landing.location);
   }
 }
 
@@ -715,77 +855,51 @@ class _AuthHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = context.bloom.isDark;
+    final tokens = context.bloom;
     return Container(
       height: 248,
-      decoration: BoxDecoration(
-        color: dark ? BloomBrand.night : Plum.s900,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+      decoration: const BoxDecoration(
+        color: Market.canvas,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
       ),
-      child: Stack(
-        children: [
-          const Positioned.fill(child: CustomPaint(painter: _BloomHeaderPainter())),
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 16, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const BackButton(color: bloomWhite),
-                  const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'bloom',
-                          style: BloomlyType.display(
-                            26,
-                            color: dark ? BloomBrand.basilDark : Petal.s300,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(title, style: BloomlyType.display(28, color: bloomWhite)),
-                        const SizedBox(height: 6),
-                        Text(
-                          subtitle,
-                          style: BloomlyType.uiText(
-                            14,
-                            color: dark ? BloomBrand.secondaryTextDark : Plum.s200,
-                          ),
-                        ),
-                      ],
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              BackButton(color: tokens.text),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'bloom',
+                      style: BloomlyType.display(26, color: tokens.text),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      title,
+                      style: BloomlyType.display(28, color: tokens.text),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: BloomlyType.uiText(
+                        14,
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
-}
-
-class _BloomHeaderPainter extends CustomPainter {
-  const _BloomHeaderPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawCircle(Offset(size.width - 48, 54), 22, Paint()..color = Basil.s400);
-    canvas.drawCircle(Offset(size.width - 18, 96), 14, Paint()..color = BloomBrand.marigold);
-    canvas.drawCircle(Offset(size.width - 78, 108), 12, Paint()..color = Mango.s300);
-    canvas.drawCircle(Offset(36, 36), 10, Paint()..color = BloomBrand.lime.withValues(alpha: 0.85));
-    canvas.drawCircle(Offset(size.width * 0.72, 78), 6, Paint()..color = Sun.s300);
-    final leaf = Path()
-      ..moveTo(size.width - 90, 70)
-      ..quadraticBezierTo(size.width - 40, 20, size.width - 20, 64)
-      ..quadraticBezierTo(size.width - 50, 78, size.width - 90, 70);
-    canvas.drawPath(leaf, Paint()..color = Basil.s300.withValues(alpha: 0.85));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -6,11 +6,14 @@ const mockPhone = '+919999999999';
 const mockCode = '123456';
 const mockPepper = 'bloom-mock-otp';
 
-const otpLifetime = Duration(minutes: 10);
+const whatsAppTemplateName = 'loomWhatsAppOTP';
+const otpLifetime = Duration(minutes: 15);
 const otpCooldown = Duration(seconds: 30);
 const otpMaxAttempts = 5;
 const otpSendLimit = 5;
+const otpGlobalSendLimit = 30;
 const otpSendWindow = Duration(hours: 1);
+const globalSendLimitId = 'otpglobal';
 const minPepperLength = 32;
 
 const whatsAppNotSetUp = 'WhatsApp codes are not set up yet.';
@@ -27,10 +30,6 @@ const otpSendLimited = 'Too many codes. Try again in an hour.';
 const _configKeys = [
   'OTP_PEPPER',
   'MSG91_AUTH_KEY',
-  'MSG91_WHATSAPP_NUMBER',
-  'MSG91_WHATSAPP_TEMPLATE',
-  'MSG91_WHATSAPP_NAMESPACE',
-  'MSG91_WHATSAPP_LANGUAGE',
 ];
 
 final mobilePattern = RegExp(r'^\+91[6-9]\d{9}$');
@@ -71,15 +70,17 @@ class SendWindow {
   final bool allowed;
 }
 
-/// Five sends per phone per hour. The window survives a deleted challenge.
+/// Five sends per phone per hour, and a shared cap across every number.
+/// The window survives a deleted challenge.
 SendWindow claimSend({
   required int windowStart,
   required int sendCount,
   required int nowMillis,
+  int limit = otpSendLimit,
 }) {
   final expired = windowStart <= 0 || nowMillis - windowStart >= otpSendWindow.inMilliseconds;
   if (expired) return SendWindow(windowStart: nowMillis, sendCount: 1, allowed: true);
-  if (sendCount >= otpSendLimit) {
+  if (sendCount >= limit) {
     return SendWindow(windowStart: windowStart, sendCount: sendCount, allowed: false);
   }
   return SendWindow(windowStart: windowStart, sendCount: sendCount + 1, allowed: true);
@@ -137,35 +138,23 @@ int readAttempts(Object? value) {
   return int.tryParse('${value ?? ''}') ?? 0;
 }
 
-Map<String, Object?> whatsAppBody({
-  required String integratedNumber,
+String whatsAppTemplate(Map<String, String> env) {
+  final configured = (env['MSG91_WHATSAPP_TEMPLATE'] ?? '').trim();
+  return configured.isEmpty ? whatsAppTemplateName : configured;
+}
+
+/// MSG91 OTP widget `loomWhatsAppOTP`: 6 digits, 30-second resend, 15 minutes.
+Map<String, Object?> msg91OtpBody({
   required String template,
-  required String namespace,
-  required String language,
   required String phone,
   required String code,
 }) {
   final digits = phone.startsWith('+') ? phone.substring(1) : phone;
   return {
-    'integrated_number': integratedNumber,
-    'content_type': 'template',
-    'payload': {
-      'messaging_product': 'whatsapp',
-      'type': 'template',
-      'template': {
-        'name': template,
-        'language': {'code': language, 'policy': 'deterministic'},
-        'namespace': namespace,
-        'to_and_components': [
-          {
-            'to': [digits],
-            'components': {
-              'body_1': {'type': 'text', 'value': code},
-              'button_1': {'subtype': 'url', 'type': 'text', 'value': code},
-            },
-          },
-        ],
-      },
-    },
+    'template_id': template,
+    'mobile': digits,
+    'otp': code,
+    'otp_length': 6,
+    'otp_expiry': otpLifetime.inMinutes,
   };
 }

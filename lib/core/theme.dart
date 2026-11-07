@@ -11,9 +11,9 @@ class BloomlyType {
   static const TextStyle label = TextStyle(
     inherit: false,
     fontFamily: ui,
-    fontWeight: FontWeight.w800,
-    fontVariations: [FontVariation.weight(800)],
-    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    fontVariations: [FontVariation.weight(600)],
+    fontSize: 17,
     height: 1.25,
   );
 
@@ -61,7 +61,7 @@ class BloomlyDecor {
     return BoxDecoration(
       color: color ?? tokens.surface,
       borderRadius: BorderRadius.circular(radius),
-      border: border ? Border.all(color: tokens.border) : null,
+      border: border ? Border.all(color: tokens.border, width: 0.5) : null,
       boxShadow: tokens.cardShadow,
     );
   }
@@ -70,25 +70,24 @@ class BloomlyDecor {
 class BloomlyTheme {
   static ThemeData light() => _build(BloomTokens.light);
 
-  static ThemeData dark() => _build(BloomTokens.dark);
-
   static ThemeData _build(BloomTokens tokens) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: tokens.primary,
-      brightness: tokens.brightness,
-    ).copyWith(
-      primary: tokens.primary,
-      onPrimary: tokens.onPrimary,
-      secondary: tokens.secondary,
-      onSecondary: tokens.onSecondary,
-      surface: tokens.surface,
-      onSurface: tokens.text,
-      error: tokens.danger,
-      onError: tokens.onPrimary,
-      outline: tokens.border,
-      outlineVariant: tokens.border,
-    );
-    final radius = BorderRadius.circular(14);
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: tokens.primary,
+          brightness: tokens.brightness,
+        ).copyWith(
+          primary: tokens.primary,
+          onPrimary: tokens.onPrimary,
+          secondary: tokens.secondary,
+          onSecondary: tokens.onSecondary,
+          surface: tokens.surface,
+          onSurface: tokens.text,
+          error: tokens.danger,
+          onError: tokens.onPrimary,
+          outline: tokens.border,
+          outlineVariant: tokens.border,
+        );
+    final radius = BorderRadius.circular(12);
     final pill = BorderRadius.circular(999);
     final label = BloomlyType.label.copyWith(color: tokens.onPrimary);
     final text = _textTheme(tokens);
@@ -111,7 +110,11 @@ class BloomlyTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: BloomlyType.display(20, height: 1.3, color: tokens.text),
+        titleTextStyle: BloomlyType.display(
+          22,
+          height: 1.2,
+          color: tokens.text,
+        ),
         iconTheme: IconThemeData(color: tokens.text),
       ),
       navigationBarTheme: NavigationBarThemeData(
@@ -122,7 +125,7 @@ class BloomlyTheme {
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
-            color: selected ? tokens.link : tokens.textSecondary,
+            color: selected ? tokens.text : tokens.textSecondary,
             size: 22,
           );
         }),
@@ -131,7 +134,7 @@ class BloomlyTheme {
           return BloomlyType.uiText(
             11,
             weight: selected ? FontWeight.w800 : FontWeight.w600,
-            color: selected ? tokens.link : tokens.textSecondary,
+            color: selected ? tokens.text : tokens.textSecondary,
             height: 1.2,
           );
         }),
@@ -142,7 +145,7 @@ class BloomlyTheme {
           foregroundColor: tokens.onPrimary,
           disabledBackgroundColor: tokens.sunken,
           disabledForegroundColor: tokens.textDisabled,
-          minimumSize: const Size(48, 52),
+          minimumSize: const Size(48, 50),
           shape: RoundedRectangleBorder(borderRadius: radius),
           textStyle: label,
         ),
@@ -151,16 +154,22 @@ class BloomlyTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: tokens.text,
           minimumSize: const Size(48, 44),
-          side: BorderSide(color: tokens.primary, width: 1.5),
+          side: BorderSide(color: tokens.borderStrong, width: 1),
           shape: RoundedRectangleBorder(borderRadius: radius),
-          textStyle: BloomlyType.label.copyWith(color: tokens.text, fontSize: 14),
+          textStyle: BloomlyType.label.copyWith(
+            color: tokens.text,
+            fontSize: 17,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: tokens.link,
           minimumSize: const Size(48, 36),
-          textStyle: BloomlyType.label.copyWith(color: tokens.link, fontSize: 14),
+          textStyle: BloomlyType.label.copyWith(
+            color: tokens.link,
+            fontSize: 17,
+          ),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -174,15 +183,15 @@ class BloomlyTheme {
         selectedColor: tokens.secondary,
         labelStyle: BloomlyType.uiText(
           13,
-          weight: FontWeight.w800,
+          weight: FontWeight.w600,
           color: tokens.text,
         ),
         secondaryLabelStyle: BloomlyType.uiText(
           13,
-          weight: FontWeight.w800,
+          weight: FontWeight.w600,
           color: tokens.onSecondary,
         ),
-        side: BorderSide(color: tokens.border),
+        side: BorderSide(color: tokens.border, width: 0.5),
         shape: RoundedRectangleBorder(borderRadius: pill),
         padding: const EdgeInsets.symmetric(horizontal: 8),
       ),
@@ -191,11 +200,10 @@ class BloomlyTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(BloomTokens.radiusLg),
-          side: BorderSide(color: tokens.border),
+          borderRadius: BorderRadius.circular(BloomTokens.radiusMd),
         ),
       ),
-      dividerTheme: DividerThemeData(color: tokens.border, thickness: 1),
+      dividerTheme: DividerThemeData(color: tokens.border, thickness: 0.5),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return bloomWhite;
@@ -206,7 +214,7 @@ class BloomlyTheme {
           return tokens.borderStrong;
         }),
       ),
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: tokens.primary),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: tokens.link),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: tokens.inverse,
         contentTextStyle: BloomlyType.uiText(
@@ -214,7 +222,7 @@ class BloomlyTheme {
           weight: FontWeight.w600,
           color: tokens.textInverse,
         ),
-        actionTextColor: tokens.primary,
+        actionTextColor: tokens.link,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(BloomTokens.radiusMd),
@@ -222,14 +230,15 @@ class BloomlyTheme {
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: tokens.raised,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(BloomTokens.radiusXl),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: tokens.raised,
+        showDragHandle: true,
+        dragHandleColor: tokens.borderStrong,
+        dragHandleSize: const Size(36, 4),
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
       ),
       listTileTheme: ListTileThemeData(
@@ -239,33 +248,54 @@ class BloomlyTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: tokens.surface,
-        labelStyle: BloomlyType.uiText(13, weight: FontWeight.w800, color: tokens.textSecondary),
-        hintStyle: BloomlyType.uiText(16, color: tokens.textSecondary),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        border: _fieldBorder(tokens.borderStrong, 1.5),
-        enabledBorder: _fieldBorder(tokens.borderStrong, 1.5),
-        focusedBorder: _fieldBorder(tokens.borderFocus, 2),
-        errorBorder: _fieldBorder(tokens.danger, 2),
-        focusedErrorBorder: _fieldBorder(tokens.danger, 2),
+        fillColor: tokens.sunken,
+        labelStyle: BloomlyType.uiText(
+          13,
+          weight: FontWeight.w600,
+          color: tokens.textSecondary,
+        ),
+        hintStyle: BloomlyType.uiText(17, color: tokens.textSecondary),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: _fieldBorder(tokens.border, 0.5),
+        enabledBorder: _fieldBorder(tokens.border, 0.5),
+        focusedBorder: _fieldBorder(tokens.borderFocus, 1.5),
+        errorBorder: _fieldBorder(tokens.danger, 1.5),
+        focusedErrorBorder: _fieldBorder(tokens.danger, 1.5),
       ),
     );
   }
 
   static OutlineInputBorder _fieldBorder(Color color, double width) {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(BloomTokens.radiusMd),
+      borderRadius: BorderRadius.circular(BloomTokens.radiusSm),
       borderSide: BorderSide(color: color, width: width),
     );
   }
 
   static TextTheme _textTheme(BloomTokens tokens) {
-    TextStyle display(double size, double height, [FontWeight weight = FontWeight.w700]) {
-      return BloomlyType.display(size, height: height, weight: weight, color: tokens.text);
+    TextStyle display(
+      double size,
+      double height, [
+      FontWeight weight = FontWeight.w700,
+    ]) {
+      return BloomlyType.display(
+        size,
+        height: height,
+        weight: weight,
+        color: tokens.text,
+      );
     }
 
     TextStyle ui(double size, double height, FontWeight weight) {
-      return BloomlyType.uiText(size, height: height, weight: weight, color: tokens.text);
+      return BloomlyType.uiText(
+        size,
+        height: height,
+        weight: weight,
+        color: tokens.text,
+      );
     }
 
     return TextTheme(
@@ -277,11 +307,11 @@ class BloomlyTheme {
       titleLarge: display(20, 26 / 20, FontWeight.w600),
       titleMedium: display(16, 22 / 16, FontWeight.w600),
       titleSmall: ui(14, 18 / 14, FontWeight.w800),
-      bodyLarge: ui(16, 24 / 16, FontWeight.w400),
-      bodyMedium: ui(14, 20 / 14, FontWeight.w400),
+      bodyLarge: ui(17, 24 / 17, FontWeight.w400),
+      bodyMedium: ui(15, 22 / 15, FontWeight.w400),
       bodySmall: ui(13, 18 / 13, FontWeight.w400),
-      labelLarge: ui(16, 20 / 16, FontWeight.w800),
-      labelMedium: ui(13, 16 / 13, FontWeight.w800),
+      labelLarge: ui(17, 22 / 17, FontWeight.w600),
+      labelMedium: ui(13, 16 / 13, FontWeight.w600),
       labelSmall: ui(11, 14 / 11, FontWeight.w600),
     );
   }

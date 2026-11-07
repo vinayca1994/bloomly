@@ -10,10 +10,15 @@ import '../../data/models.dart';
 import '../../data/providers.dart';
 import 'variant_sheet.dart';
 
+/// Height of a product card in a rail or a two-column grid.
+const productCardExtent = 200.0;
+
 class ProductCard extends ConsumerWidget {
   const ProductCard({required this.product, this.compact = false, super.key});
 
   final Product product;
+
+  /// Kept so existing rails can ask for the dense card. The layout is the same.
   final bool compact;
 
   @override
@@ -30,6 +35,7 @@ class ProductCard extends ConsumerWidget {
     final priceLabel = off > 0
         ? '${money(lead.price)}, was ${money(lead.mrp)}'
         : money(lead.price);
+    final unit = multiple ? '${product.variants.length} options' : lead.label;
 
     return Semantics(
       button: true,
@@ -37,128 +43,123 @@ class ProductCard extends ConsumerWidget {
           ? '${product.name}, sold out'
           : '${product.name}, $priceLabel',
       child: Material(
-        color: Colors.transparent,
+        color: tokens.surface,
+        borderRadius: BorderRadius.circular(BloomTokens.radiusMd),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(BloomTokens.radiusMd),
           onTap: soldOut ? null : () => _add(context, ref),
-          child: Opacity(
-            opacity: 1,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(BloomTokens.radiusMd),
-                  child: SizedBox(
-                    height: compact ? 112 : 128,
-                    width: double.infinity,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: Opacity(
-                            opacity: soldOut ? 0.4 : 1,
-                            child: ProductImage(
-                              emoji: emojiFor(product, backend.categories),
-                              kind: kindFor(product, backend.categories),
-                              url: product.imageUrl,
-                              bytes: backend.imageBytesFor(product.id),
-                            ),
-                          ),
-                        ),
-                        if (soldOut)
-                          Positioned(
-                            left: 8,
-                            top: 8,
-                            child: _Badge(
-                              label: 'Sold out',
-                              background: tokens.inverse,
-                              foreground: tokens.textInverse,
-                            ),
-                          )
-                        else if (off > 0)
-                          Positioned(
-                            left: 8,
-                            top: 8,
-                            child: _Badge(
-                              label: '$off% off',
-                              background: tokens.discountBg,
-                              foreground: tokens.discountFg,
-                            ),
-                          ),
-                        Positioned(
-                          right: 4,
-                          bottom: 4,
-                          child: soldOut
-                              ? _NotifyButton(name: product.name)
-                              : _action(context, ref, qty),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ColoredBox(
+                color: tokens.sunken,
+                child: SizedBox(
+                  height: 100,
+                  width: double.infinity,
+                  child: Stack(
                     children: [
-                      Text(
-                        money(lead.price),
-                        style: BloomlyType.uiText(
-                          16,
-                          weight: FontWeight.w800,
-                          color: tokens.text,
+                      Positioned.fill(
+                        child: Opacity(
+                          opacity: soldOut ? 0.4 : 1,
+                          child: ProductImage(
+                            emoji: emojiFor(product, backend.categories),
+                            kind: kindFor(product, backend.categories),
+                            url: product.imageUrl,
+                            bytes: backend.imageBytesFor(product.id),
+                          ),
                         ),
                       ),
-                      if (off > 0)
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                money(lead.mrp),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: BloomlyType.uiText(
-                                  12,
-                                  color: tokens.textSecondary,
-                                ).copyWith(decoration: TextDecoration.lineThrough),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              color: tokens.discountBg,
-                              child: Text(
-                                '$off%',
-                                style: BloomlyType.uiText(
-                                  11,
-                                  weight: FontWeight.w800,
-                                  color: tokens.discountFg,
-                                ),
-                              ),
-                            ),
-                          ],
+                      if (soldOut)
+                        Positioned(
+                          left: 6,
+                          top: 6,
+                          child: _Badge(
+                            label: 'Sold out',
+                            background: tokens.inverse,
+                            foreground: tokens.textInverse,
+                          ),
+                        )
+                      else if (off > 0)
+                        Positioned(
+                          left: 6,
+                          top: 6,
+                          child: _Badge(
+                            label: '$off% off',
+                            background: tokens.discountBg,
+                            foreground: tokens.discountFg,
+                          ),
                         ),
-                      Text(
-                        product.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: BloomlyType.uiText(
-                          13,
-                          weight: FontWeight.w800,
-                          color: soldOut ? tokens.textSecondary : tokens.text,
-                          height: 1.2,
-                        ),
-                      ),
-                      Text(
-                        multiple ? '${product.variants.length} options' : lead.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: BloomlyType.uiText(12, color: tokens.textSecondary),
+                      Positioned(
+                        right: 4,
+                        bottom: 4,
+                        child: soldOut
+                            ? _NotifyButton(name: product.name)
+                            : _action(context, ref, qty),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: BloomlyType.uiText(
+                        13,
+                        weight: FontWeight.w600,
+                        color: soldOut ? tokens.textSecondary : tokens.text,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      unit,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: BloomlyType.uiText(
+                        11,
+                        color: tokens.textSecondary,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          money(lead.price),
+                          style: BloomlyType.uiText(
+                            14,
+                            weight: FontWeight.w800,
+                            color: tokens.text,
+                            height: 1.1,
+                          ),
+                        ),
+                        if (off > 0) ...[
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              money(lead.mrp),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: BloomlyType.uiText(
+                                11,
+                                color: tokens.textSecondary,
+                                height: 1.1,
+                              ).copyWith(decoration: TextDecoration.lineThrough),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -167,17 +168,16 @@ class ProductCard extends ConsumerWidget {
 
   Widget _action(BuildContext context, WidgetRef ref, int qty) {
     final multiple = product.variants.length > 1;
-    final width = compact ? 72.0 : 88.0;
     final Widget control;
     if (qty <= 0) {
       control = _AddButton(
-        compact: compact,
         options: multiple ? product.variants.length : 0,
         onTap: () => _add(context, ref),
       );
     } else if (multiple) {
       control = QtyStepper(
         qty: qty,
+        fitted: true,
         onMinus: () => ref.read(cartProvider.notifier).removeOne(product.id),
         onPlus: () => showVariantSheet(context, product),
       );
@@ -185,6 +185,7 @@ class ProductCard extends ConsumerWidget {
       final variant = product.variants.first;
       control = QtyStepper(
         qty: qty,
+        fitted: true,
         onMinus: () => ref
             .read(cartProvider.notifier)
             .setQty(product.id, variant.id, qty - 1),
@@ -194,7 +195,7 @@ class ProductCard extends ConsumerWidget {
     }
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 150),
-      child: SizedBox(key: ValueKey(qty <= 0), width: width, child: control),
+      child: SizedBox(key: ValueKey(qty <= 0), width: 72, child: control),
     );
   }
 
@@ -213,7 +214,6 @@ class ProductCard extends ConsumerWidget {
       SnackBar(
         content: Text('${product.name} added'),
         duration: const Duration(seconds: 2),
-        // An action otherwise keeps the bar up and covers the cart.
         persist: false,
         action: SnackBarAction(
           label: 'Undo',
@@ -242,8 +242,8 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 22,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      height: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: background,
@@ -251,21 +251,21 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: BloomlyType.uiText(11, weight: FontWeight.w800, color: foreground),
+        style: BloomlyType.uiText(
+          10,
+          weight: FontWeight.w800,
+          color: foreground,
+          height: 1,
+        ),
       ),
     );
   }
 }
 
 class _AddButton extends StatelessWidget {
-  const _AddButton({
-    required this.onTap,
-    required this.compact,
-    required this.options,
-  });
+  const _AddButton({required this.onTap, required this.options});
 
   final VoidCallback onTap;
-  final bool compact;
   final int options;
 
   @override
@@ -275,35 +275,28 @@ class _AddButton extends StatelessWidget {
     return Semantics(
       button: true,
       label: options > 1 ? '$options options' : 'Add to cart',
-      child: SizedBox(
-        height: 44,
-        child: Center(
-          child: Material(
-            color: tokens.surface,
-            elevation: 0,
-            shadowColor: Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                height: compact ? 32 : 36,
-                constraints: BoxConstraints(minWidth: compact ? 64 : 76),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: tokens.primary, width: 1.5),
-                  boxShadow: tokens.cardShadow,
-                ),
-                child: Text(
-                  label,
-                  style: BloomlyType.uiText(
-                    options > 1 ? 11 : 13,
-                    weight: FontWeight.w800,
-                    color: tokens.primary,
-                  ),
-                ),
+      child: Material(
+        color: tokens.surface,
+        elevation: 1,
+        shadowColor: tokens.text.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: tokens.primary, width: 1),
+            ),
+            child: Text(
+              label,
+              style: BloomlyType.uiText(
+                options > 1 ? 10 : 12,
+                weight: FontWeight.w800,
+                color: tokens.primary,
+                height: 1,
               ),
             ),
           ),
@@ -324,26 +317,31 @@ class _NotifyButton extends StatelessWidget {
     return Semantics(
       button: true,
       label: 'Notify me',
-      child: SizedBox(
-        height: 44,
-        child: Center(
-          child: TextButton(
-            style: TextButton.styleFrom(
-              minimumSize: const Size(64, 36),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      child: Material(
+        color: tokens.surface,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('We will note that $name is sold out.')),
+            );
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 28,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: tokens.borderStrong),
             ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('We will note that $name is sold out.')),
-              );
-            },
             child: Text(
-              'Notify me',
+              'Notify',
               style: BloomlyType.uiText(
                 11,
                 weight: FontWeight.w800,
-                color: tokens.primary,
+                color: tokens.link,
+                height: 1,
               ),
             ),
           ),

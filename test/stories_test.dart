@@ -139,7 +139,8 @@ void main() {
   test('about copy uses the open store', () {
     final where = aboutBlocks(StoreSettings.fallback)
         .firstWhere((block) => block.heading == 'Where and how fast');
-    expect(where.body, contains('Bengaluru'));
+    expect(where.body, contains('Malur'));
+    expect(where.body, contains('563130'));
     expect(where.body, contains('15–30 min'));
     expect(where.body, contains('₹25'));
     expect(where.body, contains('₹199'));

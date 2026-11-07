@@ -47,10 +47,14 @@ class UnconfiguredBackend extends BloomlyBackend {
   Future<String?> signIn(String email, String password) async => loadError;
 
   @override
-  Future<String?> signUp(String name, String email, String password) async => loadError;
+  Future<String?> signUp(String name, String email, String password) async =>
+      loadError;
 
   @override
-  Future<PhoneLoginStart> startPhoneLogin(String phone, {required OtpChannel channel}) async {
+  Future<PhoneLoginStart> startPhoneLogin(
+    String phone, {
+    required OtpChannel channel,
+  }) async {
     return PhoneLoginStart.failure(loadError!);
   }
 
@@ -62,10 +66,22 @@ class UnconfiguredBackend extends BloomlyBackend {
   }) async => loadError;
 
   @override
+  Future<PhoneLoginStart> startEmailLogin(String email) async {
+    return PhoneLoginStart.failure(loadError!);
+  }
+
+  @override
+  Future<String?> verifyEmailOtp({
+    required String userId,
+    required String code,
+  }) async => loadError;
+
+  @override
   Future<String?> updateDisplayName(String name) async => loadError;
 
   @override
-  Future<RecoveryStart> sendPasswordReset(String email) async => RecoveryStart.failure(loadError!);
+  Future<RecoveryStart> sendPasswordReset(String email) async =>
+      RecoveryStart.failure(loadError!);
 
   @override
   Future<String?> completePasswordReset({
@@ -107,7 +123,23 @@ class UnconfiguredBackend extends BloomlyBackend {
   }
 
   @override
-  Future<String?> noteUpiPayment({required String orderId, required String reference}) async => loadError;
+  Future<OnlinePayment> resumeOnlinePayment(String orderId) {
+    throw BloomlyException(loadError!);
+  }
+
+  @override
+  Future<String?> verifyOnlinePayment({
+    required String orderId,
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String signature,
+  }) async => loadError;
+
+  @override
+  Future<String?> noteUpiPayment({
+    required String orderId,
+    required String reference,
+  }) async => loadError;
 
   @override
   Future<String?> confirmUpiPayment(String orderId) async => loadError;
@@ -116,7 +148,8 @@ class UnconfiguredBackend extends BloomlyBackend {
   Future<String?> completeTestPayment(String orderId) async => loadError;
 
   @override
-  Future<String?> updateOrderStatus(String orderId, String status) async => loadError;
+  Future<String?> updateOrderStatus(String orderId, String status) async =>
+      loadError;
 
   @override
   Future<String?> markRefunded(String orderId) async => loadError;
@@ -138,7 +171,10 @@ class UnconfiguredBackend extends BloomlyBackend {
   }) async => loadError;
 
   @override
-  Future<String?> assignRider({required String orderId, required String riderId}) async => loadError;
+  Future<String?> assignRider({
+    required String orderId,
+    required String riderId,
+  }) async => loadError;
 
   @override
   Future<String?> updateRiderLocation({
@@ -181,7 +217,11 @@ class UnconfiguredBackend extends BloomlyBackend {
   Future<void> setProductAvailable(String productId, bool available) async {}
 
   @override
-  Future<void> setVariantPrice(String productId, String variantId, int price) async {}
+  Future<void> setVariantPrice(
+    String productId,
+    String variantId,
+    int price,
+  ) async {}
 
   @override
   Future<void> upsertProduct(Product product, {Uint8List? imageBytes}) async {}
